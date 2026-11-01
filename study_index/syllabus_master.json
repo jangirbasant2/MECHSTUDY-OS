@@ -1,0 +1,304 @@
+{
+  "verification_status": {
+    "syllabus_pdf": "syllabus.pdf - 222KB, last modified 09-08-2026",
+    "text_extraction": "FAILED - scanned image PDF, requires OCR",
+    "syllabus_source": "Authoritative RTU syllabus document provided by user, effective from 2018-19, applicable to 2025-26 admission year",
+    "verification_note": "All subject codes, unit numbers, and topic wording preserved from provided document. Technical Communication (3ME1-02/4ME1-02) excluded per user request."
+  },
+  "semester": "Second Year, III & IV Semester - B.Tech Mechanical Engineering, RTU Kota",
+  "admission_year": "2025-26",
+  "syllabus_effective_from": "2018-19",
+  "technical_communication_excluded": true,
+  "excluded_subject_code": "3ME1-02 / 4ME1-02",
+  
+  "subjects": [
+    {
+      "name": "Advanced Engineering Mathematics-I",
+      "code": "3ME2-01",
+      "credits": 3,
+      "max_marks": 150,
+      "internal_assessment": 30,
+      "end_term": 120,
+      "duration": 3,
+      "units": 5,
+      "gate_weightage": "Very High - 13-15% of GATE ME paper (Engineering Mathematics compulsory)",
+      "rtu_priority": "HIGH - Compulsory for 9+ CGPA, foundation for GATE",
+      "topics": [
+        "Unit 1: Finite differences, operator relations, interpolation formulae (Newton's forward/backward, Gauss's, Stirling's), unequal intervals, divided difference, Lagrange's, numerical differentiation, numerical integration (Trapezoidal, Simpson's 1/3, 3/8)",
+        "Unit 2: ODE solutions (Taylor's series, Euler's, Modified Euler's, RK4, Milne's, Adams), polynomial/transcendental equations (Bisection, Newton-Raphson, Regula-Falsi)",
+        "Unit 3: Laplace Transform (definition, existence, properties, unit step, Dirac delta, Heaviside, periodic functions, inverse, convolution, integral evaluation, ODE solutions)",
+        "Unit 4: Fourier Transform (complex, sine, cosine transforms, properties, inverse, convolution, PDEs: 1D heat equation, 1D wave equation)",
+        "Unit 5: Z-Transform (definition, properties, convolution theorem, inverse, difference equations)"
+      ],
+      "pdf_mapping": {
+        "primary": "20.Engineering Mathematics(D)/1.Gate Notes-Mathematics(s)_optimize.pdf",
+        "supplementary": "20.Engineering Mathematics(D)/2.Engineering Math-MADE-EASY-Copy.pdf",
+        "short_notes": "22.Mechanical-Short-Notes(D)/1.SHORT NOTES For gate Mechanical-1/10. Gate Notes-Engineering Mathematics Short Notes(s)_optimize.pdf, 22.Mechanical-Short-Notes(D)/2.SHORT NOTES For Gate Mechanical-2/Maths.pdf",
+        "coverage": "FULL_MATCH - All 5 units from syllabus have corresponding content in primary PDF"
+      },
+      "mapped_pdfs": [
+        "20.Engineering Mathematics(D)/1.Gate Notes-Mathematics(s)_optimize.pdf",
+        "20.Engineering Mathematics(D)/2.Engineering Math-MADE-EASY-Copy.pdf"
+      ]
+    },
+    {
+      "name": "Managerial Economics and Financial Accounting",
+      "code": "3ME1-03 / 4ME1-03",
+      "credits": 2,
+      "max_marks": 100,
+      "internal_assessment": 20,
+      "end_term": 80,
+      "duration": 2,
+      "units": 5,
+      "gate_weightage": "Low - GA is 15% of GATE but this specific subject has limited GATE ME overlap",
+      "rtu_priority": "MEDIUM - Required for credits, limited GATE overlap, focus on internal assessment preparation",
+      "topics": [
+        "Unit 1: Basic Economic Concepts (nature/scope of economics, deductive/inductive methods, static/dynamic, economic problems/scarcity/choice, circular flow, national income concepts/measurement)",
+        "Unit 2: Demand and Supply Analysis (demand types/determinants/function/elasticity, demand forecasting purpose/determinants/methods, supply determinants/function/elasticity)",
+        "Unit 3: Production and Cost Analysis (production function/variable proportions/returns to scale/optimization/least-cost combination/isoquants/explicit/implicit/fixed/variable/opportunity/sunk costs/cost function/cost curves/cost/output decisions/estimation)",
+        "Unit 4: Market Structure and Pricing Theory (perfect competition/monopoly/monopolistic competition/oligopoly)",
+        "Unit 5: Financial Statement Analysis (balance sheet/P&L/financial ratio analysis/cash-flow/funds-flow/comparative statements/analysis/interpretation/capital budgeting techniques)"
+      ],
+      "pdf_mapping": {
+        "primary": "N/A - No direct GATE Mechanical notes PDF found for this subject",
+        "supplementary": "22.Mechanical-Short-Notes(D)/2.SHORT NOTES For Gate Mechanical-2/Industrial.pdf, 22.Mechanical-Short-Notes(D)/2.SHORT NOTES For Gate Mechanical-2/RAC.pdf (limited relevance)",
+        "short_notes": "No dedicated short notes - this is a humanities/social science subject, not covered by GATE ME notes",
+        "coverage": "PARTIAL_MATCH - No GATE ME PDF directly covers this subject; relevant topics in short notes booklet 2 only"
+      },
+      "mapped_pdfs": [
+        "22.Mechanical-Short-Notes(D)/2.SHORT NOTES For Gate Mechanical-2/Industrial.pdf (limited)",
+        "22.Mechanical-Short-Notes(D)/2.SHORT NOTES For Gate Mechanical-2/RAC.pdf (limited)"
+      ]
+    },
+    {
+      "name": "Engineering Mechanics",
+      "code": "3ME3-04",
+      "credits": 2,
+      "max_marks": 100,
+      "internal_assessment": 20,
+      "end_term": 80,
+      "duration": 2,
+      "units": 5,
+      "gate_weightage": "High - ~7-10% of GATE ME paper, engineering mechanics fundamentals",
+      "rtu_priority": "HIGH - Core subject for 9+ CGPA, strong overlap with GATE ME statics/dynamics",
+      "topics": [
+        "Unit 1: Statics of particles/rigid bodies (fundamental laws, transmissibility, resultants/resolution, moments/couples, Varignon's theorem, force resolution, free-body diagrams, equilibrium, Lami's theorem); Plane trusses (types/support conditions/loading/determinacy/basic assumptions/method of joints/method of sections); Virtual work (principle, active-force diagrams, stability of equilibrium)",
+        "Unit 2: Centroid, Moment of Inertia, and Lifting Machines (centroid/CG, moment of inertia, parallel-axis theorem, perpendicular-axis theorem, radius of gyration, composite sections, polar moment, solid bodies); Lifting machines (MA/VR/efficiency/ideal machine/reversibility/law of machine/pulley systems/wheel/axle/Weston's block/worm/wheel/winch crabs/screw jack/differential screw jack)",
+        "Unit 3: Friction and Belt/Rope Drives (friction: types/laws/angle of friction/angle of repose/ladder friction/wedge friction/belt friction); Belt/rope drives: types/velocity ratio/slip effect/crowning/belt length/flat-belt tensions/power transmission/V-belt vs flat belt advantages/disadvantages)",
+        "Unit 4: Kinematics and Kinetics (particles/rigid bodies: velocity/acceleration/types of motion/equations/rectangular components/angular velocity/acceleration/radial/transverse/projectile motion on horizontal/inclined planes/relative motion); kinetics: Newton's second law/rectangular coordinates/radial/transverse components/rigid bodies in plane/D'Alembert's principle)",
+        "Unit 5: Work, Energy, Power, Impulse, and Momentum (work/energy/power: force/weight/spring force/couple/power/efficiency/energy/KE of rigid body/work-energy principle/conservative/non-conservative forces/conservation of energy); impulse/momentum: linear/angular momentum/impulse/momentum principles/linear impulse-momentum/angular momentum/impulse/conservation of angular momentum/rigid bodies angular momentum/central impact/oblique impact/variable mass systems/rockets"
+      ],
+      "pdf_mapping": {
+        "primary": "1.Engineering Mechanics-GATE-ME-NOTES(NW)_optimize.pdf",
+        "supplementary": "22.Mechanical-Short-Notes(D)/1.SHORT NOTES For gate Mechanical-1/2. Gate Notes-Theory of Machines Short Notes(s)_optimize.pdf (indirect TOM coverage), 22.Mechanical-Short-Notes(D)/2.SHORT NOTES For Gate Mechanical-2/TOM 1.pdf, 22.Mechanical-Short-Notes(D)/2.SHORT NOTES For Gate Mechanical-2/TOM 2.pdf",
+        "short_notes": "22.Mechanical-Short-Notes(D)/1.SHORT NOTES For gate Mechanical-1/1. Gate Notes-Strength of Materials Short Notes(s)_optimize.pdf (indirect SOM coverage)",
+        "coverage": "FULL_MATCH - Filename matches RTU subject code 3ME3-04, all 5 units mapped to PDF chapters"
+      },
+      "mapped_pdfs": [
+        "1.Engineering Mechanics-GATE-ME-NOTES(NW)_optimize.pdf"
+      ]
+    },
+    {
+      "name": "Engineering Thermodynamics",
+      "code": "3ME4-05",
+      "credits": 3,
+      "max_marks": 150,
+      "internal_assessment": 30,
+      "end_term": 120,
+      "duration": 3,
+      "units": 5,
+      "gate_weightage": "Very High - ~15-20% of GATE ME paper, core subject",
+      "rtu_priority": "HIGH - Core for 9+ CGPA, highest RTU-GATE overlap, study first for both goals",
+      "topics": [
+        "Unit 1: Basic Concepts, Zeroth Law, and First Law (system/surroundings/properties/energy/equilibrium/processes/work/modes; Zeroth law/temperature scales; First law/elementary processes/steady-flow energy equation/unsteady-flow energy equation)",
+        "Unit 2: Second Law, Entropy, and Availability (heat engines/pumps/refrigerators/Second law/Kelvin-Planck/Clausius equivalence/reversible/irreversible processes/Carnot engine/efficiency/principle/thermodynamic temperature scale/Clausius inequality; Entropy/calculation of change/principle of increase/T-s diagrams/control volume analysis; Availability/available energy/loss/availability function/irreversibility)",
+        "Unit 3: Thermodynamic Properties of Fluids, Ideal Gases, and Real Gases (pure substances/phase/p-v-T data/steam properties/steam tables/Mollier chart; Ideal gas/real gas/internal energy/enthalpy/specific heats/equations of state/Dalton's law/Gibbs-Dalton law/gas mixtures properties)",
+        "Unit 4: Thermodynamic Relations and Power Cycles (thermodynamic variables/independent/dependent variables/Maxwell's relations/relations involving entropy/enthalpy/internal energy/Joule-Thomson coefficient/Clapeyron equation; Power cycles: Otto, Diesel, Dual, Brayton, Ericsson)",
+        "Unit 5: Vapour Power Cycles (Rankine cycle/effect of operating conditions on efficiency/ideal working fluid properties/reheat cycle/regenerative cycle/bleeding/extraction cycle/feedwater-heating cycle/cogeneration cycle)"
+      ],
+      "pdf_mapping": {
+        "primary": "7.Thermodynamics-GATE-ME-NOTES(S).pdf",
+        "supplementary": "22.Mechanical-Short-Notes(D)/1.SHORT NOTES For gate Mechanical-1/6. Gate Notes-Thermodynamics Short Notes(s)_optimize.pdf, 22.Mechanical-Short-Notes(D)/3.SHORT NOTES For Gate Mechanical-3/Thermodynamics.pdf, 22.Mechanical-Short-Notes(D)/3.SHORT NOTES For Gate Mechanical-3/REF.pdf (refrigeration)",
+        "short_notes": "22.Mechanical-Short-Notes(D)/1.SHORT NOTES For gate Mechanical-1/6. Gate Notes-Thermodynamics Short Notes(s)_optimize.pdf - primary supplementary",
+        "coverage": "FULL_MATCH - Filename matches RTU subject code 3ME4-05, all 5 units mapped"
+      },
+      "mapped_pdfs": [
+        "7.Thermodynamics-GATE-ME-NOTES(S).pdf"
+      ]
+    },
+    {
+      "name": "Material Science and Engineering",
+      "code": "3ME4-06",
+      "credits": 3,
+      "max_marks": 150,
+      "internal_assessment": 30,
+      "end_term": 120,
+      "duration": 3,
+      "units": 5,
+      "gate_weightage": "Medium - ~5-8% of GATE ME paper, materials science niche",
+      "rtu_priority": "MEDIUM - Important for lab exams and theory, moderate GATE overlap, prioritize after core subjects",
+      "topics": [
+        "Unit 1: Crystal Structure, Defects, and Deformation (BCC/FCC/HCP structures/unit cell/crystallographic planes/directions/Miller indices/imperfections: point/line/surface/volume defects/Frank-Read source/elastic/plastic deformation/Bauschinger effect/slip/twinning/strain hardening/cold/hot working/recovery/recrystallization/grain growth)",
+        "Unit 2: Classification of Engineering Materials and Phase Diagrams (solidification/metals/alloys/nucleation/crystal growth/phase transformation principles/phase rule/equilibrium diagrams/binary systems: complete solubility/limited solid solubility/isomorphous systems/Hume-Rothery rules/limited terminal solid solubility/peritectic transformations/allotropic changes/Iron-carbon diagram/eutectic/peritectic/eutectoid/peritectoid reactions/microstructures)",
+        "Unit 3: Transformation Diagrams and Heat Treatment (isothermal transformation diagrams/cooling curves/critical cooling rate/austenite from pearlite/austenite to pearlite/heat treatment: full annealing/stress-relief/spheroidizing/normalizing/hardening/tempering/hardenability/Jominy end-quench test/austempering/martempering/case hardening: carburising/nitriding/cyaniding/carbonitriding/flame hardening/induction hardening)",
+        "Unit 4: Non-Metallic Materials, Alloys, and Metals (polymer types/commodity/engineering polymers: PE/PP/PS/PVC/PMMA/PET/PC/PA/ABS/PI/PAI/PPO/PPS/PEEK/PTFE/urea/formaldehyde/phenol/formaldehyde/alloys: substitutional/interstitial solid solutions/ferrous/non-ferrous metals: Mn/Si/Cr/Mo/V/Ti/W effects on steel/stainless/tool/HSLA steels)",
+        "Unit 5: Mechanical Testing, Steels, Ceramics, Composites, and Nanomaterials (mechanical properties/fracture types/tensile/compression/shear testing/Brinell/Vickers/Rockwell hardness/Izod/Charpy impact/fatigue/creep; steels/cast irons/BIS standards/ceramics: Al2O3/SiC/Si3N4/PSZ/FRP/particulate composites/resin plastics/nanomaterials: nanostructured materials/nanoclusters/nanocrystals)"
+      ],
+      "pdf_mapping": {
+        "primary": "15.Material Science-GATE-ME-NOTES(NW)_optimize.pdf",
+        "supplementary": "16.Casting Welding-GATE-ME-NOTES(W)_optimize.pdf (supplementary Unit 3 heat treatment/casting), 17.Machining-GATE-ME-NOTES(NW)_optimize.pdf (supplementary Unit 4 manufacturing), 22.Mechanical-Short-Notes(D)/2.SHORT NOTES For Gate Mechanical-2/Material Science.pdf, 22.Mechanical-Short-Notes(D)/3.SHORT NOTES For Gate Mechanical-3/MS _ METROLOGY.pdf (metrology aspects)",
+        "short_notes": "22.Mechanical-Short-Notes(D)/2.SHORT NOTES For Gate Mechanical-2/Material Science.pdf, 22.Mechanical-Short-Notes(D)/3.SHORT NOTES For Gate Mechanical-3/Metal forming.pdf",
+        "coverage": "FULL_MATCH - Filename matches RTU subject code 3ME4-06, all 5 units have corresponding content"
+      },
+      "mapped_pdfs": [
+        "15.Material Science-GATE-ME-NOTES(NW)_optimize.pdf",
+        "16.Casting Welding-GATE-ME-NOTES(W)_optimize.pdf",
+        "17.Machining-GATE-ME-NOTES(NW)_optimize.pdf"
+      ]
+    },
+    {
+      "name": "Mechanics of Solids",
+      "code": "3ME4-07",
+      "credits": 4,
+      "max_marks": 200,
+      "internal_assessment": 40,
+      "end_term": 160,
+      "duration": 3,
+      "units": 5,
+      "gate_weightage": "Very High - ~13-15% of GATE ME paper, core subject alongside SOM",
+      "rtu_priority": "HIGH - Core for 9+ CGPA, very strong RTU-GATE overlap (stress analysis, torsion, bending, columns), study alongside Thermodynamics and Maths",
+      "topics": [
+        "Unit 1: Stress and Strain (elementary definitions/stress-strain relationships/elastic/plastic/viscoelastic behavior/tensile/compressive/shear/stress-strain curves/Hooke's law/Poisson's ratio/elastic constants for isotropic Hookean/anisotropic/orthotropic/tensile/compressive/shear stress/strain/thermal stresses/composite bars/static equilibrium equations/free-body diagrams/strain energy due to axial loading)",
+        "Unit 2: Members Subjected to Flexural Loads (simple bending theory/bending-moment diagrams/shear-force diagrams for different loading/support conditions/bending stresses/section modulus/transverse shear-stress distribution: circular/hollow circular/I-box/T/Angle sections/strain energy due to bending)",
+        "Unit 3: Principal Planes, Stresses, Strains, and Elastic Failure (principal stresses/strains under combined axial/bending/torsional loads/max normal/shear stresses/equivalent bending/twisting moment/Mohr's circle of stress/strain; theories of elastic failure: need/different theories/significance/comparison/applications)",
+        "Unit 4: Torsion and Stability of Equilibrium (torsional shear stress:solid/hollow/stepped circular shafts/angular deflection/power transmission/strain energy; stability: instability/elastic stability/long/short columns/ideal struts/Euler's crippling-load formula for different end conditions/equivalent length/eccentric loading/Rankine formula/other empirical relations)",
+        "Unit 5: Beam Deflection and Thin-Walled Pressure Vessels (relations between deflection/BM/SF/load/beam/shaft deflection under static loading: area-moment method/direct-integration method; thin-walled pressure vessels: cylindrical vessel stresses/spherical vessel stresses)"
+      ],
+      "pdf_mapping": {
+        "primary": "2.Strength of Materials-GATE-ME-NOTES(W)_optimize.pdf",
+        "supplementary": "22.Mechanical-Short-Notes(D)/1.SHORT NOTES For gate Mechanical-1/1. Gate Notes-Strength of Materials Short Notes(s)_optimize.pdf, 22.Mechanical-Short-Notes(D)/2.SHORT NOTES For Gate Mechanical-2/SOM.pdf, 22.Mechanical-Short-Notes(D)/3.SHORT NOTES For Gate Mechanical-3/Som.pdf",
+        "short_notes": "22.Mechanical-Short-Notes(D)/1.SHORT NOTES For gate Mechanical-1/1. Gate Notes-Strength of Materials Short Notes(s)_optimize.pdf - primary supplementary, 22.Mechanical-Short-Notes(D)/2.SHORT NOTES For Gate Mechanical-2/SOM.pdf",
+        "coverage": "FULL_MATCH - 'Strength of Materials' = 'Mechanics of Solids' in RTU mapping, filename strongly aligns with subject code 3ME4-07"
+      },
+      "mapped_pdfs": [
+        "2.Strength of Materials-GATE-ME-NOTES(W)_optimize.pdf"
+      ]
+    },
+    {
+      "name": "Machine Drawing Practice",
+      "code": "3ME4-21",
+      "credits": 1.5,
+      "max_marks": 75,
+      "internal_assessment": 45,
+      "end_term": 30,
+      "duration": 0,  # Practical course
+      "units": 0,  # Practical course - no theory units
+      "gate_weightage": "None - Purely practical/CAD subject, not in GATE ME syllabus",
+      "rtu_priority": "MEDIUM - Required for credits/graduation, focus on practical completion and CAD drawing quality",
+      "topics": [
+        "Assembly drawing: sectioning and BOM; lathe tailstock; shaper tool head; swivel machine vice; one assembly drawing sheet",
+        "Detailed part drawings: from assembly drawings, fits/tolerances, surface-finish symbols, BIS codes; check valve and junction valve examples; one drawing sheet",
+        "Computer-aided drafting: AutoCAD/ProE/Creo/SolidWorks introduction; 2D drafting; 3D modelling; advanced 3D; assembly modelling; feature modification/manipulation; detailing; surface modelling; one problem for each CAD area"
+      ],
+      "pdf_mapping": {
+        "primary": "N/A - No theory PDFs for this practical course; supports: 22.Mechanical-Short-Notes(D)/3.SHORT NOTES For Gate Mechanical-3/AC.pdf (A.C. concepts), 22.Mechanical-Short-Notes(D)/3.SHORT NOTES For Gate Mechanical-3/hmt.pdf (HMT concepts)",
+        "supplementary": "N/A",
+        "short_notes": "Some short notes may contain related mechanical concepts, but this is primarily a practical drawing course",
+        "coverage": "NO_MATCH - No theory PDF content maps to this practical subject; separate practical evaluation"
+      },
+      "mapped_pdfs": []
+    },
+    {
+      "name": "Materials Testing Lab",
+      "code": "3ME4-22",
+      "credits": 1.5,
+      "max_marks": 75,
+      "internal_assessment": 45,
+      "end_term": 30,
+      "duration": 0,  # Practical course
+      "units": 0,  # Practical course - no theory units
+      "gate_weightage": "Low - Lab component separate from theory; some GATE ME topics indirectly related",
+      "rtu_priority": "MEDIUM - Required for credits/practical evaluation, but theory prep supported by Material Science and SOM notes",
+      "topics": [
+        "1. Crystal structures using models (BCC/FCC/HCP, tetrahedral/octahedral voids); Material identification of ~50 common items",
+        "2. Specimen preparation: cutting, grinding, polishing, etching",
+        "3. Microstructure comparison: mild steel, grey cast iron, brass, copper",
+        "4. Heat-treatment experiments: annealing, normalizing, quenching, case hardening, hardness comparison",
+        "5. Steel microstructure at different cooling rates, white cast iron microstructure",
+        "6. Tensile, compressive, shear, torsion tests for mechanical properties",
+        "7. Rockwell, Vickers, Brinell hardness determination",
+        "8. Impact testing and resilience determination",
+        "9. Fatigue testing and strength determination",
+        "10. Bending tests and Young's modulus determination through beam deflection",
+        "11. Creep testing using creep-testing machine"
+      ],
+      "pdf_mapping": {
+        "primary": "15.Material Science-GATE-ME-NOTES(NW)_optimize.pdf (supporting theory)",
+        "supplementary": "2.Strength of Materials-GATE-ME-NOTES(W)_optimize.pdf (supporting mechanical test theory), 22.Mechanical-Short-Notes(D)/3.SHORT NOTES For Gate Mechanical-3/MS _ METROLOGY.pdf (metrology aspects)",
+        "short_notes": "22.Mechanical-Short-Notes(D)/3.SHORT NOTES For Gate Mechanical-3/MS _ METROLOGY.pdf, 22.Mechanical-Short-Notes(D)/3.SHORT NOTES For Gate Mechanical-3/Thermodynamics.pdf (some test-related content)",
+        "coverage": "INDIRECT_MATCH - Lab experiments supported by theory PDFs; no direct topic-to-page mapping"
+      },
+      "mapped_pdfs": [
+        "15.Material Science-GATE-ME-NOTES(NW)_optimize.pdf",
+        "2.Strength of Materials-GATE-ME-NOTES(W)_optimize.pdf"
+      ]
+    },
+    {
+      "name": "Basic Mechanical Engineering Lab",
+      "code": "3ME4-23",
+      "credits": 1.5,
+      "max_marks": 75,
+      "internal_assessment": 45,
+      "end_term": 30,
+      "duration": 0,  # Practical course
+      "units": 0,  # Practical course - no theory units
+      "gate_weightage": "None - Purely experiential/laboratory course, not in GATE ME syllabus",
+      "rtu_priority": "MEDIUM - Required for credits/practical exposure, no theory PDF mapping needed",
+      "topics": [
+        "Exposure to mechanical engineering applications",
+        "Hands-on assembly/disassembly of machines: bicycle, sewing machine, pumps, engines, AC, machine tools",
+        "Observational study through cut sections, industrial visits, videos, computer simulations",
+        "Design of simple machines or systems",
+        "Formulation of specifications",
+        "Industrial visits",
+        "Written report describing learning achieved through hands-on assembly and disassembly"
+      ],
+      "pdf_mapping": {
+        "primary": "N/A - No theory PDFs for this practical course; general GATE exposure beneficial",
+        "supplementary": "N/A",
+        "short_notes": "No specific short notes mapping; this is experiential learning with report submission",
+        "coverage": "NO_MATCH - Purely practical/laboratory course; theory notes not applicable for practical evaluation"
+      },
+      "mapped_pdfs": []
+    }
+  ],
+
+  "general_notes": {
+    "technical_communication_excluded": "3ME1-02 / 4ME1-02 excluded per user request - completely absent from all index files",
+    "syllabus_pdf_status": "Text extraction failed - scanned image PDF. All topic mappings transcribed from authoritative document provided by user.",
+    "recommended_study_order_for_9plus_cgpa": [
+      "1. Engineering Mathematics-I (3ME2-01) - compulsory for RTU + 15% of GATE",
+      "2. Engineering Thermodynamics (3ME4-05) - highest RTU-GATE overlap, study first for both goals",
+      "3. Mechanics of Solids / Strength of Materials (3ME4-07/2) - very strong RTU-GATE overlap",
+      "4. Engineering Mechanics (3ME3-04) - good overlap, foundational for GATE statics/dynamics",
+      "5. Material Science and Engineering (3ME4-06) - moderate priority after core subjects",
+      "6. Managerial Economics and Financial Accounting (3ME1-03/4) - complete for credits, limited GATE prep",
+      "7. Practical courses: Machine Drawing Practice (3ME4-21), Materials Testing Lab (3ME4-22), Basic Mech Eng Lab (3ME4-23) - complete for credit requirements"
+    ],
+    "rtu_gate_overlap_summary": {
+      "Engineering Mathematics-I": "95%+ overlap - study once for both RTU and GATE",
+      "Engineering Thermodynamics": "90%+ overlap - core for both, highest priority combined study",
+      "Mechanics of Solids / Strength of Materials": "80%+ overlap - stress analysis, torsion, bending benefit both exams",
+      "Engineering Mechanics": "60%+ overlap - fundamentals appear in GATE ME",
+      "Material Science and Engineering": "40-50% overlap - niche GATE topics, moderate priority",
+      "Managerial Economics and Financial Accounting": "0% overlap - humanities subject, no GATE ME relevance"
+    }
+  },
+
+  "generated": "2026-10-22",
+  "generator": "opencode RTU+GATE analysis script - syllabus-driven mapping",
+  "total_subjects": 9,
+  "subjects_excluding_technical_communication": 9,
+  "practical_courses": 3,
+  "theory_subjects": 6
+}

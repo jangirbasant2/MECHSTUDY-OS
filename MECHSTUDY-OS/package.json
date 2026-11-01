@@ -1,0 +1,89 @@
+{
+  "name": "mechstudy-os",
+  "version": "1.0.0",
+  "productName": "MECHSTUDY OS",
+  "private": true,
+  "description": "MECHSTUDY OS - RTU + GATE Mechanical Engineering study workspace",
+  "author": "Basant Jangir",
+  "license": "MIT",
+  "main": "./out/main/index.js",
+  "scripts": {
+    "predev": "node tools/copy-pdfjs-assets.mjs",
+    "dev": "electron-vite dev",
+    "prebuild": "node tools/copy-pdfjs-assets.mjs",
+    "build": "electron-vite build",
+    "start": "electron-vite preview",
+    "typecheck": "tsc --noEmit -p tsconfig.node.json && tsc --noEmit -p tsconfig.web.json",
+    "test": "node --disable-warning=MODULE_TYPELESS_PACKAGE_JSON --test tests/unit/*.test.mjs",
+    "test:integration": "tsc -p tests/integration/tsconfig.json && node --test .test-build/tests/integration/*.test.js",
+    "tools:build-index": "python tools/build_index.py",
+    "tools:validate-index": "python tools/validate_index.py",
+    "package": "node tools/package.mjs"
+  },
+  "dependencies": {
+    "pdf-lib": "^1.17.1",
+    "pdfjs-dist": "^5.4.149"
+  },
+  "devDependencies": {
+    "@tailwindcss/vite": "^4.1.14",
+    "@types/node": "^22.18.9",
+    "@types/react": "^19.2.2",
+    "@types/react-dom": "^19.2.1",
+    "@vitejs/plugin-react": "^5.0.4",
+    "electron": "^45.0.0",
+    "electron-builder": "^26.0.12",
+    "electron-vite": "^4.0.0",
+    "katex": "^0.16.23",
+    "lucide-react": "^0.545.0",
+    "react": "^19.2.0",
+    "react-dom": "^19.2.0",
+    "react-markdown": "^10.1.0",
+    "recharts": "^3.2.1",
+    "rehype-katex": "^7.0.1",
+    "remark-math": "^6.0.0",
+    "tailwindcss": "^4.1.14",
+    "typescript": "^5.9.3",
+    "vite": "^7.1.9",
+    "zustand": "^5.0.8"
+  },
+  "allowScripts": {
+    "esbuild@0.25.12": true,
+    "esbuild@0.28.2": true
+  },
+  "build": {
+    "appId": "com.mechstudy.os",
+    "productName": "MECHSTUDY OS",
+    "directories": {
+      "output": "release",
+      "buildResources": "build"
+    },
+    "files": [
+      "out/**/*",
+      "package.json"
+    ],
+    "extraResources": [
+      {
+        "from": "data/gate",
+        "to": "gate"
+      }
+    ],
+    "win": {
+      "target": [
+        {
+          "target": "nsis",
+          "arch": [
+            "x64"
+          ]
+        }
+      ]
+    },
+    "nsis": {
+      "oneClick": false,
+      "perMachine": false,
+      "allowToChangeInstallationDirectory": true,
+      "createDesktopShortcut": true,
+      "createStartMenuShortcut": true,
+      "shortcutName": "MECHSTUDY OS"
+    }
+  }
+}

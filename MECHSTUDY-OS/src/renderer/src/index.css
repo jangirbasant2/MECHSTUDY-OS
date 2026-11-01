@@ -1,0 +1,514 @@
+@import "tailwindcss";
+
+@theme {
+  --color-bg: #0b0f14;
+  --color-panel: #11161d;
+  --color-panel2: #161d26;
+  --color-panel3: #1c2530;
+  --color-border: #222c38;
+  --color-border2: #2c3846;
+  --color-text: #e6edf3;
+  --color-muted: #8b98a8;
+  --color-faint: #64707f;
+  --color-accent: #4c8dff;
+  --color-accent2: #34d399;
+  --color-warn: #f59e0b;
+  --color-danger: #ef4444;
+  --color-hover: #1a232e;
+
+  --font-sans: "Segoe UI", "Inter", system-ui, -apple-system, sans-serif;
+  --font-mono: "Cascadia Code", "Consolas", ui-monospace, monospace;
+
+  --radius-panel: 12px;
+}
+
+:root {
+  color-scheme: dark;
+}
+
+[data-theme="light"] {
+  color-scheme: light;
+  --color-bg: #f5f6f8;
+  --color-panel: #ffffff;
+  --color-panel2: #f0f2f5;
+  --color-panel3: #e7eaef;
+  --color-border: #dfe3e9;
+  --color-border2: #c9d0da;
+  --color-text: #131820;
+  --color-muted: #5b6572;
+  --color-faint: #7c8795;
+  --color-accent: #2563eb;
+  --color-accent2: #059669;
+  --color-warn: #b45309;
+  --color-danger: #dc2626;
+  --color-hover: #eef1f5;
+}
+
+* {
+  box-sizing: border-box;
+}
+
+html,
+body,
+#root {
+  height: 100%;
+  margin: 0;
+}
+
+body {
+  background: var(--color-bg);
+  color: var(--color-text);
+  font-family: var(--font-sans);
+  font-size: 14px;
+  overflow: hidden;
+  -webkit-font-smoothing: antialiased;
+}
+
+/* Scrollbars */
+::-webkit-scrollbar {
+  width: 10px;
+  height: 10px;
+}
+::-webkit-scrollbar-track {
+  background: transparent;
+}
+::-webkit-scrollbar-thumb {
+  background: var(--color-border2);
+  border-radius: 6px;
+  border: 2px solid transparent;
+  background-clip: padding-box;
+}
+::-webkit-scrollbar-thumb:hover {
+  background: var(--color-faint);
+  background-clip: padding-box;
+}
+
+/* Focus ring */
+:focus-visible {
+  outline: 2px solid var(--color-accent);
+  outline-offset: 1px;
+}
+
+button {
+  font-family: inherit;
+}
+
+input,
+textarea,
+select {
+  font-family: inherit;
+  color: inherit;
+}
+
+/* Utility classes used across the app.
+   Kept in the `components` cascade layer so Tailwind utilities
+   (w-auto, pl-8, h-6, flex-1, …) can override them. */
+@layer components {
+.card {
+  background: var(--color-panel);
+  border: 1px solid var(--color-border);
+  border-radius: var(--radius-panel);
+}
+
+.btn {
+  display: inline-flex;
+  align-items: center;
+  justify-content: center;
+  gap: 6px;
+  border-radius: 8px;
+  border: 1px solid var(--color-border);
+  background: var(--color-panel2);
+  color: var(--color-text);
+  padding: 6px 12px;
+  font-size: 13px;
+  font-weight: 500;
+  cursor: pointer;
+  transition: background 120ms ease, border-color 120ms ease;
+  white-space: nowrap;
+}
+.btn:hover:not(:disabled) {
+  background: var(--color-hover);
+  border-color: var(--color-border2);
+}
+.btn:disabled {
+  opacity: 0.5;
+  cursor: not-allowed;
+}
+.btn-primary {
+  background: var(--color-accent);
+  border-color: var(--color-accent);
+  color: #fff;
+}
+.btn-primary:hover:not(:disabled) {
+  background: var(--color-accent);
+  filter: brightness(1.1);
+}
+.btn-danger {
+  background: transparent;
+  border-color: var(--color-danger);
+  color: var(--color-danger);
+}
+.btn-danger:hover:not(:disabled) {
+  background: color-mix(in srgb, var(--color-danger) 14%, transparent);
+}
+.btn-ghost {
+  background: transparent;
+  border-color: transparent;
+}
+.btn-ghost:hover:not(:disabled) {
+  background: var(--color-hover);
+}
+.btn-sm {
+  padding: 3px 8px;
+  font-size: 12px;
+}
+.btn-icon {
+  padding: 6px;
+  width: 30px;
+  height: 30px;
+}
+
+.input {
+  background: var(--color-panel2);
+  border: 1px solid var(--color-border);
+  border-radius: 8px;
+  padding: 6px 10px;
+  font-size: 13px;
+  color: var(--color-text);
+  width: 100%;
+}
+.input:focus {
+  outline: none;
+  border-color: var(--color-accent);
+}
+.input::placeholder {
+  color: var(--color-faint);
+}
+
+.label {
+  font-size: 11px;
+  text-transform: uppercase;
+  letter-spacing: 0.06em;
+  color: var(--color-muted);
+  font-weight: 600;
+}
+
+.chip {
+  display: inline-flex;
+  align-items: center;
+  gap: 4px;
+  padding: 1px 7px;
+  border-radius: 999px;
+  font-size: 11px;
+  font-weight: 600;
+  border: 1px solid var(--color-border);
+  background: var(--color-panel2);
+  color: var(--color-muted);
+  white-space: nowrap;
+}
+
+.divider {
+  height: 1px;
+  background: var(--color-border);
+}
+
+.scroll-y {
+  overflow-y: auto;
+  overflow-x: hidden;
+}
+
+/* PDF viewport: zoomed pages must be pannable in both directions. */
+.pdf-scroll {
+  overflow: auto;
+  overscroll-behavior: contain;
+}
+
+/* ---- layout recovery controls ---- */
+.layout-rail {
+  position: fixed;
+  left: 0;
+  top: 50%;
+  transform: translateY(-50%);
+  z-index: 60;
+  display: flex;
+  flex-direction: column;
+  align-items: center;
+  gap: 4px;
+  padding: 10px 5px;
+  border: 1px solid var(--color-border);
+  border-left: none;
+  border-radius: 0 8px 8px 0;
+  background: var(--color-panel);
+  color: var(--color-muted);
+  box-shadow: 2px 0 10px rgba(0, 0, 0, 0.25);
+  cursor: pointer;
+}
+.layout-rail:hover {
+  color: var(--color-accent);
+  background: var(--color-panel2);
+}
+.layout-rail-label {
+  font-size: 9px;
+  letter-spacing: 0.04em;
+  text-transform: uppercase;
+}
+.layout-float {
+  position: fixed;
+  z-index: 80;
+  display: flex;
+  align-items: center;
+  gap: 4px;
+  padding: 3px;
+  border: 1px solid var(--color-border);
+  border-radius: 8px;
+  background: var(--color-panel);
+  box-shadow: 0 4px 18px rgba(0, 0, 0, 0.35);
+}
+.layout-float-tl { left: 12px; top: 12px; }
+.layout-float-tr { right: 12px; top: 12px; }
+
+/* ---- PDF sticky notes ---- */
+.sticky-note {
+  position: absolute;
+  display: flex;
+  flex-direction: column;
+  border-radius: 6px;
+  overflow: hidden;
+  box-shadow: 0 2px 10px rgba(0, 0, 0, 0.3);
+  text-align: left;
+}
+.sticky-note-head {
+  display: flex;
+  align-items: center;
+  gap: 3px;
+  height: 16px;
+  padding: 0 4px;
+  cursor: move;
+  background: rgba(0, 0, 0, 0.09);
+  flex: 0 0 auto;
+}
+.sticky-note-body {
+  flex: 1 1 auto;
+  overflow: auto;
+  padding: 4px 6px;
+  white-space: pre-wrap;
+  overflow-wrap: anywhere;
+}
+.sticky-note-resize {
+  position: absolute;
+  right: 0;
+  bottom: 0;
+  width: 14px;
+  height: 14px;
+  cursor: nwse-resize;
+  background: linear-gradient(135deg, transparent 48%, rgba(0, 0, 0, 0.35) 50%);
+}
+.note-toolbar {
+  position: absolute;
+  z-index: 45;
+  /* Toolbars are frequently rendered inside a pointer-events:none annotation
+     overlay; they must always be clickable themselves. */
+  pointer-events: auto;
+  display: flex;
+  align-items: center;
+  gap: 3px;
+  padding: 3px 5px;
+  border: 1px solid var(--color-border);
+  border-radius: 7px;
+  background: var(--color-panel);
+  box-shadow: 0 4px 16px rgba(0, 0, 0, 0.4);
+}
+.note-swatch {
+  width: 13px;
+  height: 13px;
+  border-radius: 3px;
+  border: 1px solid rgba(0, 0, 0, 0.3);
+  cursor: pointer;
+}
+.pdf-textbox {
+  position: absolute;
+  border: 1px dashed transparent;
+  border-radius: 3px;
+  overflow: visible;
+  background: transparent;
+}
+.pdf-textbox:hover { border-color: color-mix(in srgb, var(--color-accent) 60%, transparent); }
+.pdf-textbox.selected { border-color: var(--color-accent); background: rgba(255, 255, 255, 0.06); }
+
+.no-select {
+  user-select: none;
+}
+
+/* PDF text layer alignment (pdf.js requirement) */
+.textLayer {
+  position: absolute;
+  inset: 0;
+  overflow: hidden;
+  opacity: 1;
+  line-height: 1;
+  text-size-adjust: none;
+  forced-color-adjust: none;
+  transform-origin: 0 0;
+}
+.textLayer span,
+.textLayer br {
+  color: transparent;
+  position: absolute;
+  white-space: pre;
+  cursor: text;
+  transform-origin: 0% 0%;
+}
+.textLayer ::selection {
+  background: color-mix(in srgb, var(--color-accent) 45%, transparent);
+}
+
+.annotationLayer {
+  position: absolute;
+  inset: 0;
+}
+} /* @layer components */
+
+@keyframes fadeIn {
+  from { opacity: 0; }
+  to { opacity: 1; }
+}
+.fade-in {
+  animation: fadeIn 140ms ease;
+}
+
+@keyframes slideUp {
+  from { opacity: 0; transform: translateY(6px); }
+  to { opacity: 1; transform: translateY(0); }
+}
+.slide-up {
+  animation: slideUp 160ms ease;
+}
+
+/* ------------------------------------------------------------------ */
+/* Markdown rendering (notebook entries)                               */
+/* ------------------------------------------------------------------ */
+
+.markdown {
+  color: var(--color-text);
+  overflow-wrap: anywhere;
+}
+.markdown > :first-child { margin-top: 0; }
+.markdown > :last-child { margin-bottom: 0; }
+
+.markdown h1,
+.markdown h2,
+.markdown h3,
+.markdown h4,
+.markdown h5,
+.markdown h6 {
+  margin: 1.1em 0 0.45em;
+  line-height: 1.25;
+  font-weight: 650;
+}
+.markdown h1 { font-size: 1.45em; }
+.markdown h2 { font-size: 1.25em; }
+.markdown h3 { font-size: 1.12em; }
+.markdown h4 { font-size: 1.02em; }
+.markdown h5,
+.markdown h6 { font-size: 0.95em; color: var(--color-muted); }
+
+.markdown p {
+  margin: 0.6em 0;
+  line-height: 1.65;
+}
+
+.markdown ul,
+.markdown ol {
+  margin: 0.6em 0;
+  padding-left: 1.35em;
+}
+.markdown ul { list-style: disc; }
+.markdown ol { list-style: decimal; }
+.markdown li { margin: 0.22em 0; line-height: 1.6; }
+.markdown li > ul,
+.markdown li > ol { margin: 0.2em 0; }
+
+.markdown a {
+  color: var(--color-accent);
+  text-decoration: underline;
+  text-underline-offset: 2px;
+}
+
+.markdown strong { font-weight: 650; }
+.markdown em { font-style: italic; }
+.markdown del { opacity: 0.7; }
+
+.markdown blockquote {
+  margin: 0.8em 0;
+  padding: 0.35em 0.9em;
+  border-left: 3px solid var(--color-border2);
+  color: var(--color-muted);
+  background: color-mix(in srgb, var(--color-panel2) 60%, transparent);
+  border-radius: 0 6px 6px 0;
+}
+
+.markdown code {
+  font-family: var(--font-mono);
+  font-size: 0.92em;
+  background: var(--color-panel3);
+  border: 1px solid var(--color-border);
+  border-radius: 4px;
+  padding: 0.08em 0.35em;
+}
+
+.markdown pre {
+  margin: 0.8em 0;
+  padding: 0.7em 0.9em;
+  overflow-x: auto;
+  background: var(--color-panel3);
+  border: 1px solid var(--color-border);
+  border-radius: 8px;
+  line-height: 1.5;
+}
+.markdown pre code {
+  background: transparent;
+  border: 0;
+  padding: 0;
+  font-size: 0.9em;
+}
+
+.markdown table {
+  margin: 0.8em 0;
+  border-collapse: collapse;
+  width: 100%;
+  font-size: 0.95em;
+}
+.markdown th,
+.markdown td {
+  border: 1px solid var(--color-border);
+  padding: 0.35em 0.6em;
+  text-align: left;
+  vertical-align: top;
+}
+.markdown th {
+  background: var(--color-panel2);
+  font-weight: 600;
+}
+
+.markdown hr {
+  margin: 1.2em 0;
+  border: 0;
+  border-top: 1px solid var(--color-border);
+}
+
+.markdown img {
+  max-width: 100%;
+  border-radius: 8px;
+}
+
+/* KaTeX blocks should scroll rather than overflow the card. */
+.markdown .katex-display {
+  margin: 0.8em 0;
+  overflow-x: auto;
+  overflow-y: hidden;
+  padding-bottom: 2px;
+}
+.markdown .katex {
+  font-size: 1.02em;
+}
+

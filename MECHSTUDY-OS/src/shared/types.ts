@@ -1,0 +1,416 @@
+/* Shared data shapes used by the main process, preload bridge and renderer. */
+
+export interface AppInfo {
+  name: string;
+  version: string;
+  electron: string;
+  node: string;
+  chrome: string;
+  platform: string;
+  paths: { path: string; sizeBytes: number; dataDir: string; backupDir: string };
+  projectRoot: string;
+  settings: Record<string, string>;
+  hasSyllabus: boolean;
+}
+
+export interface DocumentRow {
+  id: number;
+  path: string;
+  rel_path: string | null;
+  filename: string;
+  size_bytes: number | null;
+  mtime: string | null;
+  page_count: number | null;
+  has_text_layer: number | null;
+  text_chars: number | null;
+  sha256: string | null;
+  material_type: string;
+  subject_id: number | null;
+  subject_code: string | null;
+  subject_source: string;
+  collection: string | null;
+  starred: number;
+  available: number;
+  last_page: number;
+  last_opened_at: string | null;
+  added_at: string;
+  scanned_at: string | null;
+  subject_name?: string | null;
+  annotation_count?: number;
+  bookmark_count?: number;
+  note_count?: number;
+}
+
+export interface LibraryStats {
+  total: number; available: number; textLayer: number; starred: number; pages: number;
+}
+
+export interface ScanFile {
+  path: string; relPath: string; filename: string;
+  sizeBytes: number; mtime: string; alreadyImported: boolean;
+}
+
+export interface ScanResult {
+  dir: string; files: ScanFile[]; totalBytes: number; alreadyImported: number;
+}
+
+export interface ImportResult {
+  added: number; updated: number; failed: { path: string; error: string }[];
+}
+
+export interface SubjectRow {
+  id: number;
+  code: string | null;
+  name: string;
+  semester: number | null;
+  credits: number | null;
+  lecture_hours: number | null;
+  tutorial_hours: number | null;
+  practical_hours: number | null;
+  ia_marks: number | null;
+  ete_marks: number | null;
+  total_marks: number | null;
+  is_practical: number;
+  verification: string;
+  version_id: number;
+  exam_type: string;
+  version_name: string;
+  version_verification: string;
+  source_doc: string | null;
+  source_url: string | null;
+  retrieved_at: string | null;
+  version_notes: string | null;
+  unit_count: number;
+  topic_count: number;
+  completed_topics: number;
+  document_count: number;
+}
+
+export interface TreeTopic {
+  id: number; number: number; title: string; description: string | null;
+  status: string; confidence: number | null;
+  nextReviewAt: string | null; reviewCount: number;
+  rtuMappings: number; gateMappings: number; noteCount: number; docCount: number;
+}
+
+export interface TreeUnit {
+  id: number; number: number; title: string; hours: number | null;
+  topics: TreeTopic[]; completed: number; total: number;
+}
+
+export interface TreeSubject {
+  id: number; code: string | null; name: string; semester: number | null;
+  credits: number | null; isPractical: boolean; examType: string; verification: string;
+  units: TreeUnit[]; completed: number; total: number;
+}
+
+export interface SyllabusVersion {
+  id: number; name: string; exam_type: string; university: string | null;
+  academic_year: string | null; semester: number | null;
+  source_doc: string | null; source_url: string | null; retrieved_at: string | null;
+  verification: string; is_provisional: number; notes: string | null;
+  subject_count: number; topic_count: number;
+}
+
+export interface TopicDetail {
+  topic: {
+    id: number; number: number; title: string; description: string | null;
+    unit_id: number; unit_number: number; unit_title: string; hours: number | null;
+    subject_id: number; subject_code: string | null; subject_name: string;
+    semester: number | null; credits: number | null; is_practical: number;
+    exam_type: string; version_name: string; source_doc: string | null;
+    source_url: string | null; version_verification: string;
+  };
+  progress: {
+    topic_id: number; status: string; confidence: number | null;
+    theory_done: number; practice_done: number;
+    questions_attempted: number; questions_correct: number;
+    notes: string | null; updated_at: string;
+  } | null;
+  review: {
+    topic_id: number; first_studied_at: string | null; last_reviewed_at: string | null;
+    confidence: number | null; review_count: number; last_outcome: string | null;
+    interval_days: number; next_review_at: string | null;
+  } | null;
+  documents: {
+    id: number; filename: string; rel_path: string | null; path: string;
+    page_count: number | null; has_text_layer: number | null; available: number;
+    last_page: number; linked_page: number | null; link_note: string | null;
+  }[];
+  subjectDocuments: {
+    id: number; filename: string; page_count: number | null;
+    has_text_layer: number | null; available: number;
+  }[];
+  notes: { id: number; title: string | null; body: string; updated_at: string }[];
+  notebook: { id: number; title: string; updated_at: string }[];
+}
+
+export interface ProgressSummary {
+  subjects: {
+    id: number; name: string; code: string | null; is_practical: number;
+    total: number; completed: number; learning: number; revision: number;
+  }[];
+  units: { total: number; completed: number; in_progress: number };
+  totals: {
+    topics: number; completed: number; learning: number; revision: number;
+    notStarted: number; percent: number;
+  };
+}
+
+export interface MappingRow {
+  id: number; status: string; basis: string | null; evidence: string | null;
+  shared_concepts: string | null; rtu_depth: string | null; gate_depth: string | null;
+  gate_topic_id?: number; gate_topic?: string; gate_unit?: string; gate_section?: string;
+  rtu_topic_id?: number; rtu_topic?: string; rtu_unit?: string;
+  rtu_code?: string; rtu_subject?: string;
+}
+
+export interface AnnotationRow {
+  id: number; document_id: number; page: number; type: string; color: string;
+  x: number | null; y: number | null; w: number | null; h: number | null;
+  data_json: string | null; text: string | null; comment: string | null;
+  font_size: number | null;
+  created_at: string; updated_at: string;
+}
+
+export interface StickyNoteRow {
+  id: number; document_id: number | null; page: number | null;
+  x: number | null; y: number | null; w: number | null; h: number | null;
+  color: string; title: string | null; body: string;
+  subject_id: number | null; topic_id: number | null;
+  font_size: number | null;
+  resolved: number; created_at: string; updated_at: string;
+  filename?: string | null; subject_name?: string | null;
+}
+
+export interface BookmarkRow {
+  id: number; document_id: number; page: number; title: string;
+  description: string | null; color: string; tags: string | null;
+  created_at: string; filename?: string;
+}
+
+export interface NotebookRow {
+  id: number; scope_type: string; scope_id: number | null;
+  title: string; body_md: string; created_at: string; updated_at: string;
+}
+
+export interface TaskRow {
+  id: number; title: string; subject_id: number | null; unit_id: number | null;
+  topic_id: number | null; exam_target: string; planned_date: string | null;
+  priority: string; est_minutes: number; status: string; notes: string | null;
+  document_id: number | null; page: number | null; recurrence: string | null;
+  created_at: string; completed_at: string | null;
+  subject_name?: string | null; subject_code?: string | null;
+  unit_title?: string | null; topic_title?: string | null;
+}
+
+export interface SessionRow {
+  id: number; task_id: number | null; subject_id: number | null;
+  exam_target: string; mode: string; started_at: string; ended_at: string | null;
+  active_seconds: number; notes: string | null;
+  subject_name?: string | null; task_title?: string | null;
+}
+
+export interface ReviewRow {
+  topic_id: number; first_studied_at: string | null; last_reviewed_at: string | null;
+  confidence: number | null; review_count: number; last_outcome: string | null;
+  interval_days: number; next_review_at: string | null;
+  topic_title?: string; unit_title?: string; subject_name?: string;
+  subject_code?: string; exam_type?: string;
+}
+
+export interface SearchHit {
+  kind: 'page' | 'note' | 'document' | 'topic' | 'bookmark' | 'subject';
+  title: string; subtitle?: string; snippet?: string;
+  documentId?: number; page?: number; refId?: number; source?: string;
+  examType?: string;
+}
+
+export interface AnalyticsSummary {
+  today: { secs: number; sessions: number };
+  week: { secs: number; sessions: number };
+  month: { secs: number };
+  byTarget: { exam_target: string; secs: number }[];
+  bySubject: { subject_name: string; secs: number }[];
+  daily: { day: string; secs: number }[];
+  progress: { status: string; c: number }[];
+  totals: { topics: number; rtu: number; gate: number };
+  practice: { attempted: number; correct: number };
+  tasks: { planned: number; done: number; est: number };
+  streak: number;
+}
+
+export interface Issue {
+  id: string; severity: 'error' | 'warning' | 'info'; category: string;
+  title: string; detail: string; affected?: string;
+  suggestedAction: string; blocking: boolean; autoFixable: boolean;
+}
+
+export interface IntegrityReport {
+  generatedAt: string; projectRoot: string | null; issues: Issue[];
+  summary: { errors: number; warnings: number; info: number };
+  facts: Record<string, unknown>;
+}
+
+export interface OcrStatus {
+  available: boolean; engine: string; path: string | null;
+  languages: string[]; installHint: string;
+}
+
+export interface OcrJob {
+  id: number; document_id: number; status: string; engine: string;
+  pages_total: number; pages_done: number; last_page: number;
+  pages_json: string | null; confidence: number | null; error: string | null;
+  created_at: string; updated_at: string;
+  filename?: string; page_count?: number;
+}
+
+export interface OcrProgress {
+  jobId: number; documentId: number; status: string;
+  pagesDone: number; pagesTotal: number; currentPage: number | null;
+  message?: string; error?: string;
+}
+
+export interface IndexProgress {
+  documentId: number; filename: string; done: number; total: number;
+  pagesIndexed: number; chars: number;
+}
+
+export interface ImportProgress { done: number; total: number; current: string }
+
+export interface BackupRow {
+  id: number; path: string; created_at: string;
+  size_bytes: number | null; includes_pdfs: number; notes: string | null;
+}
+
+export interface QuestionRow {
+  id: number; text: string; type: string; subject_id: number | null;
+  topic_id: number | null; exam: string | null; year: number | null;
+  marks: number | null; options_json: string | null; answer: string | null;
+  solution: string | null; source: string | null; difficulty: string | null;
+  origin: string; created_at: string;
+  subject_name?: string | null; topic_title?: string | null;
+  attempts?: number; correct?: number;
+  /* previous-year provenance (null for questions the user wrote) */
+  external_ref?: string | null; paper?: string | null; section?: string | null;
+  answer_source?: string | null; answer_status?: string | null;
+  solution_source?: string | null; solution_status?: string | null;
+  key_range?: string | null; source_file?: string | null;
+  flags_json?: string | null; answer_note?: string | null;
+}
+
+export interface MistakeRow {
+  id: number; question_id: number | null; topic_id: number | null;
+  question_text: string | null; wrong_approach: string | null;
+  correct_concept: string | null; error_category: string;
+  review_status: string; created_at: string;
+  topic_title?: string | null; subject_name?: string | null;
+  question_ref?: string | null;
+}
+
+export interface ExportResult {
+  outPath: string; pages: number; highlights: number;
+  inkStrokes: number; noteMarkers: number;
+}
+
+export interface DbStats {
+  path: string; tables: string[]; counts: Record<string, number>;
+}
+
+/* ---------------- previous-year questions (PYQ) ---------------- */
+
+export interface PyqFileStatus {
+  filename: string;
+  role: string;
+  reason: string;
+  present: boolean;
+  sizeBytes: number;
+  pageCount: number;
+  hasTextLayer: boolean;
+  error?: string;
+}
+
+export interface PyqPaperStatus {
+  paperKey: string;
+  label: string;
+  year: number;
+  session: number;
+  sourceFile: string;
+  present: boolean;
+  status: string | null;
+  imported: number;
+  found: number;
+}
+
+export interface PyqScanResult {
+  folder: string;
+  exists: boolean;
+  files: PyqFileStatus[];
+  papers: PyqPaperStatus[];
+}
+
+export interface PyqImportResult {
+  paperKey: string;
+  label: string;
+  status: 'done' | 'partial' | 'failed';
+  found: number;
+  imported: number;
+  skipped: number;
+  verified: number;
+  single: number;
+  conflicts: number;
+  unresolved: number;
+  flags: Record<string, number>;
+  withheldGroups: string[];
+  error?: string;
+  /** True when this paper was already fully imported and nothing was redone. */
+  alreadyImported?: boolean;
+}
+
+export interface PyqProgress {
+  paperKey: string;
+  done: number;
+  total: number;
+  imported: number;
+}
+
+export interface PyqBatchRow {
+  id: number; paper_key: string; paper_label: string; year: number | null;
+  session: number | null; source_file: string; key_file: string | null;
+  status: string; cursor: number; questions_found: number; questions_imported: number;
+  questions_skipped: number; answers_official: number; answers_derived: number;
+  answers_unresolved: number; error: string | null; notes: string | null;
+  started_at: string | null; finished_at: string | null; updated_at: string;
+}
+
+export interface PyqStats {
+  totals: {
+    questions: number; verified: number; single: number; conflicts: number;
+    unresolved: number; withSolution: number;
+  };
+  byPaper: {
+    paper: string; n: number; verified: number; single: number;
+    conflicts: number; unresolved: number; with_solution: number;
+  }[];
+  byStatus: { status: string; n: number }[];
+  byType: { type: string; n: number }[];
+  flags: { flag: string; count: number }[];
+}
+
+export interface PyqProvenance {
+  id: number; external_ref: string | null; paper: string | null; section: string | null;
+  answer_status: string | null; answer_source: string | null;
+  solution_source: string | null; solution_status: string | null;
+  key_range: string | null; source_file: string | null;
+  answer: string | null; solution: string | null;
+  answer_note: string | null;
+  flags: string[];
+  flagLabels: string[];
+}
+
+export interface PyqSolutionOutcome {
+  attached: number;
+  rejected: { externalRef: string; reason: string }[];
+}
+
+export interface MenuAction { action: string }

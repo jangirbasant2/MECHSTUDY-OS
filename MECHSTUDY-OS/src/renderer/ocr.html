@@ -1,0 +1,15 @@
+<!doctype html>
+<html lang="en">
+  <head>
+    <meta charset="UTF-8" />
+    <meta
+      http-equiv="Content-Security-Policy"
+      content="default-src 'self'; script-src 'self' 'unsafe-inline' 'unsafe-eval'; style-src 'self' 'unsafe-inline'; img-src 'self' data: blob:; font-src 'self' data:; connect-src 'self' mechstudy: ws: wss: http://localhost:*; worker-src 'self' blob:;"
+    />
+    <title>MECHSTUDY OCR worker</title>
+  </head>
+  <body>
+    <div id="ocr-root"></div>
+    <script type="module" src="/src/ocr-worker.ts"></script>
+  </body>
+</html>
