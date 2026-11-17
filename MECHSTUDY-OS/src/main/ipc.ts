@@ -23,7 +23,7 @@ import {
 } from './services/annotate';
 import {
   listTasks, createTask, updateTask, deleteTask,
-  startSession, endSession, tickSession, listSessions,
+  startSession, endSession, tickSession, listSessions, deleteSession, updateSession, getSession,
   setTopicProgress, topicProgressMap, dueReviews, allReviews, gradeReview,
   analyticsSummary, practiceAccuracyByTopic,
 } from './services/study';
@@ -47,6 +47,32 @@ import {
   scanPyqFolder, importPaper, importAllPapers, listBatches, pyqStats,
   questionProvenance, applySolutions,
 } from './services/pyq';
+import {
+  listExamConfigs, getExamConfig, createExamConfig, deleteExamConfig,
+  startExam, submitExam, getExamSession, listExamSessions, deleteExamSession,
+  getExamTimeRemaining,
+} from './services/exam';
+import { pingOllama, listOllamaModels, startOllamaDaemon } from './services/ai/ollama';
+import {
+  listConversations, createConversation, getConversation, updateConversation,
+  deleteConversation, clearConversation,
+  attachDocumentToConversation, detachDocumentFromConversation, setConversationDocuments, getConversationDocuments,
+} from './services/ai/chat';
+import { getAiSettings, updateAiSettings } from './services/ai/settings';
+import { getMemories, saveMemory, deleteMemory } from './services/ai/memory';
+import { processUserMessage, stopGeneration } from './services/ai/orchestrator';
+import { ToolRegistry } from './services/ai/toolRegistry';
+import { getDocumentProcessingStatus, processDocument, analyzeDocumentForTopic } from './services/ai/documentProcessor';
+import {
+  saveTemporaryScreenshot, getTemporaryScreenshots, deleteTemporaryScreenshot,
+  cleanupExpiredScreenshots, countTemporaryScreenshots
+} from './services/ai/temporaryScreenshots';
+import {
+  getReminderSettings, updateReminderSettings, triggerTestReminder
+} from './services/reminder';
+import {
+  getReaderSettings, updateReaderSettings
+} from './services/readerSettings';
 import { PYQ_FOLDER } from './data/pyqPapers';
 
 /* ------------------------------------------------------------------ */
@@ -304,6 +330,7 @@ export function registerIpc(): void {
     subjectId: n.subjectId ? Number(n.subjectId) : undefined,
     topicId: n.topicId ? Number(n.topicId) : undefined,
     fontSize: n.fontSize !== undefined && n.fontSize !== null ? Number(n.fontSize) : undefined,
+    isMinimized: n.isMinimized ? 1 : 0,
   }));
   handle('notes:update', ({ id, patch }) => { updateStickyNote(Number(id), patch ?? {}); return true; });
   handle('notes:delete', ({ id }) => { deleteStickyNote(Number(id)); return true; });
@@ -348,13 +375,16 @@ export function registerIpc(): void {
   }));
   handle('sessions:end', ({ id, activeSeconds, notes }) => {
     endSession(Number(id), Number(activeSeconds) || 0, notes);
-    return get('SELECT * FROM study_sessions WHERE id = ?', Number(id));
+    return getSession(Number(id));
   });
   handle('sessions:tick', ({ id, activeSeconds }) => {
     tickSession(Number(id), Number(activeSeconds) || 0);
     return true;
   });
-  handle('sessions:list', ({ limit }) => listSessions(limit ? Number(limit) : 100));
+  handle('sessions:list', (filter) => listSessions(filter));
+  handle('sessions:get', ({ id }) => getSession(Number(id)));
+  handle('sessions:update', ({ id, patch }) => updateSession(Number(id), patch ?? {}));
+  handle('sessions:delete', ({ id }) => deleteSession(Number(id)));
 
   /* ---------------- revision ---------------- */
   handle('review:due', ({ limit }) => dueReviews(limit ? Number(limit) : 50));
@@ -529,6 +559,107 @@ export function registerIpc(): void {
   handle('pyq:stats', () => pyqStats());
   handle('pyq:provenance', ({ id }) => questionProvenance(Number(id)));
   handle('pyq:solutions', () => applySolutions());
+
+  /* ---------------- exam mode ---------------- */
+  handle('exam:configs', () => listExamConfigs());
+  handle('exam:config', ({ id }) => getExamConfig(Number(id)));
+  handle('exam:createConfig', (cfg) => createExamConfig(cfg));
+  handle('exam:deleteConfig', ({ id }) => deleteExamConfig(Number(id)));
+  handle('exam:start', ({ configId }) => startExam(Number(configId)));
+  handle('exam:submit', ({ sessionId, responses, submittedBy }) =>
+    submitExam(Number(sessionId), responses ?? [], submittedBy));
+  handle('exam:session', ({ id }) => getExamSession(Number(id)));
+  handle('exam:sessions', ({ limit }) => listExamSessions(limit ? Number(limit) : 50));
+  handle('exam:deleteSession', ({ id }) => deleteExamSession(Number(id)));
+  handle('exam:timeRemaining', ({ sessionId }) => getExamTimeRemaining(Number(sessionId)));
+
+  /* ---------------- MECHSTUDY AI Brain ---------------- */
+  ToolRegistry.getInstance().onNotification((event, data) => {
+    send(event, data);
+  });
+
+  handle('ai:status', () => pingOllama());
+  handle('ai:startOllama', () => startOllamaDaemon());
+  handle('ai:listModels', () => listOllamaModels());
+  handle('ai:conversations', ({ mode }) => listConversations(mode));
+  handle('ai:createConversation', ({ title, model, mode }) => createConversation(title, model, mode));
+  handle('ai:getConversation', ({ id }) => getConversation(Number(id)));
+  handle('ai:updateConversation', ({ id, patch }) => updateConversation(Number(id), patch ?? {}));
+  handle('ai:deleteConversation', ({ id }) => deleteConversation(Number(id)));
+  handle('ai:clearConversation', ({ id }) => clearConversation(Number(id)));
+  handle('ai:sendMessage', async (req) => {
+    return processUserMessage(req, (chunk) => {
+      send('ai:stream', chunk);
+    });
+  });
+  handle('ai:stopGeneration', () => {
+    stopGeneration();
+    return true;
+  });
+  handle('ai:settings', () => getAiSettings());
+  handle('ai:updateSettings', ({ patch }) => {
+    updateAiSettings(patch ?? {});
+    return true;
+  });
+  handle('ai:getMemories', ({ category }) => getMemories(category));
+  handle('ai:saveMemory', ({ key, content, category }) => {
+    saveMemory(key, content, category);
+    return true;
+  });
+  handle('ai:deleteMemory', ({ id }) => deleteMemory(Number(id)));
+  handle('ai:executeToolDirect', ({ name, args }) =>
+    ToolRegistry.getInstance().executeTool(name, args ?? {}));
+  handle('ai:attachDocument', ({ conversationId, documentId }) => {
+    attachDocumentToConversation(Number(conversationId), Number(documentId));
+    return true;
+  });
+  handle('ai:detachDocument', ({ conversationId, documentId }) => {
+    detachDocumentFromConversation(Number(conversationId), Number(documentId));
+    return true;
+  });
+  handle('ai:setAttachedDocuments', ({ conversationId, documentIds }) => {
+    const ids = Array.isArray(documentIds) ? documentIds.map(Number) : [];
+    return setConversationDocuments(Number(conversationId), ids);
+  });
+  handle('ai:getAttachedDocuments', ({ conversationId }) =>
+    getConversationDocuments(Number(conversationId)));
+  handle('ai:processDocument', async ({ documentId, pages }) => {
+    return processDocument(Number(documentId), pages ?? 'all', (p) => {
+      send('ai:documentProgress', p);
+    });
+  });
+  handle('ai:getDocumentStatus', ({ documentId }) =>
+    getDocumentProcessingStatus(Number(documentId)));
+  handle('ai:analyzeDocumentTopic', ({ documentId, topicQuery }) =>
+    analyzeDocumentForTopic(Number(documentId), String(topicQuery)));
+
+  /* Temporary Screenshots (5-message auto-countdown) */
+  handle('ai:saveTemporaryScreenshot', ({ conversationId, dataUrl, width, height }) =>
+    saveTemporaryScreenshot({ conversationId: Number(conversationId), dataUrl, width, height })
+  );
+  handle('ai:getTemporaryScreenshots', ({ conversationId }) =>
+    getTemporaryScreenshots(Number(conversationId))
+  );
+  handle('ai:deleteTemporaryScreenshot', ({ id }) =>
+    deleteTemporaryScreenshot(Number(id))
+  );
+  handle('ai:cleanupScreenshots', () => cleanupExpiredScreenshots());
+  handle('ai:countScreenshots', () => countTemporaryScreenshots());
+
+  /* Daily Study Reminders */
+  handle('reminders:getSettings', () => getReminderSettings());
+  handle('reminders:updateSettings', ({ patch }) => {
+    updateReminderSettings(patch ?? {});
+    return true;
+  });
+  handle('reminders:test', () => triggerTestReminder());
+
+  /* PDF Reader Defaults */
+  handle('reader:getSettings', () => getReaderSettings());
+  handle('reader:updateSettings', ({ patch }) => {
+    updateReaderSettings(patch ?? {});
+    return true;
+  });
 
   /* ---------------- database maintenance ---------------- */
   handle('db:stats', () => ({

@@ -51,6 +51,16 @@ async function ensureWindow(): Promise<BrowserWindow> {
   else await win.loadFile(target.file);
 
   await ready;
+
+  // Ensure window.__ocrRender / __ocrReady is evaluated in the worker document
+  for (let attempt = 0; attempt < 50; attempt++) {
+    const isReady = await win.webContents
+      .executeJavaScript('Boolean(window.__ocrReady || typeof window.__ocrRender === "function")')
+      .catch(() => false);
+    if (isReady) break;
+    await new Promise(r => setTimeout(r, 100));
+  }
+
   return win;
 }
 
@@ -62,7 +72,20 @@ export async function renderPageToPng(
   const w = await ensureWindow();
   const url = `mechstudy://doc/${documentId}`;
 
-  const script = `window.__ocrRender(${JSON.stringify(url)}, ${page}, ${scale})`;
+  const script = `
+    (async () => {
+      if (typeof window.__ocrRender !== 'function') {
+        for (let i = 0; i < 50; i++) {
+          if (typeof window.__ocrRender === 'function') break;
+          await new Promise(r => setTimeout(r, 100));
+        }
+      }
+      if (typeof window.__ocrRender !== 'function') {
+        throw new Error('window.__ocrRender is not defined in OCR renderer');
+      }
+      return await window.__ocrRender(${JSON.stringify(url)}, ${page}, ${scale});
+    })()
+  `;
   const result = await Promise.race([
     w.webContents.executeJavaScript(script, true),
     new Promise((_, reject) => setTimeout(() => reject(new Error('Page render timed out after 60s')), 60000)),

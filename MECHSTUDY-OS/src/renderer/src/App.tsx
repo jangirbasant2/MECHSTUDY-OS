@@ -18,10 +18,12 @@ import { GatePage } from './pages/GatePage';
 import { PlannerPage } from './pages/PlannerPage';
 import { RevisionPage } from './pages/RevisionPage';
 import { PracticePage } from './pages/PracticePage';
+import { ExamPage } from './pages/ExamPage';
 import { SearchPage } from './pages/SearchPage';
 import { AnalyticsPage } from './pages/AnalyticsPage';
 import { ImportPage } from './pages/ImportPage';
 import { SettingsPage } from './pages/SettingsPage';
+import { AIPage } from './pages/AI/AIPage';
 
 export function App() {
   const page = useApp(s => s.page);
@@ -45,6 +47,9 @@ export function App() {
   const setReaderFocus = useApp(s => s.setReaderFocus);
   const toggleReaderFocus = useApp(s => s.toggleReaderFocus);
   const restoreLayout = useApp(s => s.restoreLayout);
+  const openDocument = useApp(s => s.openDocument);
+  const toast = useApp(s => s.toast);
+  const setTimer = useApp(s => s.setTimer);
 
   const inReader = page === 'reader';
   // Focus mode only ever applies to the reader page.
@@ -110,6 +115,39 @@ export function App() {
     return unsub;
   }, [setPage, setPaletteOpen]);
 
+  // Daily study reminder start-session listener
+  React.useEffect(() => {
+    if (!window.api?.reminders) return;
+    const unsub = api.reminders.onStartSession(async (payload) => {
+      toast(`Study session started: ${payload.subjectName || 'Study'} - ${payload.topicTitle || 'Session'}`, 'info');
+      try {
+        const sid = await api.sessions.start({
+          subjectId: payload.subjectId ?? undefined,
+          taskId: payload.taskId ?? undefined,
+          examTarget: 'RTU',
+          mode: 'pomodoro',
+        });
+        setTimer({
+          sessionId: sid,
+          running: true,
+          startedAt: Date.now(),
+          elapsed: 0,
+          label: `${payload.subjectName || 'Mechanical'}: ${payload.topicTitle || 'Study Target'}`,
+          subjectId: payload.subjectId ?? null,
+        });
+      } catch {
+        // Non-fatal
+      }
+
+      if (payload.documentId) {
+        openDocument(payload.documentId, payload.page || 1);
+      } else {
+        setPage('planner');
+      }
+    });
+    return unsub;
+  }, [openDocument, toast, setTimer, setPage]);
+
   const renderPage = () => {
     switch (page) {
       case 'home': return <HomePage />;
@@ -121,10 +159,12 @@ export function App() {
       case 'planner': return <PlannerPage />;
       case 'revision': return <RevisionPage />;
       case 'practice': return <PracticePage />;
+      case 'exam': return <ExamPage />;
       case 'search': return <SearchPage />;
       case 'analytics': return <AnalyticsPage />;
       case 'import': return <ImportPage />;
       case 'settings': return <SettingsPage />;
+      case 'ai': return <AIPage />;
       default: return <HomePage />;
     }
   };

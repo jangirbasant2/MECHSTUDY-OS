@@ -1,7 +1,7 @@
 import React from 'react';
 import {
   Plus, Check, X, Trash2, CircleHelp, BookOpen, AlertTriangle, Target, Pencil,
-  ChevronRight, Lightbulb, RotateCcw, Filter,
+  ChevronRight, Lightbulb, RotateCcw, Filter, Award,
 } from 'lucide-react';
 import { api } from '../lib/api';
 import { useApp } from '../store';
@@ -43,6 +43,7 @@ function parseOptions(json: string | null): string[] {
 }
 
 export function PracticePage() {
+  const setPage = useApp(s => s.setPage);
   const toast = useApp(s => s.toast);
   const openTopic = useApp(s => s.openTopic);
 
@@ -129,9 +130,14 @@ export function PracticePage() {
           title="Practice & Questions"
           description="Your question bank. Previous-year GATE papers are imported from your own PDF folder (Import → Previous-year papers); questions you write yourself live here too. Every answer says where it came from."
           action={
-            <button className="btn btn-sm btn-primary" onClick={() => setEditor({ open: true, question: null })}>
-              <Plus size={13} /> Add question
-            </button>
+            <div className="flex items-center gap-2">
+              <button className="btn btn-sm" onClick={() => setPage('exam')}>
+                <Award size={13} /> Timed Exam Mode
+              </button>
+              <button className="btn btn-sm btn-primary" onClick={() => setEditor({ open: true, question: null })}>
+                <Plus size={13} /> Add question
+              </button>
+            </div>
           }
         />
 

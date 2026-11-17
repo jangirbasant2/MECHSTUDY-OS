@@ -2,11 +2,17 @@ import type {
   AppInfo, DocumentRow, LibraryStats, ScanResult, ImportResult, SubjectRow,
   TreeSubject, SyllabusVersion, TopicDetail, ProgressSummary, MappingRow,
   AnnotationRow, StickyNoteRow, BookmarkRow, NotebookRow, TaskRow, SessionRow,
+  SessionFilter, SessionPatch,
   ReviewRow, SearchHit, AnalyticsSummary, IntegrityReport, OcrStatus, OcrJob,
   OcrProgress, IndexProgress, ImportProgress, BackupRow, QuestionRow, MistakeRow,
   ExportResult, DbStats,
   PyqScanResult, PyqImportResult, PyqBatchRow, PyqStats, PyqProvenance,
   PyqSolutionOutcome, PyqProgress,
+  ExamConfig, ExamQuestion, ExamResponse, ExamResult, ExamSessionSummary, ExamTimeRemaining,
+  AiEngineStatus, AiModelInfo, AiConversationSummary, AiConversationDetail,
+  AiStreamChunk, AiSettings, AiMemory, SendMessageRequest,
+  AttachedDocumentSummary, DocumentProcessingProgress, DocumentTopicAnalysis,
+  TemporaryScreenshotRecord, ReminderSettings, ReminderNotificationPayload, ReaderSettings,
 } from './types';
 
 export type Unsubscribe = () => void;
@@ -88,12 +94,17 @@ export interface MechStudyApi {
     create(t: Record<string, unknown>): Promise<number>;
     update(id: number, patch: Record<string, unknown>): Promise<boolean>;
     remove(id: number): Promise<boolean>;
+    onRefresh(cb: () => void): Unsubscribe;
   };
   sessions: {
     start(s: Record<string, unknown>): Promise<number>;
     end(id: number, activeSeconds: number, notes?: string): Promise<SessionRow | null>;
     tick(id: number, activeSeconds: number): Promise<boolean>;
-    list(limit?: number): Promise<SessionRow[]>;
+    list(filter?: number | SessionFilter): Promise<SessionRow[]>;
+    get(id: number): Promise<SessionRow | null>;
+    update(id: number, patch: SessionPatch): Promise<boolean>;
+    delete(id: number): Promise<boolean>;
+    onUpdate(cb: (info: any) => void): Unsubscribe;
   };
   review: {
     due(limit?: number): Promise<ReviewRow[]>;
@@ -180,5 +191,62 @@ export interface MechStudyApi {
     provenance(id: number): Promise<PyqProvenance | null>;
     solutions(): Promise<PyqSolutionOutcome>;
     onProgress(cb: (p: PyqProgress) => void): Unsubscribe;
+  };
+  exam: {
+    configs(): Promise<ExamConfig[]>;
+    config(id: number): Promise<ExamConfig | null>;
+    createConfig(cfg: Omit<ExamConfig, 'id' | 'createdAt'>): Promise<number>;
+    deleteConfig(id: number): Promise<boolean>;
+    start(configId: number): Promise<{ sessionId: number; questions: ExamQuestion[]; deadlineEpoch: number }>;
+    submit(sessionId: number, responses: ExamResponse[], submittedBy?: 'manual' | 'timeout'): Promise<ExamResult>;
+    session(id: number): Promise<ExamResult | null>;
+    sessions(limit?: number): Promise<ExamSessionSummary[]>;
+    deleteSession(id: number): Promise<boolean>;
+    timeRemaining(sessionId: number): Promise<ExamTimeRemaining>;
+  };
+  ai: {
+    status(): Promise<AiEngineStatus>;
+    startOllama(): Promise<{ started: boolean; error?: string; message: string }>;
+    listModels(): Promise<AiModelInfo[]>;
+    conversations(mode?: string): Promise<AiConversationSummary[]>;
+    createConversation(title?: string, model?: string, mode?: string): Promise<AiConversationSummary>;
+    getConversation(id: number): Promise<AiConversationDetail | null>;
+    updateConversation(id: number, patch: { title?: string; pinned?: boolean }): Promise<boolean>;
+    deleteConversation(id: number): Promise<boolean>;
+    clearConversation(id: number): Promise<boolean>;
+    sendMessage(req: SendMessageRequest): Promise<{ messageId: number }>;
+    stopGeneration(): Promise<void>;
+    onStream(cb: (chunk: AiStreamChunk) => void): Unsubscribe;
+    settings(): Promise<AiSettings>;
+    updateSettings(patch: Partial<AiSettings>): Promise<void>;
+    getMemories(category?: string): Promise<AiMemory[]>;
+    saveMemory(key: string, content: string, category: string): Promise<void>;
+    deleteMemory(id: number): Promise<boolean>;
+    executeToolDirect(name: string, args: Record<string, unknown>): Promise<unknown>;
+    attachDocument(conversationId: number, documentId: number): Promise<boolean>;
+    detachDocument(conversationId: number, documentId: number): Promise<boolean>;
+    setAttachedDocuments(conversationId: number, documentIds: number[]): Promise<AttachedDocumentSummary[]>;
+    getAttachedDocuments(conversationId: number): Promise<AttachedDocumentSummary[]>;
+    processDocument(documentId: number, pages?: number[] | 'all'): Promise<{ success: boolean; message: string; jobId?: number }>;
+    getDocumentStatus(documentId: number): Promise<AttachedDocumentSummary>;
+    analyzeDocumentTopic(documentId: number, topicQuery: string): Promise<DocumentTopicAnalysis>;
+    onDocumentProgress(cb: (progress: DocumentProcessingProgress) => void): Unsubscribe;
+    onPlannerRefresh(cb: () => void): Unsubscribe;
+    onSessionUpdate(cb: (info: any) => void): Unsubscribe;
+    saveTemporaryScreenshot(conversationId: number, dataUrl: string, width?: number, height?: number): Promise<TemporaryScreenshotRecord>;
+    getTemporaryScreenshots(conversationId: number): Promise<TemporaryScreenshotRecord[]>;
+    deleteTemporaryScreenshot(id: number): Promise<boolean>;
+    cleanupScreenshots(): Promise<{ cleanedFiles: number; cleanedRows: number }>;
+    countScreenshots(): Promise<{ count: number; dirPath: string }>;
+  };
+  reminders: {
+    getSettings(): Promise<ReminderSettings>;
+    updateSettings(patch: Partial<ReminderSettings>): Promise<boolean>;
+    test(): Promise<{ success: boolean; payload: ReminderNotificationPayload }>;
+    onStartSession(cb: (payload: ReminderNotificationPayload) => void): Unsubscribe;
+  };
+  reader: {
+    getSettings(): Promise<ReaderSettings>;
+    updateSettings(patch: Partial<ReaderSettings>): Promise<boolean>;
   };
 }

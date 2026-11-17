@@ -425,5 +425,165 @@ CREATE TABLE IF NOT EXISTS pyq_import_batches (
   updated_at TEXT NOT NULL DEFAULT (datetime('now'))
 );
 `
+  },
+  {
+    version: 7,
+    name: 'exam_mode',
+    /* 
+     * Exam Mode: timed papers with MCQ/MSQ/NAT questions.
+     * All marking rules live in src/shared/exam.ts and are unit-tested.
+     * This migration only creates the persistence layer.
+     */
+    sql: `
+CREATE TABLE IF NOT EXISTS exam_configs (
+  id INTEGER PRIMARY KEY AUTOINCREMENT,
+  title TEXT NOT NULL DEFAULT 'Mock test',
+  duration_seconds INTEGER NOT NULL DEFAULT 1800,
+  subject_id INTEGER REFERENCES subjects(id) ON DELETE SET NULL,
+  type TEXT NOT NULL DEFAULT '',           -- '' = all gradable types, or 'mcq' | 'msq' | 'numerical'
+  question_limit INTEGER NOT NULL DEFAULT 20,
+  marks_mcq INTEGER NOT NULL DEFAULT 1,
+  marks_msq INTEGER NOT NULL DEFAULT 1,
+  marks_numerical INTEGER NOT NULL DEFAULT 1,
+  mcq_negative_fraction REAL NOT NULL DEFAULT 0.3333333333333333,
+  negative_numerical INTEGER NOT NULL DEFAULT 0,
+  include_unkeyed INTEGER NOT NULL DEFAULT 0,
+  created_at TEXT NOT NULL DEFAULT (datetime('now'))
+);
+
+CREATE TABLE IF NOT EXISTS exam_sessions (
+  id INTEGER PRIMARY KEY AUTOINCREMENT,
+  config_id INTEGER NOT NULL REFERENCES exam_configs(id) ON DELETE CASCADE,
+  started_at TEXT NOT NULL,
+  ended_at TEXT,
+  submitted_by TEXT NOT NULL DEFAULT 'manual',  -- manual | timeout
+  time_used_seconds INTEGER NOT NULL DEFAULT 0,
+  score REAL NOT NULL DEFAULT 0,
+  max_score REAL NOT NULL DEFAULT 0,
+  percent REAL NOT NULL DEFAULT 0,
+  correct INTEGER NOT NULL DEFAULT 0,
+  wrong INTEGER NOT NULL DEFAULT 0,
+  skipped INTEGER NOT NULL DEFAULT 0,
+  unjudged INTEGER NOT NULL DEFAULT 0,
+  negative_marks REAL NOT NULL DEFAULT 0,
+  answered INTEGER NOT NULL DEFAULT 0,
+  unanswered INTEGER NOT NULL DEFAULT 0,
+  marked_for_review INTEGER NOT NULL DEFAULT 0,
+  per_question_json TEXT,                  -- full QuestionScore[] for review
+  by_subject_json TEXT,                    -- ExamBreakdownRow[]
+  by_type_json TEXT,                       -- ExamBreakdownRow[]
+  created_at TEXT NOT NULL DEFAULT (datetime('now'))
+);
+CREATE INDEX IF NOT EXISTS idx_exam_sessions_config ON exam_sessions(config_id);
+CREATE INDEX IF NOT EXISTS idx_exam_sessions_started ON exam_sessions(started_at);
+`
+  },
+  {
+    version: 8,
+    name: 'ai_assistant',
+    /*
+     * MECHSTUDY AI: conversations, messages, academic memories, tool logs, and embeddings.
+     */
+    sql: `
+CREATE TABLE IF NOT EXISTS ai_conversations (
+  id INTEGER PRIMARY KEY AUTOINCREMENT,
+  title TEXT NOT NULL DEFAULT 'New Conversation',
+  model TEXT NOT NULL DEFAULT '',
+  mode TEXT NOT NULL DEFAULT 'chat',
+  pinned INTEGER NOT NULL DEFAULT 0,
+  created_at TEXT NOT NULL DEFAULT (datetime('now')),
+  updated_at TEXT NOT NULL DEFAULT (datetime('now'))
+);
+CREATE INDEX IF NOT EXISTS idx_ai_conversations_updated ON ai_conversations(updated_at DESC);
+
+CREATE TABLE IF NOT EXISTS ai_messages (
+  id INTEGER PRIMARY KEY AUTOINCREMENT,
+  conversation_id INTEGER NOT NULL REFERENCES ai_conversations(id) ON DELETE CASCADE,
+  role TEXT NOT NULL,
+  content TEXT NOT NULL,
+  tool_calls_json TEXT,
+  tool_results_json TEXT,
+  citations_json TEXT,
+  created_at TEXT NOT NULL DEFAULT (datetime('now'))
+);
+CREATE INDEX IF NOT EXISTS idx_ai_messages_conv ON ai_messages(conversation_id, id ASC);
+
+CREATE TABLE IF NOT EXISTS ai_memories (
+  id INTEGER PRIMARY KEY AUTOINCREMENT,
+  key TEXT NOT NULL UNIQUE,
+  category TEXT NOT NULL,
+  content TEXT NOT NULL,
+  source TEXT NOT NULL DEFAULT 'user',
+  confidence REAL NOT NULL DEFAULT 1.0,
+  created_at TEXT NOT NULL DEFAULT (datetime('now')),
+  updated_at TEXT NOT NULL DEFAULT (datetime('now'))
+);
+CREATE INDEX IF NOT EXISTS idx_ai_memories_cat ON ai_memories(category);
+
+CREATE TABLE IF NOT EXISTS ai_tool_logs (
+  id INTEGER PRIMARY KEY AUTOINCREMENT,
+  conversation_id INTEGER REFERENCES ai_conversations(id) ON DELETE SET NULL,
+  tool_name TEXT NOT NULL,
+  arguments_json TEXT,
+  result_json TEXT,
+  status TEXT NOT NULL,
+  execution_time_ms INTEGER NOT NULL DEFAULT 0,
+  created_at TEXT NOT NULL DEFAULT (datetime('now'))
+);
+CREATE INDEX IF NOT EXISTS idx_ai_tool_logs_time ON ai_tool_logs(created_at DESC);
+
+CREATE TABLE IF NOT EXISTS ai_document_embeddings (
+  document_id INTEGER NOT NULL REFERENCES documents(id) ON DELETE CASCADE,
+  page INTEGER NOT NULL,
+  chunk_index INTEGER NOT NULL DEFAULT 0,
+  text TEXT NOT NULL,
+  embedding_json TEXT NOT NULL,
+  model TEXT NOT NULL,
+  created_at TEXT NOT NULL DEFAULT (datetime('now')),
+  PRIMARY KEY (document_id, page, chunk_index)
+);
+`
+  },
+  {
+    version: 9,
+    name: 'ai_study_materials',
+    /*
+     * Tracks attached documents per AI conversation and document processing status.
+     */
+    sql: `
+CREATE TABLE IF NOT EXISTS ai_conversation_documents (
+  conversation_id INTEGER NOT NULL REFERENCES ai_conversations(id) ON DELETE CASCADE,
+  document_id INTEGER NOT NULL REFERENCES documents(id) ON DELETE CASCADE,
+  attached_at TEXT NOT NULL DEFAULT (datetime('now')),
+  PRIMARY KEY (conversation_id, document_id)
+);
+CREATE INDEX IF NOT EXISTS idx_ai_conv_docs_conv ON ai_conversation_documents(conversation_id);
+`
+  },
+  {
+    version: 10,
+    name: 'sticky_note_minimized_and_ai_screenshots',
+    /*
+     * Part 2 & Part 4:
+     * - sticky_notes: is_minimized column to allow notes to collapse to compact icon/pill on the page
+     * - ai_temporary_screenshots: temporary screenshots captured from reader with 5-message countdown expiry
+     */
+    sql: `
+ALTER TABLE sticky_notes ADD COLUMN is_minimized INTEGER NOT NULL DEFAULT 0;
+
+CREATE TABLE IF NOT EXISTS ai_temporary_screenshots (
+  id INTEGER PRIMARY KEY AUTOINCREMENT,
+  conversation_id INTEGER NOT NULL REFERENCES ai_conversations(id) ON DELETE CASCADE,
+  message_id INTEGER REFERENCES ai_messages(id) ON DELETE SET NULL,
+  file_path TEXT NOT NULL,
+  filename TEXT NOT NULL,
+  width INTEGER,
+  height INTEGER,
+  messages_remaining INTEGER NOT NULL DEFAULT 5,
+  created_at TEXT NOT NULL DEFAULT (datetime('now'))
+);
+CREATE INDEX IF NOT EXISTS idx_temp_screenshots_conv ON ai_temporary_screenshots(conversation_id);
+CREATE INDEX IF NOT EXISTS idx_temp_screenshots_remaining ON ai_temporary_screenshots(messages_remaining);
+`
   }
 ];

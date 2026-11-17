@@ -76,28 +76,33 @@ function reindexNote(id: number) {
 export function createStickyNote(n: {
   documentId?: number; page?: number; x?: number; y?: number; w?: number; h?: number;
   color?: string; title?: string; body?: string; subjectId?: number; topicId?: number;
-  fontSize?: number;
+  fontSize?: number; isMinimized?: boolean | number;
 }) {
+  const isMin = n.isMinimized ? 1 : 0;
   const id = run(
-    `INSERT INTO sticky_notes (document_id, page, x, y, w, h, color, title, body, subject_id, topic_id, font_size)
-     VALUES (?,?,?,?,?,?,?,?,?,?,?,?)`,
+    `INSERT INTO sticky_notes (document_id, page, x, y, w, h, color, title, body, subject_id, topic_id, font_size, is_minimized)
+     VALUES (?,?,?,?,?,?,?,?,?,?,?,?,?)`,
     n.documentId ?? null, n.page ?? null, n.x ?? null, n.y ?? null, n.w ?? null, n.h ?? null,
     n.color ?? 'yellow', n.title ?? null, n.body ?? '', n.subjectId ?? null, n.topicId ?? null,
-    n.fontSize ?? null
+    n.fontSize ?? null, isMin
   ).lastInsertRowid;
   reindexNote(id);
   return id;
 }
 
 export function updateStickyNote(id: number, patch: Record<string, unknown>) {
-  const allowed = ['body', 'title', 'color', 'x', 'y', 'w', 'h', 'resolved', 'topic_id', 'subject_id'];
+  const allowed = ['body', 'title', 'color', 'x', 'y', 'w', 'h', 'resolved', 'topic_id', 'subject_id', 'is_minimized', 'font_size'];
   const sets: string[] = [];
   const params: unknown[] = [];
   for (const [k, v] of Object.entries(patch)) {
     const col = k.replace(/[A-Z]/g, m => '_' + m.toLowerCase());
     if (!allowed.includes(col)) continue;
     sets.push(`${col} = ?`);
-    params.push(v as any);
+    if (col === 'is_minimized') {
+      params.push(v ? 1 : 0);
+    } else {
+      params.push(v as any);
+    }
   }
   if (!sets.length) return;
   sets.push("updated_at = datetime('now')");

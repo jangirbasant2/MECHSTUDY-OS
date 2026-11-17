@@ -73,6 +73,9 @@ export function HomePage() {
         examTarget: task.exam_target, subjectId: task.subject_id,
       });
       toast(`Session started: ${task.title}`, 'success');
+      if (task.document_id) {
+        openDocument(task.document_id, task.page ?? 1);
+      }
     } catch (e) {
       toast((e as Error).message, 'error');
     } finally {

@@ -2,7 +2,7 @@ import React from 'react';
 import {
   Home, Library, BookOpen, GraduationCap, CalendarDays, FileText, StickyNote,
   Repeat2, CircleHelp, Search, BarChart3, FolderInput, Settings, ChevronLeft,
-  ChevronRight, Star, Sparkles,
+  ChevronRight, Star, Sparkles, Bot, Award,
 } from 'lucide-react';
 import { useApp, type PageId } from '../store';
 import { api } from '../lib/api';
@@ -22,10 +22,15 @@ const PRIMARY: NavItem[] = [
   { id: 'notes', label: 'Notes & Annotations', icon: StickyNote },
 ];
 
+const AI_NAV: NavItem[] = [
+  { id: 'ai', label: 'MECHSTUDY AI', icon: Bot, hint: 'Personal Academic Brain' },
+];
+
 const SYLLABUS: NavItem[] = [
   { id: 'rtu', label: 'RTU Syllabus', icon: GraduationCap },
   { id: 'gate', label: 'GATE Mechanical', icon: Sparkles },
   { id: 'practice', label: 'Practice & Questions', icon: CircleHelp },
+  { id: 'exam', label: 'Exam Mode', icon: Award, hint: 'Timed Mock Tests' },
 ];
 
 const PLAN: NavItem[] = [
@@ -121,6 +126,11 @@ export function Sidebar() {
           {PRIMARY.map(renderItem)}
         </nav>
 
+        <GroupLabel collapsed={collapsed}>AI Brain</GroupLabel>
+        <nav aria-label="AI Brain" className="space-y-0.5">
+          {AI_NAV.map(renderItem)}
+        </nav>
+
         <GroupLabel collapsed={collapsed}>Syllabus</GroupLabel>
         <nav aria-label="Syllabus" className="space-y-0.5">
           {SYLLABUS.map(renderItem)}
@@ -184,7 +194,7 @@ function GroupLabel({ children, collapsed }: { children: React.ReactNode; collap
   );
 }
 
-export const NAV_ITEMS: NavItem[] = [...PRIMARY, ...SYLLABUS, ...PLAN, ...SYSTEM];
+export const NAV_ITEMS: NavItem[] = [...PRIMARY, ...AI_NAV, ...SYLLABUS, ...PLAN, ...SYSTEM];
 
 export function pageTitle(page: PageId): string {
   return NAV_ITEMS.find(n => n.id === page)?.label ?? 'MECHSTUDY OS';

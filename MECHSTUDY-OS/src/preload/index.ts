@@ -113,13 +113,18 @@ const api: MechStudyApi = {
     create: (t) => invoke('tasks:create', t),
     update: (id, patch) => invoke('tasks:update', { id, patch }),
     remove: (id) => invoke('tasks:delete', { id }),
+    onRefresh: (cb) => subscribe('planner:refresh', cb),
   },
 
   sessions: {
     start: (s) => invoke('sessions:start', s),
     end: (id, activeSeconds, notes) => invoke('sessions:end', { id, activeSeconds, notes }),
     tick: (id, activeSeconds) => invoke('sessions:tick', { id, activeSeconds }),
-    list: (limit) => invoke('sessions:list', { limit }),
+    list: (filter) => invoke('sessions:list', typeof filter === 'object' ? filter : { limit: filter }),
+    get: (id) => invoke('sessions:get', { id }),
+    update: (id, patch) => invoke('sessions:update', { id, patch }),
+    delete: (id) => invoke('sessions:delete', { id }),
+    onUpdate: (cb) => subscribe('session:update', cb),
   },
 
   review: {
@@ -219,6 +224,66 @@ const api: MechStudyApi = {
 
   db: {
     stats: () => invoke('db:stats'),
+  },
+  exam: {
+    configs: () => invoke('exam:configs'),
+    config: (id) => invoke('exam:config', { id }),
+    createConfig: (cfg) => invoke('exam:createConfig', cfg),
+    deleteConfig: (id) => invoke('exam:deleteConfig', { id }),
+    start: (configId) => invoke('exam:start', { configId }),
+    submit: (sessionId, responses, submittedBy) => invoke('exam:submit', { sessionId, responses, submittedBy }),
+    session: (id) => invoke('exam:session', { id }),
+    sessions: (limit) => invoke('exam:sessions', { limit }),
+    deleteSession: (id) => invoke('exam:deleteSession', { id }),
+    timeRemaining: (sessionId) => invoke('exam:timeRemaining', { sessionId }),
+  },
+  ai: {
+    status: () => invoke('ai:status'),
+    startOllama: () => invoke('ai:startOllama'),
+    listModels: () => invoke('ai:listModels'),
+    conversations: (mode) => invoke('ai:conversations', { mode }),
+    createConversation: (title, model, mode) => invoke('ai:createConversation', { title, model, mode }),
+    getConversation: (id) => invoke('ai:getConversation', { id }),
+    updateConversation: (id, patch) => invoke('ai:updateConversation', { id, patch }),
+    deleteConversation: (id) => invoke('ai:deleteConversation', { id }),
+    clearConversation: (id) => invoke('ai:clearConversation', { id }),
+    sendMessage: (req) => invoke('ai:sendMessage', req),
+    stopGeneration: () => invoke('ai:stopGeneration'),
+    onStream: (cb) => subscribe('ai:stream', cb),
+    settings: () => invoke('ai:settings'),
+    updateSettings: (patch) => invoke('ai:updateSettings', { patch }),
+    getMemories: (category) => invoke('ai:getMemories', { category }),
+    saveMemory: (key, content, category) => invoke('ai:saveMemory', { key, content, category }),
+    deleteMemory: (id) => invoke('ai:deleteMemory', { id }),
+    executeToolDirect: (name, args) => invoke('ai:executeToolDirect', { name, args }),
+    attachDocument: (conversationId, documentId) => invoke('ai:attachDocument', { conversationId, documentId }),
+    detachDocument: (conversationId, documentId) => invoke('ai:detachDocument', { conversationId, documentId }),
+    setAttachedDocuments: (conversationId, documentIds) => invoke('ai:setAttachedDocuments', { conversationId, documentIds }),
+    getAttachedDocuments: (conversationId) => invoke('ai:getAttachedDocuments', { conversationId }),
+    processDocument: (documentId, pages) => invoke('ai:processDocument', { documentId, pages }),
+    getDocumentStatus: (documentId) => invoke('ai:getDocumentStatus', { documentId }),
+    analyzeDocumentTopic: (documentId, topicQuery) => invoke('ai:analyzeDocumentTopic', { documentId, topicQuery }),
+    onDocumentProgress: (cb) => subscribe('ai:documentProgress', cb),
+    onPlannerRefresh: (cb) => subscribe('planner:refresh', cb),
+    onSessionUpdate: (cb) => subscribe('session:update', cb),
+    saveTemporaryScreenshot: (conversationId: number, dataUrl: string, width?: number, height?: number) =>
+      invoke('ai:saveTemporaryScreenshot', { conversationId, dataUrl, width, height }),
+    getTemporaryScreenshots: (conversationId: number) =>
+      invoke('ai:getTemporaryScreenshots', { conversationId }),
+    deleteTemporaryScreenshot: (id: number) =>
+      invoke('ai:deleteTemporaryScreenshot', { id }),
+    cleanupScreenshots: () => invoke('ai:cleanupScreenshots'),
+    countScreenshots: () => invoke('ai:countScreenshots'),
+  },
+  reminders: {
+    getSettings: () => invoke('reminders:getSettings'),
+    updateSettings: (patch: any) => invoke('reminders:updateSettings', { patch }),
+    test: () => invoke('reminders:test'),
+    onStartSession: (cb: (payload: any) => void) => subscribe('reminder:startSession', cb),
+  },
+  reader: {
+    getSettings: () => invoke('reader:getSettings'),
+    updateSettings: (patch: any) => invoke('reader:updateSettings', { patch }),
   },
 };
 

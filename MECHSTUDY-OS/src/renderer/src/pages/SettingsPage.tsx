@@ -12,12 +12,13 @@ import {
   SectionHeader, Segmented, Spinner, Stat, Tabs,
 } from '../components/ui';
 import { bytes, dateLabel, pct, seconds, truncate } from '../lib/format';
+import { ReaderSettingsTab } from './settings/ReaderSettingsTab';
 import type {
   AppInfo, BackupRow, DbStats, IndexProgress, IntegrityReport, Issue,
   OcrJob, OcrProgress, OcrStatus, BackupRow as Backup,
 } from '../../../shared/types';
 
-type Tab = 'general' | 'ocr' | 'data' | 'integrity' | 'about';
+type Tab = 'general' | 'reader' | 'ocr' | 'data' | 'integrity' | 'about';
 
 interface QueueRow {
   id: number; filename: string; page_count: number | null;
@@ -59,6 +60,7 @@ export function SettingsPage() {
         <Tabs
           tabs={[
             { id: 'general' as Tab, label: 'General' },
+            { id: 'reader' as Tab, label: 'Reader & AI' },
             { id: 'ocr' as Tab, label: 'OCR & search index' },
             { id: 'data' as Tab, label: 'Data & backup' },
             { id: 'integrity' as Tab, label: 'Integrity' },
@@ -80,6 +82,7 @@ export function SettingsPage() {
               toast={toast}
             />
           )}
+          {tab === 'reader' && <ReaderSettingsTab toast={toast} />}
           {tab === 'ocr' && <OcrTab info={info} toast={toast} />}
           {tab === 'data' && <DataTab info={info} toast={toast} />}
           {tab === 'integrity' && <IntegrityTab info={info} toast={toast} />}

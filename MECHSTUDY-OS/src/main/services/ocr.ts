@@ -1,6 +1,6 @@
 import { spawn } from 'node:child_process';
 import { existsSync, mkdirSync, writeFileSync, unlinkSync } from 'node:fs';
-import { join } from 'node:path';
+import { join, dirname } from 'node:path';
 import { app } from 'electron';
 import { all, get, run } from '../db';
 import { indexPageText } from './search';
@@ -19,20 +19,56 @@ import { renderPageToPng } from './ocrRender';
  * exactly that — OCR is never faked.
  */
 
-const TESSERACT_CANDIDATES = [
-  'C:\\Program Files\\Tesseract-OCR\\tesseract.exe',
-  'C:\\Program Files (x86)\\Tesseract-OCR\\tesseract.exe',
-  join(app.getPath('home'), 'AppData', 'Local', 'Programs', 'Tesseract-OCR', 'tesseract.exe'),
-];
+function getTesseractCandidates(): string[] {
+  const candidates: string[] = [
+    'C:\\Program Files\\Tesseract-OCR\\tesseract.exe',
+    'C:\\Program Files (x86)\\Tesseract-OCR\\tesseract.exe',
+  ];
+
+  if (process.env.LOCALAPPDATA) {
+    candidates.push(join(process.env.LOCALAPPDATA, 'Programs', 'Tesseract-OCR', 'tesseract.exe'));
+  }
+  if (process.env.USERPROFILE) {
+    candidates.push(join(process.env.USERPROFILE, 'AppData', 'Local', 'Programs', 'Tesseract-OCR', 'tesseract.exe'));
+  }
+
+  try {
+    const home = app?.getPath?.('home');
+    if (home) {
+      candidates.push(join(home, 'AppData', 'Local', 'Programs', 'Tesseract-OCR', 'tesseract.exe'));
+    }
+  } catch {
+    // Outside Electron app runtime (e.g. CLI or tests)
+  }
+
+  return candidates;
+}
 
 let cachedExe: string | null | undefined;
 
 export function findTesseract(): string | null {
   if (cachedExe !== undefined) return cachedExe;
-  for (const c of TESSERACT_CANDIDATES) {
-    try { if (existsSync(c)) { cachedExe = c; return c; } } catch { /* ignore */ }
+  for (const c of getTesseractCandidates()) {
+    try {
+      if (existsSync(c)) {
+        cachedExe = c;
+        return c;
+      }
+    } catch { /* ignore */ }
   }
-  // Fall back to PATH lookup.
+
+  // Fall back to PATH lookup
+  const pathDirs = (process.env.PATH || '').split(';').map(p => p.trim()).filter(Boolean);
+  for (const dir of pathDirs) {
+    try {
+      const candidate = join(dir, 'tesseract.exe');
+      if (existsSync(candidate)) {
+        cachedExe = candidate;
+        return candidate;
+      }
+    } catch { /* ignore */ }
+  }
+
   cachedExe = null;
   return null;
 }
@@ -71,7 +107,11 @@ export async function ocrStatus(): Promise<OcrStatus> {
 
 function runTesseract(exe: string, args: string[], timeoutMs = 120000): Promise<string> {
   return new Promise((resolve, reject) => {
-    const child = spawn(exe, args, { windowsHide: true });
+    const tessdataPrefix = process.env.TESSDATA_PREFIX || join(dirname(exe), 'tessdata');
+    const child = spawn(exe, args, {
+      windowsHide: true,
+      env: { ...process.env, TESSDATA_PREFIX: tessdataPrefix },
+    });
     let out = '';
     let err = '';
     const timer = setTimeout(() => {

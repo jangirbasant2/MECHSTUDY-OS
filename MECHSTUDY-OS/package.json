@@ -63,14 +63,21 @@
     ],
     "extraResources": [
       {
-        "from": "data/gate",
-        "to": "gate"
+        "from": "resources/icon.png",
+        "to": "icon.png"
       }
     ],
     "win": {
+      "icon": "build/icon.ico",
       "target": [
         {
           "target": "nsis",
+          "arch": [
+            "x64"
+          ]
+        },
+        {
+          "target": "portable",
           "arch": [
             "x64"
           ]
@@ -83,7 +90,13 @@
       "allowToChangeInstallationDirectory": true,
       "createDesktopShortcut": true,
       "createStartMenuShortcut": true,
-      "shortcutName": "MECHSTUDY OS"
+      "shortcutName": "MECHSTUDY OS",
+      "artifactName": "MECHSTUDY-OS-Setup-${version}.${ext}",
+      "uninstallDisplayName": "MECHSTUDY OS",
+      "deleteAppDataOnUninstall": false
+    },
+    "portable": {
+      "artifactName": "MECHSTUDY-OS-Portable-${version}.${ext}"
     }
   }
 }

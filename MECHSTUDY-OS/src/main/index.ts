@@ -9,6 +9,8 @@ import { seedSyllabus } from './services/seed';
 import { buildMappings } from './services/mapping';
 import { registerIpc, setMainWindow, defaultProjectRoot } from './ipc';
 import { destroyOcrWindow } from './services/ocrRender';
+import { cleanupExpiredScreenshots } from './services/ai/temporaryScreenshots';
+import { startReminderScheduler, stopReminderScheduler } from './services/reminder';
 
 app.setName('MECHSTUDY OS');
 app.setAppUserModelId('com.mechstudy.os');
@@ -31,6 +33,12 @@ protocol.registerSchemesAsPrivileged([
 let mainWindow: BrowserWindow | null = null;
 
 function createWindow(): void {
+  const iconPath = existsSync(join(process.resourcesPath, 'icon.png'))
+    ? join(process.resourcesPath, 'icon.png')
+    : existsSync(join(__dirname, '../../resources/icon.png'))
+      ? join(__dirname, '../../resources/icon.png')
+      : undefined;
+
   mainWindow = new BrowserWindow({
     width: 1480,
     height: 940,
@@ -39,6 +47,7 @@ function createWindow(): void {
     show: false,
     backgroundColor: '#0b0f14',
     title: 'MECHSTUDY OS',
+    icon: iconPath,
     autoHideMenuBar: false,
     webPreferences: {
       preload: join(__dirname, '../preload/index.js'),
@@ -300,6 +309,8 @@ app.whenReady().then(() => {
     registerIpc();
     buildMenu();
     createWindow();
+    cleanupExpiredScreenshots();
+    startReminderScheduler(() => mainWindow);
   } catch (e) {
     const message = e instanceof Error ? (e.stack ?? e.message) : String(e);
     console.error('[main] fatal startup error:', message);
@@ -322,5 +333,6 @@ app.on('window-all-closed', () => {
 });
 
 app.on('before-quit', () => {
+  stopReminderScheduler();
   destroyOcrWindow();
 });

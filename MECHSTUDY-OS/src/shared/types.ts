@@ -179,6 +179,7 @@ export interface StickyNoteRow {
   color: string; title: string | null; body: string;
   subject_id: number | null; topic_id: number | null;
   font_size: number | null;
+  is_minimized?: number;
   resolved: number; created_at: string; updated_at: string;
   filename?: string | null; subject_name?: string | null;
 }
@@ -202,13 +203,44 @@ export interface TaskRow {
   created_at: string; completed_at: string | null;
   subject_name?: string | null; subject_code?: string | null;
   unit_title?: string | null; topic_title?: string | null;
+  document_filename?: string | null;
 }
 
 export interface SessionRow {
-  id: number; task_id: number | null; subject_id: number | null;
-  exam_target: string; mode: string; started_at: string; ended_at: string | null;
-  active_seconds: number; notes: string | null;
-  subject_name?: string | null; task_title?: string | null;
+  id: number;
+  task_id: number | null;
+  subject_id: number | null;
+  exam_target: string;
+  mode: string;
+  started_at: string;
+  ended_at: string | null;
+  active_seconds: number;
+  notes: string | null;
+  subject_name?: string | null;
+  subject_code?: string | null;
+  task_title?: string | null;
+  topic_title?: string | null;
+  unit_title?: string | null;
+}
+
+export interface SessionFilter {
+  limit?: number;
+  range?: 'today' | 'yesterday' | 'week' | 'month' | 'all';
+  subjectId?: number;
+  status?: 'all' | 'completed' | 'incomplete';
+  date?: string;
+}
+
+export interface SessionPatch {
+  subjectId?: number | null;
+  taskId?: number | null;
+  topicId?: number | null;
+  startedAt?: string;
+  endedAt?: string | null;
+  activeSeconds?: number;
+  notes?: string | null;
+  examTarget?: string;
+  mode?: string;
 }
 
 export interface ReviewRow {
@@ -414,3 +446,301 @@ export interface PyqSolutionOutcome {
 }
 
 export interface MenuAction { action: string }
+
+/* ---------------- Exam Mode ---------------- */
+
+export interface ExamConfig {
+  id: number;
+  title: string;
+  durationSeconds: number;
+  subjectId: number | null;
+  type: string;
+  limit: number;
+  scheme: {
+    marks: { mcq: number; msq: number; numerical: number };
+    mcqNegativeFraction: number;
+    negativeNumerical: boolean;
+  };
+  includeUnkeyed: boolean;
+  createdAt: string;
+}
+
+export interface ExamQuestion {
+  id: number;
+  text: string;
+  type: string;
+  marks: number | null;
+  options_json: string | null;
+  answer: string | null;
+  key_range?: string | null;
+  answer_status?: string | null;
+  subject_id?: number | null;
+  subject_name?: string | null;
+  topic_title?: string | null;
+  exam?: string | null;
+  year?: number | null;
+}
+
+export interface ExamResponse {
+  questionId: number;
+  answer: string | null;
+  marked: boolean;
+  visited: boolean;
+  seconds: number;
+}
+
+export interface ExamBreakdownRow {
+  key: string;
+  correct: number;
+  wrong: number;
+  skipped: number;
+  score: number;
+  max: number;
+}
+
+export interface ExamResult {
+  score: number;
+  maxScore: number;
+  percent: number;
+  correct: number;
+  wrong: number;
+  skipped: number;
+  unjudged: number;
+  negativeMarks: number;
+  answered: number;
+  unanswered: number;
+  markedForReview: number;
+  durationSeconds: number;
+  timeUsedSeconds: number;
+  submittedBy: 'manual' | 'timeout';
+  perQuestion: Array<{
+    questionId: number;
+    status: 'correct' | 'wrong' | 'skipped' | 'unjudged';
+    marks: number;
+    awarded: number;
+    penalty: number;
+    chosen: string;
+    key: string;
+  }>;
+  bySubject: ExamBreakdownRow[];
+  byType: ExamBreakdownRow[];
+}
+
+export interface ExamSessionSummary {
+  id: number;
+  configId: number;
+  configTitle: string;
+  startedAt: string;
+  endedAt: string | null;
+  score: number;
+  maxScore: number;
+  percent: number;
+  submittedBy: string;
+}
+
+export interface ExamTimeRemaining {
+  remaining: number;
+  expired: boolean;
+  deadlineEpoch: number;
+  error?: string;
+}
+
+/* ---------------- MECHSTUDY AI Brain ---------------- */
+
+export interface AiEngineStatus {
+  connected: boolean;
+  installed: boolean;
+  host: string;
+  version: string | null;
+  activeModel: string;
+  availableModelsCount: number;
+  error?: string;
+}
+
+export interface AiModelInfo {
+  name: string;
+  model: string;
+  size: number;
+  parameterSize?: string;
+  family?: string;
+  format?: string;
+  modifiedAt?: string;
+}
+
+export interface AiCitation {
+  documentId: number;
+  filename: string;
+  page: number;
+  snippet: string;
+  score?: number;
+}
+
+export interface AiToolCall {
+  id: string;
+  name: string;
+  arguments: Record<string, unknown>;
+}
+
+export interface AiToolResult {
+  toolCallId: string;
+  name: string;
+  result: unknown;
+  error?: string;
+}
+
+export interface AiMessage {
+  id: number;
+  conversationId: number;
+  role: 'user' | 'assistant' | 'system' | 'tool';
+  content: string;
+  toolCalls?: AiToolCall[];
+  toolResults?: AiToolResult[];
+  citations?: AiCitation[];
+  createdAt: string;
+}
+
+export interface AiConversationSummary {
+  id: number;
+  title: string;
+  model: string;
+  mode: 'chat' | 'tutor' | 'planner';
+  pinned: boolean;
+  messageCount: number;
+  createdAt: string;
+  updatedAt: string;
+}
+
+export interface AttachedDocumentSummary {
+  documentId: number;
+  filename: string;
+  pageCount: number;
+  hasTextLayer: boolean;
+  sizeBytes: number;
+  subjectId: number | null;
+  subjectName?: string | null;
+  textPagesIndexed: number;
+  ocrPagesIndexed: number;
+  ocrStatus?: string | null;
+  ocrConfidence?: number | null;
+  isReady: boolean;
+}
+
+export interface DocumentProcessingProgress {
+  documentId: number;
+  filename: string;
+  status: 'extracting' | 'ocr' | 'completed' | 'failed' | 'paused' | 'cancelled';
+  pagesDone: number;
+  pagesTotal: number;
+  currentPage: number | null;
+  confidence?: number;
+  message?: string;
+  error?: string;
+}
+
+export interface DocumentTopicAnalysis {
+  documentId: number;
+  filename: string;
+  topicQuery: string;
+  pageMatches: Array<{ page: number; snippet: string; score: number }>;
+  pageStart: number | null;
+  pageEnd: number | null;
+  estimatedPages: number;
+  contentSummary: string;
+  hasTextLayer: boolean;
+  isOcr: boolean;
+}
+
+export interface AiConversationDetail extends AiConversationSummary {
+  messages: AiMessage[];
+  attachedDocuments?: AttachedDocumentSummary[];
+}
+
+export interface AiStreamChunk {
+  conversationId: number;
+  messageId: number;
+  delta: string;
+  done: boolean;
+  toolCalls?: AiToolCall[];
+  citations?: AiCitation[];
+  error?: string;
+}
+
+export interface AiSettings {
+  ollamaHost: string;
+  selectedModel: string;
+  embeddingModel: string;
+  temperature: number;
+  contextLength: number;
+  maxTokens: number;
+  systemPrompt: string;
+  collegeStart: string; // e.g. "10:00"
+  collegeEnd: string;   // e.g. "17:00"
+  travelMinutes: number;// e.g. 20
+  maxDailyStudyHours: number; // e.g. 6
+  autoRag: boolean;
+  ragTopK: number;
+}
+
+export interface AiMemory {
+  id: number;
+  key: string;
+  category: 'preference' | 'academic_goal' | 'weakness' | 'constraint' | 'fact';
+  content: string;
+  source: 'user' | 'inferred' | 'exam_performance';
+  confidence: number;
+  createdAt: string;
+  updatedAt: string;
+}
+
+export interface SendMessageRequest {
+  conversationId: number;
+  content: string;
+  model?: string;
+  mode?: 'chat' | 'tutor' | 'planner';
+  tutorLevel?: 'beginner' | 'university' | 'gate' | 'advanced';
+  contextDocumentId?: number;
+  contextPage?: number;
+  selectedText?: string;
+  images?: string[];
+}
+
+export interface TemporaryScreenshotRecord {
+  id: number;
+  conversationId: number;
+  messageId: number | null;
+  filePath: string;
+  filename: string;
+  width: number | null;
+  height: number | null;
+  messagesRemaining: number;
+  dataUrl?: string;
+  createdAt: string;
+}
+
+export interface ReminderSettings {
+  enabled: boolean;
+  dailyTime: string;
+  quietHoursStart: string;
+  quietHoursEnd: string;
+  lastNotifiedDate?: string;
+}
+
+export interface ReminderNotificationPayload {
+  title: string;
+  body: string;
+  subjectId?: number | null;
+  subjectName?: string | null;
+  topicId?: number | null;
+  topicTitle?: string | null;
+  documentId?: number | null;
+  page?: number | null;
+  taskId?: number | null;
+}
+
+export interface ReaderSettings {
+  defaultTool: 'select' | 'highlight' | 'pan' | 'pen' | 'note';
+  defaultNoteColor: 'yellow' | 'blue' | 'pink' | 'green';
+  aiPanelWidth: number;
+}
+
+

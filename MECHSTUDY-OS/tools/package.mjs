@@ -50,7 +50,7 @@ for (let attempt = 1; attempt <= MAX_ATTEMPTS; attempt += 1) {
 
   const ok = run(
     'npx',
-    ['electron-builder', '--win', 'nsis', '--x64'],
+    ['electron-builder', '--win', '--x64'],
     `electron-builder (attempt ${attempt}/${MAX_ATTEMPTS})`
   );
 

@@ -2,7 +2,7 @@ import { create } from 'zustand';
 
 export type PageId =
   | 'home' | 'library' | 'rtu' | 'gate' | 'planner' | 'reader' | 'notes'
-  | 'revision' | 'practice' | 'search' | 'analytics' | 'import' | 'settings';
+  | 'revision' | 'practice' | 'exam' | 'search' | 'analytics' | 'import' | 'settings' | 'ai';
 
 export interface Toast {
   id: number;
@@ -82,6 +82,19 @@ const LS = {
   readerPanel: 'ui.readerPanelOpen',
   theme: 'ui.theme',
   readerDoc: 'ui.readerDocId',
+  timer: 'ui.timer',
+};
+
+const defaultTimer: TimerState = {
+  sessionId: null,
+  running: false,
+  startedAt: null,
+  elapsed: 0,
+  mode: 'stopwatch',
+  targetSeconds: null,
+  label: '',
+  examTarget: 'RTU',
+  subjectId: null,
 };
 
 // `ui.focusMode` was persisted by an earlier build and could leave the app
@@ -118,17 +131,7 @@ export const useApp = create<AppState>((set, get) => ({
   paletteOpen: false,
   pendingTopicId: null,
   quickNote: null,
-  timer: {
-    sessionId: null,
-    running: false,
-    startedAt: null,
-    elapsed: 0,
-    mode: 'stopwatch',
-    targetSeconds: null,
-    label: '',
-    examTarget: 'RTU',
-    subjectId: null,
-  },
+  timer: read<TimerState>(LS.timer, defaultTimer),
   toasts: [],
 
   boot() {
@@ -256,16 +259,14 @@ export const useApp = create<AppState>((set, get) => ({
   },
 
   setTimer(patch) {
-    set(s => ({ timer: { ...s.timer, ...patch } }));
+    const next = { ...get().timer, ...patch };
+    write(LS.timer, next);
+    set({ timer: next });
   },
 
   resetTimer() {
-    set({
-      timer: {
-        sessionId: null, running: false, startedAt: null, elapsed: 0,
-        mode: 'stopwatch', targetSeconds: null, label: '', examTarget: 'RTU', subjectId: null,
-      },
-    });
+    write(LS.timer, defaultTimer);
+    set({ timer: defaultTimer });
   },
 }));
 

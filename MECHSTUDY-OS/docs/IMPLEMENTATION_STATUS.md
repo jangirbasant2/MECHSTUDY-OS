@@ -1,9 +1,9 @@
 # MECHSTUDY OS — Implementation Status
 
-Last updated: 2026-10-31 (session 3)
+Last updated: 2026-11-17 (session 7: Complete Project Audit, Bug Repairs, Timed Exam Mode Wiring, React Render Bug Elimination, and Windows Production Packaging)
 App version: 1.0.0
-Database schema: v6
-Status: **functional build; Windows NSIS installer produced, installed and verified on this machine**
+Database schema: v10
+Status: **production build with Timed Exam Mode wired to navigation & question bank, zero-glitch AI PDF reader & contextual tutor, direct home-to-reader task launching, 68/68 unit tests, 46/46 integration tests, 50/50 index checks passing; Windows NSIS installer packaged at release/MECHSTUDY OS Setup 1.0.0.exe**
 
 This file records what has actually been built and tested, what has not, and
 what a future session must do next. It is deliberately conservative: a feature
@@ -75,6 +75,42 @@ preload bundles are emitted as CommonJS, which is what Electron expects here.
 
 Everything below was executed against the real library and the real database,
 not against fixtures.
+
+
+### AI-Powered PDF Reader Experience & Daily Study Reminders (session 6, verified)
+
+- **Redesigned Reader Top Toolbar:** Reorganized into logical groups (Navigation, Reading & Annotations, AI Tools, and Window/Utilities) with active state indicators, responsive spacing, and dedicated buttons for Ask AI (`Sparkles`), Explain Selection (`Lightbulb`), Summarize Page (`FileText`), Generate Questions (`Brain`), and Screenshot Crop (`Crop` / `Camera`).
+- **Real Visual Sticky Notes:**
+  - Physical appearance with pastel colors (Yellow `#fef08a`, Blue `#bfdbfe`, Pink `#fbcfe8`, Green `#bbf7d0`), realistic paper dual drop shadow, and folded corner dog-ear in bottom-right.
+  - Collapsible minimized state (`is_minimized` column in Migration 10): collapses into a compact floating pill (26px height) displaying note icon and truncated preview; click or double-click expands back to full size.
+  - Normalized `(0..1)` coordinate persistence surviving zoom, page changes, and app restarts. Inline editing with auto-save.
+- **Contextual AI Tutor inside Reader:**
+  - Integrated right-side AI Tutor panel (`ReaderAiPanel.tsx`) displaying current document and page context (`Doc #X · p. Y`), selected text preview card, and active model badge.
+  - RAG priority hierarchy: `selected text (P1) > current page (P2) > relevant pages in open PDF > attached materials > general knowledge`.
+  - Quick action chips: "Explain", "Simplify", "Example", "Derivation", "GATE Problem", and "Summarize Page".
+  - Full LaTeX KaTeX math rendering and Markdown stream.
+- **Screenshot-based Vision Questions & Strict 5-Message Expiry:**
+  - Interactive crop overlay on canvas (`tool === 'screenshot'`) converts region to PNG data URL.
+  - Strict temporary storage: saved to `%APPDATA%\MECHSTUDY OS\data	emp_screenshots\` and tracked in `ai_temporary_screenshots`.
+  - Decrements on every message in that conversation and automatically deletes file from disk and database after 5 subsequent messages.
+  - Cleaned up on conversation delete and app startup (`cleanupExpiredScreenshots()`).
+  - Vision model detection (`isVisionModel`) with graceful OCR fallback ("Run OCR" button) when text-only models are active.
+- **Daily Study Reminders & Seamless Study Start:**
+  - Main-process background scheduler (`reminder.ts`) checking scheduled time (`18:00`) against quiet hours (`23:00` to `08:00`).
+  - Queries `study_tasks` for today's incomplete tasks, strictly excluding Technical Communication (`3ME1-02` / `4ME1-02`).
+  - Dispatches Windows native notifications with 5 randomized motivational templates.
+  - Clicking notification restores window, starts active session in SQLite, launches global timer, and opens the reader at the exact target page!
+- **Settings Integration:**
+  - New **Reader & AI** settings tab: reader defaults, vision model setup, reminder time/quiet hours, notification testing, and temporary screenshot storage management.
+
+### MECHSTUDY AI Brain, OCR & Study Material Integration (session 5, verified)
+
+- **Library Document Attachment:** Fixed React state reset glitch in `StudyMaterialPicker.tsx` using `prevOpenRef` transition tracking. Replaced sequential IPC loops with atomic `api.ai.setAttachedDocuments` transaction in SQLite (`ai_conversation_documents`).
+- **Scanned PDF OCR Pipeline:** Repaired Tesseract 5 candidate discovery (`%LOCALAPPDATA%`, `USERPROFILE`, PATH fallback) and ensured `TESSDATA_PREFIX` is passed to worker processes. Hidden offscreen renderer (`ocrRender.ts`) now defensively awaits `window.__ocrReady` before calling `__ocrRender`. Mixed PDFs now extract digital text and fall back to OCR for sparse/image pages.
+- **RAG Substantive Term Extraction:** Eliminated query failure in FTS5 where conversational stopwords ("make", "planner", "today") were joined with `AND`. Implemented `extractSubstantiveTerms` with dual `AND` and `OR` (BM25 ranked) matching. Notes pages (e.g. `7.Thermodynamics-GATE-ME-NOTES(S).pdf` page 92) are now retrieved with exact snippets and page citations.
+- **PDF-Aware Study Planning:** `create_study_plan` tool binds study tasks to attached document IDs and computed page spans, saving them directly to SQLite `study_tasks`.
+- **Reader & Timer Integration:** Clicking "Start" in Planner or AI chat starts the global study timer and opens the Reader directly at the planned document page.
+- **Technical Communication exclusion:** Unconditionally maintained across all syllabus tables, queries, and AI prompts.
 
 ### Library and reading
 - Import of the real corpus: **66 documents, 970.8 MB, 4,871 pages**, 66/66
@@ -274,6 +310,28 @@ or modified) and stores the questions with the provenance of every answer.
 - Tests: `tests/unit/pyq-parse.test.mjs` (21 tests, fixtures copied from the
   real text layers) and `tests/integration/pyq.test.ts` (6 tests against the
   real PDFs: 390 rows, provenance counts, idempotent re-import, stats).
+
+### MECHSTUDY AI — Personal Academic Brain (session 4)
+
+Built a local-first, zero-subscription academic AI co-pilot powered by local Ollama inference, integrated seamlessly with the SQLite database, syllabus tree, and document library.
+
+- **Local Inference Engine**: Communicates with local Ollama (`http://127.0.0.1:11434`) over native HTTP streaming (`/api/chat`). Detects model families, parameters, and sizes. Hardware optimized for RTX 3050 4GB VRAM with default 4096 context window and 4B models (`qwen3:4b`, `llama3.2:3b`), gracefully offloading larger 8B models to system RAM.
+- **Controlled Tool Registry**: 18 sandboxed tools covering:
+  - *Scheduling*: `get_today_schedule`, `get_week_schedule`, `create_task`, `update_task`, `delete_task`, `reschedule_task`, `check_schedule_conflicts`. Protects college hours (10 AM–5 PM) and daily study hour caps.
+  - *Academic Progress*: `get_study_progress`, `update_study_progress`, `get_completed_topics`, `get_pending_topics`, `get_weak_topics`, `get_subject_progress`.
+  - *Documents & Notes*: `search_notes` (FTS5 + semantic), `retrieve_document_content`, `get_document_details`.
+  - *Study & Practice*: `generate_quiz`, `create_study_session`, `get_exam_history`, `analyze_exam_performance`.
+  - *Security*: LLM is strictly prohibited from running raw SQL or accessing filesystem. Destructive actions require explicit user confirmation. All executions logged to `ai_tool_logs`.
+- **Hybrid RAG Document Understanding**: Queries `fts_pages` and `fts_notes` to inject verified study passages into context. Returns verified document and page citations (`openDocument(docId, page)`) with clickable jump cards.
+- **Persistent Academic Memory**: Stored in `ai_memories` table across categories (`preference`, `academic_goal`, `weakness`, `constraint`, `fact`). Injected dynamically into system context for personalized mentoring.
+- **Dedicated AI UI in Sidebar**: Full-featured UI featuring:
+  - Multi-conversation history sidebar with search, pin/unpin, and delete.
+  - Streaming token rendering with LaTeX KaTeX math (`$E=mc^2$`, `$$\int ...$$`) and syntax-highlighted code blocks.
+  - In-line tool execution cards with parameters and results.
+  - 4-level Academic Tutor mode (Beginner, University Exam, GATE ME, Advanced).
+  - Study Planner mode with time conflict checks and college hour protection.
+  - Academic Memory manager and AI Settings dashboard.
+- **Schema Migration 8**: Forward-only migration adding `ai_conversations`, `ai_messages`, `ai_memories`, `ai_tool_logs`, and `ai_document_embeddings`. All 55 unit tests and 46 integration tests pass.
 
 ### Platform hardening
 - `contextIsolation: true`, `nodeIntegration: false`, `sandbox: true`,
@@ -531,7 +589,44 @@ Modified:
 
 ---
 
-## 10. Next action
+## 10. Session 4.1: MECHSTUDY AI Brain & Planner Integration (Verified)
+
+### What was completed and verified:
+1. **Planner Tool Suite in `toolRegistry.ts`:**
+   - `create_study_plan`: Resolves subject & topic against authoritative syllabus (e.g. Thermodynamics -> `3ME4-05`, Entropy -> Unit 2 Topic 121), checks conflicts against college hours (10:00-17:00) and daily hour cap, generates multi-session structured breakdowns with engineering focus areas, and saves them directly to `study_tasks` in SQLite.
+   - `add_study_session`: Adds single scheduled tasks to `study_tasks`.
+   - `get_study_plan`: Fetches tasks and flags AI plans for specified dates.
+   - `update_study_session`: Modifies date, duration, priority, status, or notes.
+   - `delete_study_session`: Deletes tasks with confirmation protection.
+   - `start_study_session`: Launches active study session in `study_sessions`, marks task `in_progress`, and triggers app-wide timer.
+   - `complete_study_session`: Marks task `done`, ends session with logged duration, updates `topic_progress` (`status: completed`, `theory_done: 1`), and schedules spaced repetition in `review_schedule`.
+
+2. **Fix for Placebo / Empty Text Output:**
+   - Replaced default `"I have completed your request."` with dynamic structured Markdown synthesis `synthesizeToolResponse()` and intelligent intent detection. The AI now presents complete study plan tables with durations, session breakdown, and clear instructions.
+
+3. **Interactive Planner UI (`PlannerPage.tsx`):**
+   - Added real-time IPC subscriptions (`api.tasks.onRefresh` and `api.sessions.onUpdate`).
+   - Added AI Study Plans Hero Card (`AiPlanOverview`) with progress bar, session breakdown, and functional controls (**Start**, **Pause**, **Resume**, **Complete**, **Reschedule**).
+   - In `TaskRowView`, added `🤖 AI Plan` badge, live active indicator with running clock, and instant completion / rescheduling actions.
+   - Added `RescheduleModal` for quick date shifts (Today, Tomorrow, Custom).
+
+4. **Persistent Study Timer (`store.ts` & `useTimer.ts`):**
+   - Active timer state now persists to `localStorage` (`LS.timer`) with crash/restart continuity and 15s SQLite sync.
+
+5. **Application-Level Ollama Management (No Terminal):**
+   - Registered `ai:startOllama` IPC handler and exposed `api.ai.startOllama()` in preload.
+   - Added "Start Ollama Server" one-click button in `AIPage.tsx` with live spinner and status retry.
+
+6. **Test Results:**
+   - Unit tests: 57/57 passed.
+   - Integration tests: 46/46 passed.
+   - TypeScript checks: 0 errors across Node and Web targets.
+   - Production bundle: Succeeded in 5.35s.
+   - Live database execution: Verified against `%APPDATA%\MECHSTUDY OS\data\mechstudy.db`.
+
+---
+
+## 11. Next action
 
 The reader/layout and annotation work (P0 + P1) is complete and verified. The
 largest remaining gap is the study-feature block that session 2 did not reach:

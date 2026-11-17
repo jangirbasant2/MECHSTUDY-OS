@@ -10,11 +10,13 @@ export function listTasks(filter?: { date?: string; status?: string; subjectId?:
   if (filter?.subjectId) { where.push('t.subject_id = ?'); params.push(filter.subjectId); }
   return all(`
     SELECT t.*, s.name AS subject_name, s.code AS subject_code,
-           u.title AS unit_title, tp.title AS topic_title
+           u.title AS unit_title, tp.title AS topic_title,
+           d.filename AS document_filename
     FROM study_tasks t
     LEFT JOIN subjects s ON s.id = t.subject_id
     LEFT JOIN units u ON u.id = t.unit_id
     LEFT JOIN topics tp ON tp.id = t.topic_id
+    LEFT JOIN documents d ON d.id = t.document_id
     ${where.length ? 'WHERE ' + where.join(' AND ') : ''}
     ORDER BY COALESCE(t.planned_date, '9999') ASC, 
              CASE t.priority WHEN 'HIGH' THEN 0 WHEN 'MEDIUM' THEN 1 ELSE 2 END`,
@@ -55,6 +57,26 @@ export function deleteTask(id: number) { run('DELETE FROM study_tasks WHERE id =
 
 /* ---------------- sessions ---------------- */
 
+export interface SessionFilter {
+  limit?: number;
+  range?: 'today' | 'yesterday' | 'week' | 'month' | 'all';
+  subjectId?: number;
+  status?: 'all' | 'completed' | 'incomplete';
+  date?: string;
+}
+
+export interface SessionPatch {
+  subjectId?: number | null;
+  taskId?: number | null;
+  topicId?: number | null;
+  startedAt?: string;
+  endedAt?: string | null;
+  activeSeconds?: number;
+  notes?: string | null;
+  examTarget?: string;
+  mode?: string;
+}
+
 export function startSession(s: { taskId?: number; subjectId?: number; examTarget?: string; mode?: string }) {
   return run(
     `INSERT INTO study_sessions (task_id, subject_id, exam_target, mode, started_at)
@@ -79,13 +101,134 @@ export function tickSession(id: number, activeSeconds: number) {
   );
 }
 
-export function listSessions(limit = 100) {
-  return all(`
-    SELECT ss.*, s.name AS subject_name, t.title AS task_title
+export function deleteSession(id: number): boolean {
+  const res = run('DELETE FROM study_sessions WHERE id = ?', id);
+  return res.changes > 0;
+}
+
+export function getSession(id: number) {
+  return get<any>(`
+    SELECT ss.*, s.name AS subject_name, s.code AS subject_code,
+           t.title AS task_title, t.topic_id, tp.title AS topic_title,
+           u.id AS unit_id, u.title AS unit_title
     FROM study_sessions ss
     LEFT JOIN subjects s ON s.id = ss.subject_id
     LEFT JOIN study_tasks t ON t.id = ss.task_id
-    ORDER BY ss.started_at DESC LIMIT ?`, limit);
+    LEFT JOIN topics tp ON tp.id = t.topic_id
+    LEFT JOIN units u ON u.id = t.unit_id
+    WHERE ss.id = ?`, id);
+}
+
+export function updateSession(id: number, patch: SessionPatch): boolean {
+  return tx(() => {
+    const existing = get<any>('SELECT * FROM study_sessions WHERE id = ?', id);
+    if (!existing) return false;
+
+    const sets: string[] = [];
+    const params: unknown[] = [];
+
+    if (patch.subjectId !== undefined) {
+      sets.push('subject_id = ?');
+      params.push(patch.subjectId ?? null);
+    }
+    if (patch.taskId !== undefined) {
+      sets.push('task_id = ?');
+      params.push(patch.taskId ?? null);
+    }
+    if (patch.examTarget !== undefined) {
+      sets.push('exam_target = ?');
+      params.push(patch.examTarget);
+    }
+    if (patch.mode !== undefined) {
+      sets.push('mode = ?');
+      params.push(patch.mode);
+    }
+    if (patch.startedAt !== undefined) {
+      sets.push('started_at = ?');
+      params.push(patch.startedAt);
+    }
+    if (patch.endedAt !== undefined) {
+      sets.push('ended_at = ?');
+      params.push(patch.endedAt ?? null);
+    }
+    if (patch.activeSeconds !== undefined) {
+      sets.push('active_seconds = ?');
+      params.push(Math.max(0, Math.round(Number(patch.activeSeconds))));
+    }
+    if (patch.notes !== undefined) {
+      sets.push('notes = ?');
+      params.push(patch.notes ?? null);
+    }
+
+    if (sets.length > 0) {
+      run(`UPDATE study_sessions SET ${sets.join(', ')} WHERE id = ?`, ...params, id);
+    }
+
+    // If topicId or subjectId is updated, check if we should update associated task
+    if (patch.topicId !== undefined || patch.subjectId !== undefined) {
+      if (existing.task_id) {
+        const taskSets: string[] = [];
+        const taskParams: unknown[] = [];
+        if (patch.topicId !== undefined) {
+          taskSets.push('topic_id = ?');
+          taskParams.push(patch.topicId ?? null);
+        }
+        if (patch.subjectId !== undefined) {
+          taskSets.push('subject_id = ?');
+          taskParams.push(patch.subjectId ?? null);
+        }
+        if (taskSets.length > 0) {
+          run(`UPDATE study_tasks SET ${taskSets.join(', ')} WHERE id = ?`, ...taskParams, existing.task_id);
+        }
+      }
+    }
+
+    return true;
+  });
+}
+
+export function listSessions(filterOrLimit: number | SessionFilter = 100) {
+  const filter: SessionFilter = typeof filterOrLimit === 'number' ? { limit: filterOrLimit } : (filterOrLimit ?? {});
+  const limit = Math.max(1, Math.min(500, Number(filter.limit || 100)));
+  const where: string[] = [];
+  const params: unknown[] = [];
+
+  if (filter.subjectId) {
+    where.push('ss.subject_id = ?');
+    params.push(filter.subjectId);
+  }
+
+  if (filter.range === 'today') {
+    where.push("date(ss.started_at, 'localtime') = date('now', 'localtime')");
+  } else if (filter.range === 'yesterday') {
+    where.push("date(ss.started_at, 'localtime') = date('now', 'localtime', '-1 day')");
+  } else if (filter.range === 'week') {
+    where.push("date(ss.started_at, 'localtime') >= date('now', 'localtime', '-6 days')");
+  } else if (filter.range === 'month') {
+    where.push("date(ss.started_at, 'localtime') >= date('now', 'localtime', '-29 days')");
+  }
+
+  if (filter.date) {
+    where.push("date(ss.started_at, 'localtime') = date(?)");
+    params.push(filter.date);
+  }
+
+  if (filter.status === 'completed') {
+    where.push('ss.ended_at IS NOT NULL');
+  } else if (filter.status === 'incomplete') {
+    where.push('(ss.ended_at IS NULL OR ss.active_seconds = 0)');
+  }
+
+  return all(`
+    SELECT ss.*, s.name AS subject_name, s.code AS subject_code,
+           t.title AS task_title, tp.title AS topic_title, u.title AS unit_title
+    FROM study_sessions ss
+    LEFT JOIN subjects s ON s.id = ss.subject_id
+    LEFT JOIN study_tasks t ON t.id = ss.task_id
+    LEFT JOIN topics tp ON tp.id = t.topic_id
+    LEFT JOIN units u ON u.id = t.unit_id
+    ${where.length ? 'WHERE ' + where.join(' AND ') : ''}
+    ORDER BY ss.started_at DESC LIMIT ?`, ...params, limit);
 }
 
 /* ---------------- topic progress ---------------- */

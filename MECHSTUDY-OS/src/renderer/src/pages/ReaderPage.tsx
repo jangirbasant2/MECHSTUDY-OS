@@ -5,7 +5,9 @@ import {
   Download, MousePointer2, Trash2, PanelRightClose, PanelRightOpen,
   ArrowLeft, AlertTriangle, Check, Type, Eraser, PanelLeft, PanelLeftOpen,
   PanelTopClose, GripHorizontal, PenLine, Scaling, Save,
+  Crop, Hand, Minus, Lightbulb, Camera, Sparkles, Brain,
 } from 'lucide-react';
+import { ReaderAiPanel } from './reader/ReaderAiPanel';
 import { api } from '../lib/api';
 import { useApp } from '../store';
 import { openDocument, renderPage, renderTextLayer, type PdfDoc } from '../lib/pdf';
@@ -17,8 +19,8 @@ import type {
 
 type Tool =
   | 'select' | 'highlight' | 'underline' | 'strikethrough'
-  | 'pen' | 'eraser' | 'note' | 'text';
-type Panel = 'notes' | 'bookmarks' | 'search' | 'info';
+  | 'pen' | 'eraser' | 'note' | 'text' | 'screenshot' | 'pan';
+type Panel = 'notes' | 'bookmarks' | 'search' | 'info' | 'ai';
 
 /** Colours used for highlight / underline / strike / ink. */
 const COLORS: { name: string; hex: string }[] = [
@@ -155,6 +157,8 @@ export function ReaderPage() {
 
   const [bookmarkDraft, setBookmarkDraft] = React.useState<{ title: string; description: string } | null>(null);
   const [exportOpen, setExportOpen] = React.useState(false);
+  const [pendingScreenshot, setPendingScreenshot] = React.useState<string | null>(null);
+  const [aiPanelWidth, setAiPanelWidth] = React.useState(360);
   const [exporting, setExporting] = React.useState(false);
   const [exportResult, setExportResult] = React.useState<ExportResult | null>(null);
   const [deleteAnn, setDeleteAnn] = React.useState<AnnotationRow | null>(null);
@@ -187,6 +191,18 @@ export function ReaderPage() {
   const annsRef = React.useRef(anns);
   React.useEffect(() => { notesRef.current = notes; }, [notes]);
   React.useEffect(() => { annsRef.current = anns; }, [anns]);
+
+  /* ---------------- load reader preferences ---------------- */
+  React.useEffect(() => {
+    let alive = true;
+    api.reader.getSettings().then(st => {
+      if (!alive) return;
+      if (st.defaultTool) setTool(st.defaultTool);
+      if (st.defaultNoteColor) setColor(st.defaultNoteColor);
+      if (st.aiPanelWidth) setAiPanelWidth(st.aiPanelWidth);
+    }).catch(() => { /* ignore */ });
+    return () => { alive = false; };
+  }, []);
 
   /* ---------------- native full-screen state ---------------- */
   React.useEffect(() => {
@@ -445,6 +461,8 @@ export function ReaderPage() {
         setTool('text');
       } else if (e.key === 'e') {
         setTool('eraser');
+      } else if (e.key === 's') {
+        setTool('screenshot');
       } else if (e.key === 'Escape') {
         // Escape is also handled at app level to leave focus mode.
         setTool('select');
@@ -476,6 +494,12 @@ export function ReaderPage() {
     if (tool === 'select' || tool === 'eraser' || !docId) return;
     const pt = pointFromEvent(e);
     if (!pt) return;
+
+    if (tool === 'screenshot') {
+      e.preventDefault();
+      setDrag({ x0: pt.x, y0: pt.y, x1: pt.x, y1: pt.y });
+      return;
+    }
 
     if (tool === 'note') {
       setNoteDraft({
@@ -550,6 +574,36 @@ export function ReaderPage() {
       return;
     }
     setPenPoints(null);
+
+    if (tool === 'screenshot' && drag) {
+      const r = drag;
+      setDrag(null);
+      const x = Math.min(r.x0, r.x1);
+      const y = Math.min(r.y0, r.y1);
+      const w = Math.abs(r.x1 - r.x0);
+      const h = Math.abs(r.y1 - r.y0);
+      if (w > 0.01 && h > 0.01 && canvasRef.current) {
+        const pageCanvas = canvasRef.current;
+        const cropX = Math.round(x * pageCanvas.width);
+        const cropY = Math.round(y * pageCanvas.height);
+        const cropW = Math.round(w * pageCanvas.width);
+        const cropH = Math.round(h * pageCanvas.height);
+        const cropCanvas = document.createElement('canvas');
+        cropCanvas.width = cropW;
+        cropCanvas.height = cropH;
+        const ctx = cropCanvas.getContext('2d');
+        if (ctx) {
+          ctx.drawImage(pageCanvas, cropX, cropY, cropW, cropH, 0, 0, cropW, cropH);
+          const dataUrl = cropCanvas.toDataURL('image/png');
+          setPendingScreenshot(dataUrl);
+          setPanel('ai');
+          setPanelOpen(true);
+          setTool('select');
+          toast('Screenshot captured! Ready to ask AI Tutor.', 'success');
+        }
+      }
+      return;
+    }
 
     if (!drag) return;
     const r = drag;
@@ -672,6 +726,16 @@ export function ReaderPage() {
       setEditingNote(null);
       await loadPageData();
       toast('Sticky note deleted', 'success');
+    } catch (e) {
+      toast((e as Error).message, 'error');
+    }
+  };
+
+  const toggleMinimizeNote = async (n: StickyNoteRow) => {
+    const nextMin = n.is_minimized ? 0 : 1;
+    try {
+      await api.notes.update(n.id, { is_minimized: nextMin });
+      setNotes(ns => ns.map(x => (x.id === n.id ? { ...x, is_minimized: nextMin } : x)));
     } catch (e) {
       toast((e as Error).message, 'error');
     }
@@ -949,15 +1013,19 @@ export function ReaderPage() {
 
           <div className="mx-1 h-5 w-px" style={{ background: 'var(--color-border)' }} />
 
-          {/* tools */}
-          <ToolButton active={tool === 'select'} onClick={() => setTool('select')} title="Select text (Esc)" icon={<MousePointer2 size={15} />} />
-          <ToolButton active={tool === 'highlight'} onClick={() => setTool('highlight')} title="Highlight a region (H)" icon={<Highlighter size={15} />} />
-          <ToolButton active={tool === 'underline'} onClick={() => setTool('underline')} title="Underline a region (works on scanned pages)" icon={<Underline size={15} />} />
-          <ToolButton active={tool === 'strikethrough'} onClick={() => setTool('strikethrough')} title="Strike through a region" icon={<Strikethrough size={15} />} />
-          <ToolButton active={tool === 'pen'} onClick={() => setTool('pen')} title="Freehand pen" icon={<PenTool size={15} />} />
-          <ToolButton active={tool === 'eraser'} onClick={() => setTool('eraser')} title="Eraser — click an annotation to remove it (E)" icon={<Eraser size={15} />} />
-          <ToolButton active={tool === 'text'} onClick={() => setTool('text')} title="Write text on the PDF (T)" icon={<Type size={15} />} />
-          <ToolButton active={tool === 'note'} onClick={() => setTool('note')} title="Add sticky note (N)" icon={<StickyNote size={15} />} />
+          {/* Reading and Annotation tools */}
+          <div className="flex items-center gap-0.5" data-testid="reading-tools-group">
+            <ToolButton active={tool === 'select'} onClick={() => setTool('select')} title="Select text (Esc)" icon={<MousePointer2 size={15} />} />
+            <ToolButton active={tool === 'pan'} onClick={() => setTool('pan')} title="Pan / hand tool" icon={<Hand size={15} />} />
+            <ToolButton active={tool === 'highlight'} onClick={() => setTool('highlight')} title="Highlight a region (H)" icon={<Highlighter size={15} />} />
+            <ToolButton active={tool === 'underline'} onClick={() => setTool('underline')} title="Underline a region" icon={<Underline size={15} />} />
+            <ToolButton active={tool === 'strikethrough'} onClick={() => setTool('strikethrough')} title="Strike through a region" icon={<Strikethrough size={15} />} />
+            <ToolButton active={tool === 'pen'} onClick={() => setTool('pen')} title="Freehand pen" icon={<PenTool size={15} />} />
+            <ToolButton active={tool === 'note'} onClick={() => setTool('note')} title="Add visual sticky note (N)" icon={<StickyNote size={15} />} />
+            <ToolButton active={tool === 'text'} onClick={() => setTool('text')} title="Write text on the PDF (T)" icon={<Type size={15} />} />
+            <ToolButton active={tool === 'screenshot'} onClick={() => { setTool('screenshot'); toast('Drag a rectangle on the page to crop for AI Tutor', 'info'); }} title="Crop screenshot for AI Tutor (S)" icon={<Crop size={15} />} />
+            <ToolButton active={tool === 'eraser'} onClick={() => setTool('eraser')} title="Eraser — click an annotation to remove it (E)" icon={<Eraser size={15} />} />
+          </div>
 
           <div className="flex items-center gap-1 pl-1" title="Colour for highlights, ink and new notes">
             {COLORS.map(c => (
@@ -974,6 +1042,53 @@ export function ReaderPage() {
                 }}
               />
             ))}
+          </div>
+
+          <div className="mx-1 h-5 w-px" style={{ background: 'var(--color-border)' }} />
+
+          {/* AI Tools group */}
+          <div className="flex items-center gap-1" data-testid="ai-tools-group">
+            <button
+              className={`btn btn-sm gap-1.5 ${panel === 'ai' && panelOpen ? 'btn-accent' : ''}`}
+              onClick={() => { setPanel('ai'); setPanelOpen(true); }}
+              title="Ask MECHSTUDY AI Tutor about this document"
+            >
+              <Sparkles size={13} />
+              <span className="hidden sm:inline font-medium">Ask AI</span>
+            </button>
+            <button
+              className="btn btn-ghost btn-icon"
+              onClick={() => { setPanel('ai'); setPanelOpen(true); }}
+              title={selection ? 'Explain selected text with AI Tutor' : 'Explain key concept with AI Tutor'}
+              aria-label="Explain concept"
+            >
+              <Lightbulb size={15} style={selection ? { color: 'var(--color-accent)' } : undefined} />
+            </button>
+            <button
+              className="btn btn-ghost btn-icon"
+              onClick={() => { setPanel('ai'); setPanelOpen(true); }}
+              title="Summarize current page with AI Tutor"
+              aria-label="Summarize page"
+            >
+              <FileText size={15} />
+            </button>
+            <button
+              className="btn btn-ghost btn-icon"
+              onClick={() => { setPanel('ai'); setPanelOpen(true); }}
+              title="Generate GATE / Exam questions from this page"
+              aria-label="Generate questions"
+            >
+              <Brain size={15} />
+            </button>
+            <button
+              className={`btn btn-ghost btn-icon ${tool === 'screenshot' ? 'btn-active' : ''}`}
+              onClick={() => { setTool('screenshot'); toast('Drag a rectangle on the page to crop for AI Tutor', 'info'); }}
+              title="Capture screenshot diagram for AI questions (S)"
+              aria-label="Capture screenshot"
+              style={tool === 'screenshot' ? { color: 'var(--color-accent)' } : undefined}
+            >
+              <Camera size={15} />
+            </button>
           </div>
 
           <div className="ml-auto flex items-center gap-1">
@@ -1348,6 +1463,73 @@ export function ReaderPage() {
                     w: n.w ?? DEFAULT_NOTE_W, h: n.h ?? DEFAULT_NOTE_H,
                   };
                   const fs = noteFontPx(n.font_size, scaleFactor);
+
+                  // Minimized state: collapses to compact floating pill with icon & preview
+                  if (n.is_minimized) {
+                    return (
+                      <div
+                        key={`note-min-${n.id}`}
+                        className="sticky-note-minimized"
+                        data-testid="sticky-note-minimized"
+                        data-note-id={n.id}
+                        style={{
+                          position: 'absolute',
+                          left: `${box.x * 100}%`,
+                          top: `${box.y * 100}%`,
+                          background: theme.bg,
+                          color: theme.fg,
+                          border: selected ? '2px solid var(--color-accent)' : `1px solid ${theme.border}`,
+                          borderRadius: '9999px',
+                          boxShadow: '0 2px 8px rgba(0,0,0,0.18)',
+                          zIndex: selected ? 30 : 12,
+                          fontSize: 11,
+                          padding: '3px 8px',
+                          display: 'flex',
+                          alignItems: 'center',
+                          gap: 5,
+                          cursor: 'pointer',
+                          pointerEvents: tool === 'select' ? 'auto' : 'none',
+                          maxWidth: 160,
+                          userSelect: 'none',
+                        }}
+                        onPointerDown={e => {
+                          e.stopPropagation();
+                          setSelectedNote(n.id);
+                          setSelectedAnn(null);
+                        }}
+                        onDoubleClick={e => {
+                          e.stopPropagation();
+                          void toggleMinimizeNote(n);
+                        }}
+                        title="Click or double-click to expand sticky note"
+                      >
+                        <div
+                          className="cursor-move flex items-center"
+                          onPointerDown={startBoxDrag('note', 'move', n.id, box)}
+                          title="Drag to move"
+                        >
+                          <GripHorizontal size={9} style={{ opacity: 0.6 }} />
+                        </div>
+                        <StickyNote size={11} />
+                        <span className="truncate flex-1 font-medium text-[10.5px]">
+                          {n.body ? truncate(n.body, 16) : 'Note'}
+                        </span>
+                        <button
+                          className="hover:opacity-75 p-0.5"
+                          onClick={e => {
+                            e.stopPropagation();
+                            void toggleMinimizeNote(n);
+                          }}
+                          title="Expand note"
+                          aria-label="Expand note"
+                        >
+                          <Maximize2 size={10} />
+                        </button>
+                      </div>
+                    );
+                  }
+
+                  // Expanded realistic sticky note with folded-corner dog-ear
                   return (
                     <div
                       key={`note-${n.id}`}
@@ -1355,17 +1537,22 @@ export function ReaderPage() {
                       data-testid="sticky-note"
                       data-note-id={n.id}
                       style={{
+                        position: 'absolute',
                         left: `${box.x * 100}%`,
                         top: `${box.y * 100}%`,
                         width: `${box.w * 100}%`,
                         height: `${box.h * 100}%`,
-                        background: theme.bg,
+                        background: `linear-gradient(175deg, ${theme.bg} 0%, color-mix(in srgb, ${theme.bg} 92%, black) 100%)`,
                         color: theme.fg,
                         border: selected ? '2px solid var(--color-accent)' : `1px solid ${theme.border}`,
+                        borderRadius: '2px 2px 14px 2px',
+                        boxShadow: '2px 4px 14px rgba(0,0,0,0.18), 0 1px 3px rgba(0,0,0,0.12)',
                         zIndex: selected ? 30 : 12,
                         fontSize: fs,
                         pointerEvents: tool === 'select' ? 'auto' : 'none',
                         cursor: editing ? 'text' : 'default',
+                        display: 'flex',
+                        flexDirection: 'column',
                       }}
                       onPointerDown={e => {
                         e.stopPropagation();
@@ -1374,15 +1561,61 @@ export function ReaderPage() {
                       }}
                       onDoubleClick={e => { e.stopPropagation(); startEditNote(n); }}
                     >
+                      {/* Realistic folded corner dog-ear */}
+                      <div
+                        style={{
+                          position: 'absolute',
+                          bottom: 0,
+                          right: 0,
+                          width: 14,
+                          height: 14,
+                          background: `linear-gradient(135deg, transparent 50%, color-mix(in srgb, ${theme.border} 70%, black) 50%)`,
+                          pointerEvents: 'none',
+                          borderTopLeftRadius: 3,
+                          filter: 'drop-shadow(-1px -1px 1px rgba(0,0,0,0.15))',
+                        }}
+                      />
+
                       <div
                         className="sticky-note-head"
-                        onPointerDown={startBoxDrag('note', 'move', n.id, box)}
-                        title="Drag to move"
+                        style={{
+                          display: 'flex',
+                          alignItems: 'center',
+                          justifyContent: 'space-between',
+                          padding: '2px 4px',
+                          borderBottom: '1px solid rgba(0,0,0,0.06)',
+                          cursor: 'move',
+                        }}
                       >
-                        <GripHorizontal size={10} />
-                        <span style={{ fontSize: 8.5, letterSpacing: '0.03em', textTransform: 'uppercase', opacity: 0.65 }}>
-                          note
-                        </span>
+                        <div
+                          className="flex items-center gap-1"
+                          onPointerDown={startBoxDrag('note', 'move', n.id, box)}
+                          title="Drag to move"
+                        >
+                          <GripHorizontal size={10} />
+                          <span style={{ fontSize: 8.5, letterSpacing: '0.04em', textTransform: 'uppercase', opacity: 0.7, fontWeight: 600 }}>
+                            note
+                          </span>
+                        </div>
+
+                        <div className="flex items-center gap-1" onPointerDown={e => e.stopPropagation()}>
+                          <button
+                            className="hover:opacity-75 p-0.5 rounded"
+                            onClick={() => void toggleMinimizeNote(n)}
+                            title="Minimize note to compact icon"
+                            aria-label="Minimize note"
+                          >
+                            <Minus size={9} />
+                          </button>
+                          <button
+                            className="hover:opacity-75 p-0.5 rounded text-red-600"
+                            onClick={() => setDeleteNoteTarget(n)}
+                            title="Delete note"
+                            aria-label="Delete note"
+                          >
+                            <Trash2 size={9} />
+                          </button>
+                        </div>
                       </div>
 
                       {editing ? (
@@ -1398,7 +1631,7 @@ export function ReaderPage() {
                           }}
                           style={{
                             flex: '1 1 auto', resize: 'none', border: 'none', outline: 'none',
-                            background: 'rgba(255,255,255,0.55)', color: 'inherit',
+                            background: 'rgba(255,255,255,0.65)', color: 'inherit',
                             font: 'inherit', lineHeight: 1.35, padding: '4px 6px', margin: 0,
                           }}
                         />
@@ -1407,7 +1640,7 @@ export function ReaderPage() {
                           className="sticky-note-body"
                           onPointerDown={startBoxDrag('note', 'move', n.id, box)}
                           title="Drag to move · double-click to edit"
-                          style={{ lineHeight: 1.35 }}
+                          style={{ lineHeight: 1.35, flex: 1, padding: '4px 6px', overflow: 'hidden' }}
                         >
                           {n.body || <span style={{ opacity: 0.55 }}>Double-click to write…</span>}
                         </div>
@@ -1539,6 +1772,13 @@ export function ReaderPage() {
                     onMouseDown={e => e.preventDefault()}
                     onPointerDown={e => e.stopPropagation()}
                   >
+                    <button
+                      className="btn btn-sm gap-1 btn-accent"
+                      onClick={() => { setPanel('ai'); setPanelOpen(true); }}
+                      title="Ask AI Tutor to explain this selection"
+                    >
+                      <Sparkles size={11} /> Ask AI
+                    </button>
                     <button className="btn btn-sm gap-1" onClick={() => void annotateSelection('highlight')}>
                       <Highlighter size={11} /> Highlight
                     </button>
@@ -1558,12 +1798,48 @@ export function ReaderPage() {
               {/* interaction layer */}
               <div
                 className="absolute inset-0"
-                style={{ pointerEvents: pagePointer }}
+                style={{
+                  pointerEvents: pagePointer,
+                  cursor: tool === 'screenshot' ? 'crosshair' : tool === 'pan' ? 'grab' : 'default',
+                }}
                 onPointerDown={onPointerDown}
                 onPointerMove={onPointerMove}
                 onPointerUp={() => void finishStroke()}
                 onPointerLeave={() => { if (drag || penPoints) void finishStroke(); }}
               >
+                {/* Screenshot Crop Selection Box */}
+                {drag && tool === 'screenshot' && (
+                  <div
+                    style={{
+                      position: 'absolute',
+                      left: `${Math.min(drag.x0, drag.x1) * 100}%`,
+                      top: `${Math.min(drag.y0, drag.y1) * 100}%`,
+                      width: `${Math.abs(drag.x1 - drag.x0) * 100}%`,
+                      height: `${Math.abs(drag.y1 - drag.y0) * 100}%`,
+                      border: '2px dashed var(--color-accent)',
+                      background: 'rgba(59, 130, 246, 0.18)',
+                      pointerEvents: 'none',
+                      zIndex: 60,
+                    }}
+                  >
+                    <div
+                      style={{
+                        position: 'absolute',
+                        top: -22,
+                        left: 0,
+                        background: 'var(--color-accent)',
+                        color: '#fff',
+                        fontSize: 9.5,
+                        fontWeight: 600,
+                        padding: '1px 6px',
+                        borderRadius: 3,
+                        whiteSpace: 'nowrap',
+                      }}
+                    >
+                      📸 Crop for AI Tutor
+                    </div>
+                  </div>
+                )}
                 {penPoints && penPoints.length > 1 && pageDims.w > 0 && (
                   <svg width="100%" height="100%" viewBox={`0 0 ${pageDims.w} ${pageDims.h}`} style={{ position: 'absolute', inset: 0 }}>
                     <polyline
@@ -1605,14 +1881,19 @@ export function ReaderPage() {
         {/* side panel */}
         {panelOpen ? (
           <aside
-            className="flex w-[320px] shrink-0 flex-col border-l"
-            style={{ borderColor: 'var(--color-border)', background: 'var(--color-panel)' }}
+            className="flex shrink-0 flex-col border-l"
+            style={{
+              width: panel === 'ai' ? aiPanelWidth : 320,
+              borderColor: 'var(--color-border)',
+              background: 'var(--color-panel)',
+            }}
             aria-label="Document panel"
             data-testid="reader-panel"
           >
             <div className="px-2 pt-2">
               <Tabs
                 tabs={[
+                  { id: 'ai' as Panel, label: 'AI Tutor' },
                   { id: 'notes' as Panel, label: 'Notes', count: notes.length },
                   { id: 'bookmarks' as Panel, label: 'Marks', count: bookmarks.length },
                   { id: 'search' as Panel, label: 'Find' },
@@ -1623,7 +1904,19 @@ export function ReaderPage() {
               />
             </div>
 
-            <div className="scroll-y flex-1 px-3 py-3">
+            <div className={`flex-1 min-h-0 ${panel === 'ai' ? 'flex flex-col' : 'scroll-y px-3 py-3'}`}>
+              {panel === 'ai' && (
+                <ReaderAiPanel
+                  documentId={docId}
+                  docFilename={doc.filename}
+                  pageNum={pageNum}
+                  selectedText={selection?.text || null}
+                  onClearSelection={() => setSelection(null)}
+                  onJumpPage={(p) => setPageNum(p)}
+                  pendingScreenshot={pendingScreenshot}
+                  onClearScreenshot={() => setPendingScreenshot(null)}
+                />
+              )}
               {panel === 'notes' && (
                 <>
                   <div className="mb-2 flex items-center justify-between">

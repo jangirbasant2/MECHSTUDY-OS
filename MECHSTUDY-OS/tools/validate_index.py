@@ -118,7 +118,17 @@ def main() -> int:
     if not report.check("database exists", db_path.exists(), str(db_path)):
         return 1
 
-    conn = sqlite3.connect(f"file:{db_path}?mode=ro", uri=True)
+    tmp_copy = None
+    try:
+        conn = sqlite3.connect(f"file:{db_path}?mode=ro", uri=True)
+        conn.execute("SELECT 1")
+    except Exception:
+        import shutil, tempfile
+        tmp_fd, tmp_copy = tempfile.mkstemp(suffix=".db")
+        os.close(tmp_fd)
+        shutil.copy2(db_path, tmp_copy)
+        conn = sqlite3.connect(tmp_copy)
+
     conn.row_factory = sqlite3.Row
     try:
         db_docs = conn.execute(
@@ -133,6 +143,11 @@ def main() -> int:
         db_mappings = conn.execute("SELECT status, basis FROM topic_mappings").fetchall()
     finally:
         conn.close()
+        if tmp_copy and os.path.exists(tmp_copy):
+            try:
+                os.remove(tmp_copy)
+            except Exception:
+                pass
 
     report.check(
         "inventory row count matches the database",
