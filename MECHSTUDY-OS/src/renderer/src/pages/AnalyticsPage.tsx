@@ -82,6 +82,33 @@ export function AnalyticsPage() {
     return { day: key, label: shortDay(key), minutes: Math.round((dailyMap.get(key) ?? 0) / 60) };
   });
 
+  const heatmapDays = React.useMemo(() => {
+    const days: Array<{ date: string; label: string; minutes: number; level: number }> = [];
+    const today = new Date();
+    const endOfWeek = new Date(today);
+    endOfWeek.setDate(today.getDate() + (6 - today.getDay()));
+
+    for (let i = 83; i >= 0; i--) {
+      const d = new Date(endOfWeek.getTime() - i * 86400000);
+      const key = localDay(d);
+      const secs = dailyMap.get(key) ?? 0;
+      const mins = Math.round(secs / 60);
+      let level = 0;
+      if (mins > 120) level = 4;
+      else if (mins >= 60) level = 3;
+      else if (mins >= 30) level = 2;
+      else if (mins > 0) level = 1;
+
+      days.push({
+        date: key,
+        label: `${shortDay(key)}: ${mins} min`,
+        minutes: mins,
+        level,
+      });
+    }
+    return days;
+  }, [dailyMap]);
+
   const totalTracked = summary.byTarget.reduce((s, t) => s + t.secs, 0);
   const progressTotal = summary.progress.reduce((s, p) => s + p.c, 0);
   const completed = summary.progress.find(p => p.status === 'completed')?.c ?? 0;
@@ -309,6 +336,45 @@ export function AnalyticsPage() {
                     </div>
                   ))
               )}
+            </div>
+          </div>
+        </div>
+
+        {/* 12-Week Habit Heatmap */}
+        <div className="card p-4 mt-4">
+          <div className="mb-3 flex items-center justify-between">
+            <div className="flex items-center gap-2">
+              <Flame size={15} className="text-amber-500" />
+              <span className="text-[13px] font-semibold">12-Week Study Consistency Heatmap</span>
+              <span className="text-[11px] text-[var(--color-muted)]">({summary.streak} day streak)</span>
+            </div>
+            <div className="flex items-center gap-1.5 text-[10px] text-[var(--color-faint)]">
+              <span>Less</span>
+              <span className="w-2.5 h-2.5 rounded-xs" style={{ background: 'rgba(140, 150, 165, 0.18)' }} />
+              <span className="w-2.5 h-2.5 rounded-xs bg-emerald-300" />
+              <span className="w-2.5 h-2.5 rounded-xs bg-emerald-400" />
+              <span className="w-2.5 h-2.5 rounded-xs bg-emerald-500" />
+              <span className="w-2.5 h-2.5 rounded-xs bg-emerald-700" />
+              <span>More</span>
+            </div>
+          </div>
+          <div className="overflow-x-auto pb-1">
+            <div className="grid grid-flow-col grid-rows-7 gap-1.5 w-max">
+              {heatmapDays.map(d => (
+                <div
+                  key={d.date}
+                  title={d.label}
+                  className="w-3.5 h-3.5 rounded-xs transition-transform hover:scale-125 cursor-default"
+                  style={{
+                    backgroundColor:
+                      d.level === 4 ? '#15803d' :
+                      d.level === 3 ? '#22c55e' :
+                      d.level === 2 ? '#4ade80' :
+                      d.level === 1 ? '#86efac' :
+                      'rgba(140, 150, 165, 0.18)',
+                  }}
+                />
+              ))}
             </div>
           </div>
         </div>

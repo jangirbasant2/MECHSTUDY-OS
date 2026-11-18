@@ -3,7 +3,7 @@ import {
   Plus, Play, Trash2, Award, Target,
   ChevronRight, ChevronLeft, Settings,
   CheckCircle, XCircle, HelpCircle, AlertCircle,
-  FileText, Timer, Star, Zap,
+  FileText, Timer, Star, Zap, Sparkles,
 } from 'lucide-react';
 import { api } from '../lib/api';
 import { useApp } from '../store';
@@ -73,6 +73,60 @@ const DEFAULT_SCHEME = {
   mcqNegativeFraction: 1 / 3,
   negativeNumerical: false,
 };
+
+interface ExamPreset {
+  title: string;
+  badge: string;
+  description: string;
+  durationSeconds: number;
+  limit: number;
+  type: string;
+  scheme: typeof DEFAULT_SCHEME;
+  color: string;
+}
+
+const EXAM_PRESETS: ExamPreset[] = [
+  {
+    title: 'GATE ME Full-Length Mock',
+    badge: 'GATE Standard',
+    description: '65 questions, 180 min, 100 marks standard GATE pattern with 1/3 negative marking',
+    durationSeconds: 10800,
+    limit: 65,
+    type: '',
+    scheme: { marks: { mcq: 1, msq: 1, numerical: 1 }, mcqNegativeFraction: 1 / 3, negativeNumerical: false },
+    color: '#8b5cf6',
+  },
+  {
+    title: 'GATE Sectional Speed Drill',
+    badge: 'Speed Test',
+    description: '25 high-yield questions, 45 min test of numerical speed and concept clarity',
+    durationSeconds: 2700,
+    limit: 25,
+    type: '',
+    scheme: { marks: { mcq: 1, msq: 1, numerical: 1 }, mcqNegativeFraction: 1 / 3, negativeNumerical: false },
+    color: '#06b6d4',
+  },
+  {
+    title: 'RTU Mid-Term Assessment Drill',
+    badge: 'RTU Semester',
+    description: '20 questions, 60 min unit-focused review for university semester prep',
+    durationSeconds: 3600,
+    limit: 20,
+    type: '',
+    scheme: { marks: { mcq: 2, msq: 2, numerical: 2 }, mcqNegativeFraction: 0, negativeNumerical: false },
+    color: '#10b981',
+  },
+  {
+    title: 'Rapid Numerical / NAT Sprint',
+    badge: 'NAT Drill',
+    description: '10 Numerical Answer Type (NAT) problems, 20 min calculator discipline',
+    durationSeconds: 1200,
+    limit: 10,
+    type: 'numerical',
+    scheme: { marks: { mcq: 1, msq: 1, numerical: 2 }, mcqNegativeFraction: 0, negativeNumerical: false },
+    color: '#f59e0b',
+  },
+];
 
 function parseOptions(json: string | null): string[] {
   if (!json) return [];
@@ -193,6 +247,21 @@ export function ExamPage() {
         includeUnkeyed: false,
       }});
     }
+  };
+
+  const applyPreset = (preset: ExamPreset) => {
+    setEditor({
+      open: true,
+      config: {
+        title: preset.title,
+        durationSeconds: preset.durationSeconds,
+        subjectId: null,
+        type: preset.type,
+        limit: preset.limit,
+        scheme: preset.scheme,
+        includeUnkeyed: false,
+      },
+    });
   };
 
   const saveConfig = async () => {
@@ -356,12 +425,65 @@ export function ExamPage() {
         {/* Configs Tab */}
         {tab === 'configs' && (
           <div className="space-y-4">
+            {/* Quick Start Presets */}
+            <div className="rounded-xl border p-4 mb-4" style={{ background: 'var(--color-panel)', borderColor: 'var(--color-border)' }}>
+              <div className="flex items-center justify-between mb-3">
+                <div className="flex items-center gap-2">
+                  <Sparkles size={16} className="text-[var(--color-accent)]" />
+                  <h3 className="text-xs font-bold uppercase tracking-wider text-[var(--color-text)]">
+                    Exam Presets & Speed Drills
+                  </h3>
+                </div>
+                <span className="text-[11px] text-[var(--color-muted)]">
+                  1-Click Setup for GATE & RTU Kota
+                </span>
+              </div>
+
+              <div className="grid gap-3 sm:grid-cols-2 lg:grid-cols-4">
+                {EXAM_PRESETS.map(preset => (
+                  <div
+                    key={preset.title}
+                    className="flex flex-col justify-between rounded-lg border p-3 transition-all hover:border-[var(--color-accent)]"
+                    style={{ background: 'var(--color-bg)', borderColor: 'var(--color-border2)' }}
+                  >
+                    <div>
+                      <div className="flex items-center justify-between mb-1.5">
+                        <span
+                          className="px-1.5 py-0.5 rounded text-[10px] font-semibold"
+                          style={{ background: `${preset.color}20`, color: preset.color }}
+                        >
+                          {preset.badge}
+                        </span>
+                        <span className="text-[11px] font-mono text-[var(--color-muted)]">
+                          {preset.durationSeconds / 60}m · {preset.limit}Q
+                        </span>
+                      </div>
+                      <h4 className="text-xs font-semibold leading-snug mb-1 text-[var(--color-text)]">
+                        {preset.title}
+                      </h4>
+                      <p className="text-[11px] leading-relaxed line-clamp-2 text-[var(--color-muted)] mb-3">
+                        {preset.description}
+                      </p>
+                    </div>
+
+                    <button
+                      className="btn btn-sm btn-ghost w-full justify-center gap-1 text-[11px] font-medium"
+                      style={{ border: '1px solid var(--color-border)', color: 'var(--color-accent)' }}
+                      onClick={() => applyPreset(preset)}
+                    >
+                      <Plus size={12} /> Use Preset
+                    </button>
+                  </div>
+                ))}
+              </div>
+            </div>
+
             {configs.length === 0 ? (
               <EmptyState
                 icon={<Settings size={22} />}
-                title="No exam configs yet"
-                description="Create a mock test configuration to get started"
-                action={<button className="btn btn-primary" onClick={() => openEditor()}><Plus size={14} /> Create Config</button>}
+                title="No custom exam configs yet"
+                description="Select one of the presets above or create a custom mock test configuration"
+                action={<button className="btn btn-primary" onClick={() => openEditor()}><Plus size={14} /> Create Custom Config</button>}
               />
             ) : (
               <div className="grid gap-4 md:grid-cols-2 lg:grid-cols-3">

@@ -114,6 +114,13 @@ export function ReaderPage() {
   const [numPages, setNumPages] = React.useState(0);
   const [zoom, setZoom] = React.useState(1.2);
   const [fitWidth, setFitWidth] = React.useState(true);
+  const [paperTheme, setPaperTheme] = React.useState<'normal' | 'sepia' | 'inverted'>(() => {
+    try {
+      const saved = localStorage.getItem('ui.readerPaperTheme');
+      if (saved === 'sepia' || saved === 'inverted') return saved;
+    } catch {}
+    return 'normal';
+  });
   const [containerW, setContainerW] = React.useState(900);
   const [pageDims, setPageDims] = React.useState({ w: 0, h: 0 });
   const [baseDims, setBaseDims] = React.useState({ w: 0, h: 0 });
@@ -1011,6 +1018,40 @@ export function ReaderPage() {
             Fit width
           </button>
 
+          {/* Eye-care Paper Themes */}
+          <div className="flex items-center rounded-md border p-0.5" style={{ borderColor: 'var(--color-border)', background: 'var(--color-bg)' }} title="Paper Eye-Care Modes: Default (White), Sepia (Warm), Night (Inverted Dark)">
+            <button
+              className={`px-1.5 py-0.5 rounded text-[11px] font-medium transition-colors ${paperTheme === 'normal' ? 'bg-[var(--color-panel)] text-[var(--color-text)] shadow-xs font-semibold' : 'opacity-70 hover:opacity-100'}`}
+              onClick={() => {
+                setPaperTheme('normal');
+                try { localStorage.setItem('ui.readerPaperTheme', 'normal'); } catch {}
+              }}
+              title="Default Paper (White)"
+            >
+              Default
+            </button>
+            <button
+              className={`px-1.5 py-0.5 rounded text-[11px] font-medium transition-colors ${paperTheme === 'sepia' ? 'bg-[#fbf0d9] text-[#4a3525] shadow-xs font-semibold' : 'opacity-70 hover:opacity-100'}`}
+              onClick={() => {
+                setPaperTheme('sepia');
+                try { localStorage.setItem('ui.readerPaperTheme', 'sepia'); } catch {}
+              }}
+              title="Warm Sepia (Low Eye Strain)"
+            >
+              Sepia
+            </button>
+            <button
+              className={`px-1.5 py-0.5 rounded text-[11px] font-medium transition-colors ${paperTheme === 'inverted' ? 'bg-[#27272a] text-white shadow-xs font-semibold' : 'opacity-70 hover:opacity-100'}`}
+              onClick={() => {
+                setPaperTheme('inverted');
+                try { localStorage.setItem('ui.readerPaperTheme', 'inverted'); } catch {}
+              }}
+              title="Night Mode (Inverted Dark Paper)"
+            >
+              Night
+            </button>
+          </div>
+
           <div className="mx-1 h-5 w-px" style={{ background: 'var(--color-border)' }} />
 
           {/* Reading and Annotation tools */}
@@ -1182,19 +1223,30 @@ export function ReaderPage() {
           <div className="flex justify-center">
             <div
               ref={pageRef}
-              className="relative shadow-lg"
+              className="relative shadow-lg transition-colors duration-200"
               data-testid="reader-page"
               style={{
                 width: pageDims.w || undefined,
                 height: pageDims.h || undefined,
-                background: '#fff',
+                background: paperTheme === 'sepia' ? '#fbf0d9' : paperTheme === 'inverted' ? '#18181b' : '#fff',
                 cursor: tool === 'select' ? 'auto' : tool === 'note' || tool === 'text' ? 'copy' : tool === 'eraser' ? 'cell' : 'crosshair',
                 touchAction: 'none',
               }}
               onMouseUp={captureSelection}
               onPointerDown={() => { if (tool === 'select') { setSelectedNote(null); setSelectedAnn(null); } }}
             >
-              <canvas ref={canvasRef} style={{ display: 'block' }} />
+              <canvas
+                ref={canvasRef}
+                style={{
+                  display: 'block',
+                  filter: paperTheme === 'sepia'
+                    ? 'sepia(38%) contrast(96%) brightness(96%)'
+                    : paperTheme === 'inverted'
+                      ? 'invert(92%) hue-rotate(180deg) contrast(105%)'
+                      : 'none',
+                  transition: 'filter 0.2s ease',
+                }}
+              />
               <div ref={textRef} className="textLayer" />
 
               {/* annotation overlay */}

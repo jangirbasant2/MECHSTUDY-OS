@@ -2,7 +2,7 @@ import { create } from 'zustand';
 
 export type PageId =
   | 'home' | 'library' | 'rtu' | 'gate' | 'planner' | 'reader' | 'notes'
-  | 'revision' | 'practice' | 'exam' | 'search' | 'analytics' | 'import' | 'settings' | 'ai';
+  | 'revision' | 'practice' | 'exam' | 'formulas' | 'search' | 'analytics' | 'import' | 'settings' | 'ai';
 
 export interface Toast {
   id: number;

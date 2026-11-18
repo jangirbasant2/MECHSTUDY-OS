@@ -19,6 +19,7 @@ import { PlannerPage } from './pages/PlannerPage';
 import { RevisionPage } from './pages/RevisionPage';
 import { PracticePage } from './pages/PracticePage';
 import { ExamPage } from './pages/ExamPage';
+import { FormulasPage } from './pages/FormulasPage';
 import { SearchPage } from './pages/SearchPage';
 import { AnalyticsPage } from './pages/AnalyticsPage';
 import { ImportPage } from './pages/ImportPage';
@@ -160,6 +161,7 @@ export function App() {
       case 'revision': return <RevisionPage />;
       case 'practice': return <PracticePage />;
       case 'exam': return <ExamPage />;
+      case 'formulas': return <FormulasPage />;
       case 'search': return <SearchPage />;
       case 'analytics': return <AnalyticsPage />;
       case 'import': return <ImportPage />;

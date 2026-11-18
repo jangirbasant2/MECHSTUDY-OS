@@ -2,7 +2,7 @@ import React from 'react';
 import {
   Home, Library, BookOpen, GraduationCap, CalendarDays, FileText, StickyNote,
   Repeat2, CircleHelp, Search, BarChart3, FolderInput, Settings, ChevronLeft,
-  ChevronRight, Star, Sparkles, Bot, Award,
+  ChevronRight, Star, Sparkles, Bot, Award, Sigma,
 } from 'lucide-react';
 import { useApp, type PageId } from '../store';
 import { api } from '../lib/api';
@@ -29,6 +29,7 @@ const AI_NAV: NavItem[] = [
 const SYLLABUS: NavItem[] = [
   { id: 'rtu', label: 'RTU Syllabus', icon: GraduationCap },
   { id: 'gate', label: 'GATE Mechanical', icon: Sparkles },
+  { id: 'formulas', label: 'Formula Vault', icon: Sigma, hint: 'KaTeX Formula Sheet' },
   { id: 'practice', label: 'Practice & Questions', icon: CircleHelp },
   { id: 'exam', label: 'Exam Mode', icon: Award, hint: 'Timed Mock Tests' },
 ];
