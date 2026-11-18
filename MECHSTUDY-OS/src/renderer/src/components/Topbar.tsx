@@ -1,7 +1,7 @@
 import React from 'react';
 import {
   Search, StickyNote, Sun, Moon, Settings, Play, Pause, Square, Timer,
-  PanelLeftClose, PanelTopClose,
+  PanelLeftClose, PanelTopClose, GraduationCap, Sparkles,
 } from 'lucide-react';
 import { useApp, type PageId } from '../store';
 import { pageTitle } from './Sidebar';
@@ -21,6 +21,8 @@ export function Topbar() {
   const toast = useApp(s => s.toast);
   const toggleSidebarVisible = useApp(s => s.toggleSidebarVisible);
   const toggleTopbarVisible = useApp(s => s.toggleTopbarVisible);
+  const activeExamMode = useApp(s => s.activeExamMode);
+  const setActiveExamMode = useApp(s => s.setActiveExamMode);
 
   const onToggleTheme = () => {
     setTheme(theme === 'dark' ? 'light' : 'dark');
@@ -52,42 +54,75 @@ export function Topbar() {
 
   return (
     <header
-      className="no-select flex h-12 shrink-0 items-center gap-3 border-b px-3"
+      className="no-select relative flex h-12 shrink-0 items-center justify-between border-b px-3"
       style={{ background: 'var(--color-panel)', borderColor: 'var(--color-border)' }}
       data-testid="topbar"
     >
-      <button
-        className="btn btn-ghost btn-icon"
-        onClick={toggleSidebarVisible}
-        title="Hide sidebar (Ctrl+B)"
-        aria-label="Hide sidebar"
-        data-testid="topbar-sidebar-toggle"
-      >
-        <PanelLeftClose size={16} />
-      </button>
+      <div className="flex min-w-0 items-center gap-2.5">
+        <button
+          className="btn btn-ghost btn-icon"
+          onClick={toggleSidebarVisible}
+          title="Hide sidebar (Ctrl+B)"
+          aria-label="Hide sidebar"
+          data-testid="topbar-sidebar-toggle"
+        >
+          <PanelLeftClose size={16} />
+        </button>
 
-      <div className="flex min-w-0 items-baseline gap-2">
-        <h1 className="truncate text-[14px] font-semibold">{pageTitle(page)}</h1>
-        <span className="hidden text-[11px] md:inline" style={{ color: 'var(--color-faint)' }}>
-          MECHSTUDY OS
-        </span>
+        <div className="flex min-w-0 items-baseline gap-2">
+          <h1 className="truncate text-[14px] font-semibold">{pageTitle(page)}</h1>
+          <span className="hidden text-[11px] xl:inline" style={{ color: 'var(--color-faint)' }}>
+            MECHSTUDY OS
+          </span>
+        </div>
       </div>
 
-      <nav className="ml-2 hidden items-center gap-0.5 lg:flex" aria-label="Quick navigation">
-        {quickNav.map(q => (
+      {/* Top Middle: RTU <-> GATE Switch */}
+      <div className="absolute left-1/2 -translate-x-1/2 flex items-center" data-testid="top-exam-switch">
+        <div
+          className="flex items-center rounded-lg border p-0.5 shadow-xs transition-all"
+          style={{
+            background: 'var(--color-bg)',
+            borderColor: 'var(--color-border)',
+          }}
+          role="group"
+          aria-label="RTU vs GATE Exam Mode Switch"
+        >
           <button
-            key={q.id}
-            onClick={() => setPage(q.id)}
-            className="rounded-md px-2 py-1 text-[11.5px] font-medium transition-colors"
-            style={{
-              color: page === q.id ? 'var(--color-accent)' : 'var(--color-muted)',
-              background: page === q.id ? 'color-mix(in srgb, var(--color-accent) 12%, transparent)' : 'transparent',
+            onClick={() => {
+              setActiveExamMode('RTU');
+              toast('Switched focus to RTU Kota Syllabus', 'info');
             }}
+            className={`flex items-center gap-1.5 rounded-md px-3 py-1 text-xs font-semibold transition-all ${
+              activeExamMode === 'RTU'
+                ? 'bg-[var(--color-accent)] text-white shadow-xs'
+                : 'text-[var(--color-muted)] hover:text-[var(--color-text)]'
+            }`}
+            title="Switch study focus to RTU Kota (B.Tech Syllabus & Semester Exams)"
+            aria-pressed={activeExamMode === 'RTU'}
           >
-            {q.label}
+            <GraduationCap size={14} />
+            <span>RTU</span>
           </button>
-        ))}
-      </nav>
+
+          <button
+            onClick={() => {
+              setActiveExamMode('GATE');
+              toast('Switched focus to GATE Mechanical', 'info');
+            }}
+            className={`flex items-center gap-1.5 rounded-md px-3 py-1 text-xs font-semibold transition-all ${
+              activeExamMode === 'GATE'
+                ? 'bg-emerald-600 text-white shadow-xs'
+                : 'text-[var(--color-muted)] hover:text-[var(--color-text)]'
+            }`}
+            title="Switch study focus to GATE Mechanical Engineering"
+            aria-pressed={activeExamMode === 'GATE'}
+          >
+            <Sparkles size={13} />
+            <span>GATE</span>
+          </button>
+        </div>
+      </div>
 
       <div className="ml-auto flex items-center gap-1.5">
         <button

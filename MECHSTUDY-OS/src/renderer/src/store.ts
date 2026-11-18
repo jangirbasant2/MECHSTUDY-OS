@@ -40,6 +40,7 @@ interface AppState {
   readerDocId: number | null;
   readerPage: number | null;
   paletteOpen: boolean;
+  activeExamMode: 'RTU' | 'GATE';
   pendingTopicId: number | null;
   quickNote: { open: boolean; documentId?: number; page?: number } | null;
   timer: TimerState;
@@ -47,6 +48,7 @@ interface AppState {
 
   boot(): void;
   setPage(page: PageId): void;
+  setActiveExamMode(mode: 'RTU' | 'GATE'): void;
   openDocument(id: number, page?: number): void;
   openTopic(topicId: number, examType: 'RTU' | 'GATE'): void;
   clearPendingTopic(): void;
@@ -83,6 +85,7 @@ const LS = {
   theme: 'ui.theme',
   readerDoc: 'ui.readerDocId',
   timer: 'ui.timer',
+  activeExamMode: 'ui.activeExamMode',
 };
 
 const defaultTimer: TimerState = {
@@ -129,6 +132,7 @@ export const useApp = create<AppState>((set, get) => ({
   readerDocId: read<number | null>(LS.readerDoc, null),
   readerPage: null,
   paletteOpen: false,
+  activeExamMode: read<'RTU' | 'GATE'>(LS.activeExamMode, 'RTU'),
   pendingTopicId: null,
   quickNote: null,
   timer: read<TimerState>(LS.timer, defaultTimer),
@@ -149,10 +153,36 @@ export const useApp = create<AppState>((set, get) => ({
 
   setPage(page) {
     write(LS.page, page);
+    const examModePatch = page === 'rtu' ? { activeExamMode: 'RTU' as const } : page === 'gate' ? { activeExamMode: 'GATE' as const } : {};
+    if (examModePatch.activeExamMode) {
+      write(LS.activeExamMode, examModePatch.activeExamMode);
+    }
     // Leaving the reader always restores the application chrome. This is the
     // root fix for "sidebar disappeared after the PDF view" — focus mode can
     // only ever apply to the reader page.
-    set({ page, paletteOpen: false, ...(page === 'reader' ? {} : { readerFocus: false }) });
+    set(state => ({
+      page,
+      paletteOpen: false,
+      ...(page === 'reader' ? {} : { readerFocus: false }),
+      ...examModePatch,
+      ...(examModePatch.activeExamMode ? { timer: { ...state.timer, examTarget: examModePatch.activeExamMode } } : {}),
+    }));
+  },
+
+  setActiveExamMode(mode) {
+    write(LS.activeExamMode, mode);
+    set(state => {
+      let nextPage = state.page;
+      if (state.page === 'gate' && mode === 'RTU') nextPage = 'rtu';
+      else if (state.page === 'rtu' && mode === 'GATE') nextPage = 'gate';
+      if (nextPage !== state.page) write(LS.page, nextPage);
+
+      return {
+        activeExamMode: mode,
+        page: nextPage,
+        timer: { ...state.timer, examTarget: mode },
+      };
+    });
   },
 
   openDocument(id, page) {
