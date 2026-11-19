@@ -274,7 +274,16 @@ export function registerIpc(): void {
   });
 
   handle('library:list', (filter) => listDocuments(filter ?? undefined));
-  handle('library:get', ({ id }) => getDocument(Number(id)));
+  handle('library:get', async ({ id }) => {
+    const doc = getDocument(Number(id));
+    if (doc) {
+      const pageCheck = get<{ c: number }>('SELECT COUNT(*) as c FROM document_pages WHERE document_id = ?', doc.id);
+      if (!pageCheck || pageCheck.c === 0) {
+        indexTextLayer(doc.id).catch(e => console.warn('[ipc] Background text indexing on library:get:', e));
+      }
+    }
+    return doc;
+  });
   handle('library:star', ({ id, starred }) => { setStarred(Number(id), !!starred); return true; });
   handle('library:setSubject', ({ id, subjectId }) => {
     setDocumentSubject(Number(id), subjectId === null ? null : Number(subjectId));
@@ -604,9 +613,9 @@ export function registerIpc(): void {
       installed: true,
       host: 'https://generativelanguage.googleapis.com',
       version: 'v1.4-cloud',
-      activeModel: settings.selectedModel || 'gemini-3.5-flash-lite',
-      availableModelsCount: 3,
-      model: settings.selectedModel || 'gemini-3.5-flash-lite',
+      activeModel: settings.selectedModel || 'gemini-2.5-flash',
+      availableModelsCount: 4,
+      model: settings.selectedModel || 'gemini-2.5-flash',
       provider: 'google-ai-studio',
       keyConfigured: hasKey,
     };
@@ -619,9 +628,10 @@ export function registerIpc(): void {
     message: 'Google AI Studio active',
   }));
   handle('ai:listModels', () => [
-    'gemini-3.5-flash-lite',
-    'gemini-4-hydrogen',
-    'gemini-4-carbon',
+    { name: 'gemini-2.5-flash', model: 'gemini-2.5-flash', size: 0, parameterSize: 'Fast / Multimodal (Default)', family: 'Google AI Studio' },
+    { name: 'gemini-2.5-pro', model: 'gemini-2.5-pro', size: 0, parameterSize: 'Deep STEM & Derivations', family: 'Google AI Studio' },
+    { name: 'gemini-2.0-flash', model: 'gemini-2.0-flash', size: 0, parameterSize: 'High Speed Inference', family: 'Google AI Studio' },
+    { name: 'gemini-1.5-flash', model: 'gemini-1.5-flash', size: 0, parameterSize: 'Standard Lightweight', family: 'Google AI Studio' },
   ]);
   handle('ocr:detectScannedPages', ({ documentId }) => {
     return detectScannedPages(Number(documentId));
@@ -670,9 +680,16 @@ export function registerIpc(): void {
     detachDocumentFromConversation(Number(conversationId), Number(documentId));
     return true;
   });
-  handle('ai:setAttachedDocuments', ({ conversationId, documentIds }) => {
+  handle('ai:setAttachedDocuments', async ({ conversationId, documentIds }) => {
     const ids = Array.isArray(documentIds) ? documentIds.map(Number) : [];
-    return setConversationDocuments(Number(conversationId), ids);
+    const res = setConversationDocuments(Number(conversationId), ids);
+    for (const docId of ids) {
+      const pageCheck = get<{ c: number }>('SELECT COUNT(*) as c FROM document_pages WHERE document_id = ?', docId);
+      if (!pageCheck || pageCheck.c === 0) {
+        indexTextLayer(docId).catch(e => console.warn('[ipc] Background text indexing on attach:', e));
+      }
+    }
+    return res;
   });
   handle('ai:getAttachedDocuments', ({ conversationId }) =>
     getConversationDocuments(Number(conversationId)));

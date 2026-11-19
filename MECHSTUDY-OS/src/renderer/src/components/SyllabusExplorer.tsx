@@ -79,7 +79,8 @@ export function SyllabusExplorer({
     if (!tree) return [];
     let list = tree;
     if (examType === 'RTU' && selectedSemester !== 'all') {
-      list = list.filter(s => s.semester === selectedSemester);
+      const targetSem = Number(selectedSemester);
+      list = list.filter(s => Number(s.semester) === targetSem);
     }
     if (filter === 'theory') list = list.filter(s => !s.isPractical);
     if (filter === 'practical') list = list.filter(s => s.isPractical);
@@ -95,15 +96,15 @@ export function SyllabusExplorer({
       );
     }
     return list;
-  }, [tree, filter, query]);
+  }, [tree, examType, selectedSemester, filter, query]);
 
   const totals = React.useMemo(() => {
-    if (!tree) return { topics: 0, completed: 0 };
-    return tree.reduce(
+    if (!filtered) return { topics: 0, completed: 0 };
+    return filtered.reduce(
       (acc, s) => ({ topics: acc.topics + s.total, completed: acc.completed + s.completed }),
       { topics: 0, completed: 0 }
     );
-  }, [tree]);
+  }, [filtered]);
 
   return (
     <div className="flex h-full min-h-0">

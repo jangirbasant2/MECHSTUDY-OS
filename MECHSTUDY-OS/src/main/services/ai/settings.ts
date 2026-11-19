@@ -17,7 +17,7 @@ CRITICAL ACADEMIC RULES:
 
 export const DEFAULT_AI_SETTINGS: AiSettings = {
   apiKey: '',
-  selectedModel: 'gemini-3.5-flash-lite',
+  selectedModel: 'gemini-2.5-flash',
   autoOcr: true,
   temperature: 0.7,
   contextLength: 4096,

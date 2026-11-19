@@ -114,15 +114,16 @@ export function ReaderSettingsTab({
     );
   }
 
-  const visionModels = models.filter(m => {
-    const name = m.name.toLowerCase();
+  const visionModels = (Array.isArray(models) ? models : []).filter(m => {
+    const rawName = typeof m === 'string' ? m : (m?.name ?? m?.model ?? '');
+    const name = String(rawName).toLowerCase();
     return (
+      name.includes('gemini') ||
       name.includes('vision') ||
+      name.includes('flash') ||
+      name.includes('pro') ||
       name.includes('llava') ||
-      name.includes('minicpm') ||
-      name.includes('moondream') ||
-      name.includes('vl') ||
-      name.includes('bakllava')
+      name.includes('vl')
     );
   });
 
@@ -285,7 +286,7 @@ export function ReaderSettingsTab({
             <div className="flex items-center gap-2">
               <Badge color="var(--color-accent2)">Vision Model Available</Badge>
               <span className="text-[11.5px]" style={{ color: 'var(--color-muted)' }}>
-                Found: {visionModels.map(m => m.name).join(', ')}
+                Found: {visionModels.map(m => typeof m === 'string' ? m : (m?.name || m?.model || '')).join(', ')}
               </span>
             </div>
           ) : (

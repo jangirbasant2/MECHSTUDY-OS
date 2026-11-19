@@ -6,6 +6,7 @@ import { getAiSettings } from './settings';
 import { formatMemoriesForPrompt } from './memory';
 import { ToolRegistry } from './toolRegistry';
 import { retrieveRagContext } from './rag';
+import { indexTextLayer } from '../indexer';
 import type {
   AiCitation,
   AiStreamChunk,
@@ -309,6 +310,18 @@ export async function processUserMessage(
   const attachedDocs = getConversationDocuments(req.conversationId);
   const attachedDocIds = attachedDocs.map(d => d.documentId);
 
+  // Ensure any attached document has its selectable text indexed into SQLite FTS5 on-the-fly
+  for (const docId of attachedDocIds) {
+    const pageCheck = get<{ c: number }>('SELECT COUNT(*) as c FROM document_pages WHERE document_id = ?', docId);
+    if (!pageCheck || pageCheck.c === 0) {
+      try {
+        await indexTextLayer(docId);
+      } catch (e) {
+        console.warn(`[orchestrator] on-the-fly text extraction for doc ${docId} error:`, e);
+      }
+    }
+  }
+
   let ragCitations: AiCitation[] = [];
   let ragContextBlock = '';
   if (settings.autoRag) {
@@ -341,7 +354,15 @@ export async function processUserMessage(
   if (attachedDocs.length > 0) {
     systemPrompt += `\n\n[ATTACHED STUDY MATERIALS IN THIS CONVERSATION]\nThe student has attached the following study documents to this chat:
 ${attachedDocs.map(d => `- [Doc #${d.documentId}] "${d.filename}" (${d.pageCount} pages, ${d.hasTextLayer ? 'Digital Text' : 'Scanned PDF'}, ${d.textPagesIndexed + d.ocrPagesIndexed} pages indexed)`).join('\n')}
-Use these attached materials as your primary source for explanations, equations, and timetable planning. Cite exact page numbers where possible.`;
+
+[GROUNDED TEACHING MODE — MANDATORY INSTRUCTIONS]
+The student wants to learn and be taught directly from their attached PDF materials: ${attachedDocs.map(d => `"${d.filename}"`).join(', ')}.
+You MUST ground your response in the provided document content and citations above:
+1. Grounding & Alignment: Explicitly reference the attached PDF by name and page numbers where relevant (e.g., "From your notes on Plane Trusses (Page 26)...").
+2. Core Theory & Intuition: Explain the physical concepts clearly, defining all terminology and physical assumptions first.
+3. Mathematical Derivations: Write complete, step-by-step mathematical derivations using KaTeX math ($...$ for inline, $$...$$ for display formulas).
+4. Solved Examples & GATE/RTU Traps: Provide a concrete numerical example or step-by-step problem illustrating the concept, and point out tricky options or boundary pitfalls.
+5. High-Yield Takeaway: Highlight the golden formula to remember for exams.`;
   }
 
   systemPrompt += `\n\n[MANDATORY TOOL EXECUTION RULES]
@@ -655,14 +676,30 @@ Use these attached materials as your primary source for explanations, equations,
       });
     } else {
       const errMsg = err instanceof Error ? err.message : String(err);
+      let userNotice = `⚠️ **AI Tutor Notice:** ${errMsg}`;
+      if (errMsg.includes('not configured') || errMsg.includes('empty')) {
+        userNotice = `⚠️ **Google AI Studio API Key Required**\n\nTo chat with the AI Tutor, please add your Google AI Studio API key in the top header menu or Settings.\n\n*You can get a free API key at [aistudio.google.com](https://aistudio.google.com/app/apikey).*`;
+      } else if (errMsg.includes('API key not valid') || errMsg.includes('API_KEY_INVALID')) {
+        userNotice = `⚠️ **Invalid API Key**\n\nGoogle AI Studio reported that your API key is invalid. Please verify or re-enter your key in the top header menu.\n\n*Error details:* \`${errMsg}\``;
+      } else if (errMsg.includes('429') || errMsg.includes('quota') || errMsg.includes('RESOURCE_EXHAUSTED')) {
+        userNotice = `⚠️ **Rate Limit / Quota Exceeded**\n\nGoogle AI Studio rate limit reached. Please wait a few seconds before trying again, or switch models in Settings.\n\n*Error details:* \`${errMsg}\``;
+      }
+
+      const errorMsg = addMessage({
+        conversationId: req.conversationId,
+        role: 'assistant',
+        content: userNotice,
+      });
+      finalMessageId = errorMsg.id;
+
       onStream({
         conversationId: req.conversationId,
-        messageId: 0,
-        delta: `\n\n**Error during inference:** ${errMsg}`,
+        messageId: finalMessageId,
+        delta: userNotice,
         done: true,
         error: errMsg,
       });
-      throw err;
+      return { messageId: finalMessageId };
     }
   } finally {
     currentAbortController = null;

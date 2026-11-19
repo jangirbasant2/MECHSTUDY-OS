@@ -667,7 +667,7 @@ export interface AiStreamChunk {
 
 export interface AiSettings {
   apiKey: string;       // Google AI Studio API key
-  selectedModel: string;// 'gemini-3.5-flash-lite' | 'gemini-4-hydrogen' | 'gemini-4-carbon'
+  selectedModel: string;// 'gemini-2.5-flash' | 'gemini-2.5-pro' | 'gemini-2.0-flash' | 'gemini-1.5-flash'
   autoOcr: boolean;     // Automatically run OCR on scanned pages lacking text layer
   temperature: number;
   contextLength?: number;

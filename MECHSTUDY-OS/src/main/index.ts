@@ -11,6 +11,7 @@ import { registerIpc, setMainWindow, defaultProjectRoot } from './ipc';
 import { destroyOcrWindow } from './services/ocrRender';
 import { cleanupExpiredScreenshots } from './services/ai/temporaryScreenshots';
 import { startReminderScheduler, stopReminderScheduler } from './services/reminder';
+import { indexAllTextLayers } from './services/indexer';
 
 app.setName('MECHSTUDY OS');
 app.setAppUserModelId('com.mechstudy.os');
@@ -105,17 +106,22 @@ function createWindow(): void {
     console.error(`[main] renderer process gone: ${details.reason}`);
   });
 
-  // In development, surface renderer console output in the terminal so a
-  // blank window can be diagnosed instead of guessed at.
-  if (!app.isPackaged) {
-    mainWindow.webContents.on('console-message', (event) => {
-      const line = `${event.message} (${event.sourceId}:${event.lineNumber})`;
-      if (event.level === 'error') console.error(`[renderer] ${line}`);
-      else console.log(`[renderer:${event.level}] ${line}`);
-    });
-  }
+  mainWindow.webContents.on('did-fail-load', (_e, errorCode, errorDescription, validatedURL) => {
+    console.error(`[main] did-fail-load: ${errorCode} ${errorDescription} (${validatedURL})`);
+  });
+
+  mainWindow.webContents.on('console-message', (event) => {
+    const line = `${event.message} (${event.sourceId}:${event.lineNumber})`;
+    if (event.level === 'error') console.error(`[renderer] ${line}`);
+    else console.log(`[renderer:${event.level}] ${line}`);
+  });
+
+  mainWindow.on('close', () => {
+    console.log('[main] mainWindow close event triggered');
+  });
 
   mainWindow.on('closed', () => {
+    console.log('[main] mainWindow closed');
     setMainWindow(null);
     mainWindow = null;
   });
@@ -311,6 +317,8 @@ app.whenReady().then(() => {
     createWindow();
     cleanupExpiredScreenshots();
     startReminderScheduler(() => mainWindow);
+    // Background extraction of selectable text for existing PDFs into SQLite/FTS5 (no API key required)
+    indexAllTextLayers().catch(err => console.warn('[main] Background text layer indexing error:', err));
   } catch (e) {
     const message = e instanceof Error ? (e.stack ?? e.message) : String(e);
     console.error('[main] fatal startup error:', message);
@@ -329,10 +337,16 @@ app.whenReady().then(() => {
 });
 
 app.on('window-all-closed', () => {
+  console.log('[main] app window-all-closed fired');
   if (process.platform !== 'darwin') app.quit();
 });
 
-app.on('before-quit', () => {
+app.on('before-quit', (e) => {
+  console.log('[main] app before-quit fired');
   stopReminderScheduler();
   destroyOcrWindow();
+});
+
+app.on('will-quit', () => {
+  console.log('[main] app will-quit fired');
 });

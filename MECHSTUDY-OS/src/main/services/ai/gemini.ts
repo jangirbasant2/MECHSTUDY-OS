@@ -26,6 +26,16 @@ export interface ChatStreamGeminiResult {
   toolCalls?: AiToolCall[];
 }
 
+export function normalizeGeminiModel(model?: string): string {
+  if (!model) return 'gemini-2.5-flash';
+  const m = model.trim().toLowerCase();
+  if (m === 'gemini-2.5-pro' || m.includes('carbon') || m.includes('pro')) return 'gemini-2.5-pro';
+  if (m === 'gemini-2.0-flash') return 'gemini-2.0-flash';
+  if (m === 'gemini-1.5-flash') return 'gemini-1.5-flash';
+  if (m === 'gemini-2.5-flash' || m.includes('flash') || m.includes('hydrogen') || m.includes('lite')) return 'gemini-2.5-flash';
+  return 'gemini-2.5-flash';
+}
+
 export function getEffectiveApiKey(explicitKey?: string): string {
   if (explicitKey && explicitKey.trim()) return explicitKey.trim();
   const settingsKey = getAiSettings().apiKey;
@@ -38,16 +48,17 @@ export function getEffectiveApiKey(explicitKey?: string): string {
  */
 export async function testGeminiApiKey(
   apiKey: string,
-  model: string = 'gemini-3.5-flash-lite'
+  model: string = 'gemini-2.5-flash'
 ): Promise<{ ok: boolean; model?: string; error?: string }> {
   const key = apiKey.trim();
   if (!key) {
     return { ok: false, error: 'Google AI Studio API Key is empty.' };
   }
+  const cleanModel = normalizeGeminiModel(model);
   try {
     const ai = new GoogleGenAI({ apiKey: key });
     const response = await ai.models.generateContent({
-      model,
+      model: cleanModel,
       contents: 'Respond with "OK" if this connection test is successful.',
       config: {
         maxOutputTokens: 16,
@@ -55,7 +66,7 @@ export async function testGeminiApiKey(
       },
     });
     const text = response?.text?.trim() || 'OK';
-    return { ok: true, model: model };
+    return { ok: true, model: cleanModel };
   } catch (err: any) {
     return {
       ok: false,
@@ -77,7 +88,7 @@ export async function chatStreamGemini(
     );
   }
 
-  const model = options.model || getAiSettings().selectedModel || 'gemini-3.5-flash-lite';
+  const model = normalizeGeminiModel(options.model || getAiSettings().selectedModel);
   const ai = new GoogleGenAI({ apiKey });
 
   // Separate system prompt and conversation messages
@@ -200,7 +211,7 @@ export async function geminiOcrPage(
     throw new Error('Google AI Studio API Key is required for Scanned PDF OCR.');
   }
 
-  const selectedModel = model || getAiSettings().selectedModel || 'gemini-3.5-flash-lite';
+  const selectedModel = normalizeGeminiModel(model || getAiSettings().selectedModel);
   const ai = new GoogleGenAI({ apiKey: key });
 
   const base64Data = imageBuffer.toString('base64');
@@ -253,7 +264,7 @@ export async function extractPyqsWithGemini(
     throw new Error('Google AI Studio API Key is required for intelligent PYQ ingestion.');
   }
 
-  const selectedModel = model || getAiSettings().selectedModel || 'gemini-3.5-flash-lite';
+  const selectedModel = normalizeGeminiModel(model || getAiSettings().selectedModel);
   const ai = new GoogleGenAI({ apiKey: key });
 
   const prompt = `You are an expert academic paper classifier and digitizer for MECHSTUDY OS.
@@ -353,7 +364,7 @@ export async function generateMasteryQuizWithGemini(
     throw new Error('Google AI Studio API Key is required to verify topic mastery.');
   }
 
-  const selectedModel = model || getAiSettings().selectedModel || 'gemini-3.5-flash-lite';
+  const selectedModel = normalizeGeminiModel(model || getAiSettings().selectedModel);
   const ai = new GoogleGenAI({ apiKey: key });
 
   const prompt = `You are a strict academic examiner for MECHSTUDY OS.
@@ -418,7 +429,7 @@ export async function generateRtuPaperWithGemini(
     throw new Error('Google AI Studio API Key is required for RTU Paper Generation.');
   }
 
-  const selectedModel = model || getAiSettings().selectedModel || 'gemini-3.5-flash-lite';
+  const selectedModel = normalizeGeminiModel(model || getAiSettings().selectedModel);
   const ai = new GoogleGenAI({ apiKey: key });
 
   const prompt = `You are the Chief Controller of Examinations for Rajasthan Technical University (RTU) Kota.
@@ -509,7 +520,7 @@ export async function evaluateRtuAnswersWithGemini(
     throw new Error('Google AI Studio API Key is required to evaluate answers.');
   }
 
-  const selectedModel = model || getAiSettings().selectedModel || 'gemini-3.5-flash-lite';
+  const selectedModel = normalizeGeminiModel(model || getAiSettings().selectedModel);
   const ai = new GoogleGenAI({ apiKey: key });
 
   const prompt = `You are a strict, veteran professor and university evaluator at Rajasthan Technical University (RTU), Kota.
@@ -608,7 +619,7 @@ export async function generateFormulaPracticeNumerical(
     throw new Error('Google AI Studio API Key is required to generate practice numerical.');
   }
 
-  const selectedModel = model || getAiSettings().selectedModel || 'gemini-3.5-flash-lite';
+  const selectedModel = normalizeGeminiModel(model || getAiSettings().selectedModel);
   const ai = new GoogleGenAI({ apiKey: key });
 
   const prompt = `You are a Senior GATE Mechanical Engineering Professor and test-setter.
@@ -685,7 +696,7 @@ export async function coachExamQuestionWithGemini(
     throw new Error('Google AI Studio API Key is required for exam coaching.');
   }
 
-  const selectedModel = getAiSettings().selectedModel || 'gemini-3.5-flash-lite';
+  const selectedModel = normalizeGeminiModel(getAiSettings().selectedModel);
   const ai = new GoogleGenAI({ apiKey: key });
 
   const optionsText = data.options && data.options.length

@@ -4,6 +4,7 @@ import { readdir, stat } from 'node:fs/promises';
 import { join, relative, basename, extname } from 'node:path';
 import { all, get, run, tx } from '../db';
 import { inspectPdf } from './pdf';
+import { indexAllTextLayers } from './indexer';
 
 export const SUPPORTED_EXT = new Set(['.pdf']);
 
@@ -141,6 +142,8 @@ export async function importFiles(
     }
   }
   onProgress?.({ done: files.length, total: files.length, current: '' });
+  // Automatically extract selectable text into SQLite FTS5 in background
+  indexAllTextLayers().catch(err => console.warn('[library] Background text indexing error:', err));
   return { added, updated, failed };
 }
 

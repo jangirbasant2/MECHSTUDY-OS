@@ -56,6 +56,7 @@ const QUERY_STOPWORDS = new Set([
   'make', 'create', 'build', 'generate', 'prepare', 'setup',
   'plan', 'planner', 'schedule', 'timetable', 'session', 'sessions',
   'study', 'studying', 'today', 'tomorrow', 'yesterday',
+  'teach', 'teaching', 'learn', 'learning', 'lecture', 'guide', 'tutorial', 'concept', 'concepts',
   'want', 'need', 'complete', 'finish', 'start', 'begin',
   'help', 'please', 'tell', 'show', 'explain', 'give', 'summarize', 'summary',
   'what', 'when', 'where', 'which', 'with', 'from', 'about',
@@ -150,7 +151,7 @@ export async function retrieveRagContext(
 
         for (const hit of attachedHits) {
           if (citations.some(c => c.documentId === hit.document_id && c.page === hit.page)) continue;
-          const snippet = (hit.text || hit.snip || '').slice(0, 900).trim();
+          const snippet = (hit.text || hit.snip || '').slice(0, 1200).trim();
           citations.push({
             documentId: hit.document_id,
             filename: hit.filename,
@@ -158,6 +159,35 @@ export async function retrieveRagContext(
             snippet: snippet.slice(0, 200) + '…',
           });
           contextParts.push(`### Source: [${hit.filename}] Page ${hit.page} (Attached Study Material - ${hit.source})\n"""\n${snippet}\n"""`);
+
+          // If the hit has a TOC range like "Topic 26-44" or "26 - 44"
+          const rangeMatch = snippet.match(/(\d{1,3})\s*[-–to]+\s*(\d{1,3})/);
+          if (rangeMatch) {
+            const startP = parseInt(rangeMatch[1], 10);
+            if (startP > 0 && startP !== hit.page) {
+              const targetPages = all<any>(`
+                SELECT dp.page, dp.source, dp.text, d.filename
+                FROM document_pages dp
+                JOIN documents d ON d.id = dp.document_id
+                WHERE dp.document_id = ? AND dp.page >= ? AND dp.page <= ?
+                ORDER BY dp.page ASC
+                LIMIT 3
+              `, hit.document_id, startP, startP + 2);
+
+              for (const tp of targetPages) {
+                if (citations.some(c => c.documentId === hit.document_id && c.page === tp.page)) continue;
+                if (!tp.text?.trim()) continue;
+                const pSnippet = tp.text.slice(0, 1200).trim();
+                citations.push({
+                  documentId: hit.document_id,
+                  filename: tp.filename,
+                  page: tp.page,
+                  snippet: pSnippet.slice(0, 200) + '…',
+                });
+                contextParts.push(`### Source: [${tp.filename}] Page ${tp.page} (Grounded Topic Page)\n"""\n${pSnippet}\n"""`);
+              }
+            }
+          }
         }
       } catch { /* malformed FTS query */ }
     }

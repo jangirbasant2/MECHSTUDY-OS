@@ -33,8 +33,13 @@ const WATERMARK = /(gat\s*e?\s*notes|www\.|gatenotes|for more visit|made\s*easy)
 export function stripNoise(text: string): string {
   return text
     .split('\n')
-    .map(l => l.trim())
-    .filter(l => l.length > 0 && !WATERMARK.test(l) && !/^[\s.WW]+$/.test(l))
+    .map(l => {
+      let line = l.trim();
+      line = line.replace(/(?:https?:\/\/|www\.)\S+/gi, '');
+      line = line.replace(/\b(?:gate\s*notes|gatenotes|for more visit|made\s*easy(?:\s*handwritten\s*class\s*notes)?)\b/gi, '');
+      return line.trim();
+    })
+    .filter(l => l.length > 0 && !/^[\s.WW0-9-]+$/.test(l))
     .join('\n')
     .trim();
 }
@@ -67,9 +72,25 @@ export async function pageTextRaw(doc: any, page: number): Promise<string> {
   return tc.items.map((i: any) => ('str' in i ? i.str : '')).join(' ');
 }
 
-/** Extract text of one page (1-based), with watermark noise removed. */
+/** Extract text of one page (1-based), with watermark noise removed and line layout preserved. */
 export async function pageText(doc: any, page: number): Promise<string> {
-  return stripNoise(await pageTextRaw(doc, page));
+  const p = await doc.getPage(page);
+  const tc = await p.getTextContent();
+  let lastY: number | null = null;
+  let text = '';
+  for (const item of tc.items) {
+    if (!('str' in item)) continue;
+    const y = item.transform ? item.transform[5] : null;
+    if (lastY !== null && y !== null && Math.abs(y - lastY) > 3) {
+      text += '\n';
+    } else if (text.length > 0 && !text.endsWith('\n') && !text.endsWith(' ')) {
+      text += ' ';
+    }
+    text += item.str;
+    if (item.hasEOL) text += '\n';
+    lastY = y;
+  }
+  return stripNoise(text);
 }
 
 /** Open a PDF with the same pdf.js settings the rest of the app uses. */
@@ -87,9 +108,7 @@ export function pageCount(doc: any): number {
 }
 
 /**
- * Inspect a PDF: page count + whether it has a *usable* text layer.
- * Scanned notes carry a small watermark text layer, so we require a real
- * amount of non-watermark text across sampled pages.
+ * Inspect a PDF: page count + whether it has selectable text.
  */
 export async function inspectPdf(path: string): Promise<{
   pageCount: number; hasTextLayer: boolean; textChars: number; error?: string;
@@ -106,8 +125,7 @@ export async function inspectPdf(path: string): Promise<{
     for (const p of sample) total += (await pageText(doc, p)).length;
     const avg = total / Math.max(1, sample.size);
 
-    // >120 clean chars/page on average => treat as a real text layer.
-    const hasTextLayer = avg > 120;
+    const hasTextLayer = total > 0;
     return { pageCount: n, hasTextLayer, textChars: Math.round(avg * n) };
   } catch (e) {
     return { pageCount: 0, hasTextLayer: false, textChars: 0, error: (e as Error).message };

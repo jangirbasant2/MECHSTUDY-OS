@@ -334,6 +334,7 @@ export function AIPage() {
         content,
         mode: tab === 'tutor' ? 'tutor' : tab === 'planner' ? 'planner' : 'chat',
         tutorLevel: tab === 'tutor' ? tutorLevel : undefined,
+        contextDocumentId: activeConv?.attachedDocuments?.[0]?.documentId,
       });
     } catch (e) {
       setIsGenerating(false);
@@ -422,7 +423,7 @@ export function AIPage() {
                     color: engineStatus?.connected ? 'var(--color-accent2)' : 'var(--color-danger)',
                   }}
                 >
-                  {engineStatus?.connected ? `Google AI Connected (${engineStatus?.activeModel || 'gemini-3.5-flash-lite'})` : 'API Key Required'}
+                  {engineStatus?.connected ? `Google AI Connected (${engineStatus?.activeModel || 'gemini-2.5-flash'})` : 'API Key Required'}
                 </span>
               </div>
               <p className="text-xs" style={{ color: 'var(--color-muted)' }}>
@@ -1044,9 +1045,10 @@ export function AIPage() {
                     onChange={e => setSettings({ ...settings, selectedModel: e.target.value })}
                     className="input w-full text-xs"
                   >
-                    <option value="gemini-3.5-flash-lite">gemini-3.5-flash-lite (Fastest / Lowest Latency - Default)</option>
-                    <option value="gemini-4-hydrogen">gemini-4-hydrogen (Balanced Engineering & Reasoning)</option>
-                    <option value="gemini-4-carbon">gemini-4-carbon (Deep Multi-Step Proofs & Derivations)</option>
+                    <option value="gemini-2.5-flash">gemini-2.5-flash (Fast &amp; Responsive - Default)</option>
+                    <option value="gemini-2.5-pro">gemini-2.5-pro (Deep Multi-Step Proofs &amp; STEM Derivations)</option>
+                    <option value="gemini-2.0-flash">gemini-2.0-flash (High Speed)</option>
+                    <option value="gemini-1.5-flash">gemini-1.5-flash (Lightweight)</option>
                   </select>
                   <p className="text-[11px] text-[var(--color-faint)] mt-1">
                     Zero GPU RAM required. Runs in the cloud with sub-second response times.

@@ -31,12 +31,6 @@ export async function indexTextLayer(
   // Re-verify against the real file: the cached flag may be stale.
   const info = await inspectPdf(doc.path);
   if (info.error) return { pagesIndexed: 0, chars: 0, skipped: true, reason: info.error };
-  if (!info.hasTextLayer) {
-    return {
-      pagesIndexed: 0, chars: 0, skipped: true,
-      reason: 'This PDF has no usable text layer (it is a scanned document). Use OCR instead.',
-    };
-  }
 
   const pages = await extractPages(doc.path, 'all', (done, total) => {
     onProgress?.({
@@ -48,28 +42,29 @@ export async function indexTextLayer(
   let indexed = 0;
   for (const p of pages) {
     if (shouldCancel?.()) break;
-    if (!p.text.trim()) continue;
-    indexPageText(documentId, p.page, p.text, 'text_layer');
-    chars += p.text.length;
+    const text = p.text.trim();
+    if (!text) continue;
+    indexPageText(documentId, p.page, text, 'text_layer');
+    chars += text.length;
     indexed++;
   }
 
   run(
-    "UPDATE documents SET has_text_layer=1, text_chars=?, page_count=? WHERE id=?",
-    chars, info.pageCount || doc.page_count, documentId
+    "UPDATE documents SET has_text_layer=?, text_chars=?, page_count=? WHERE id=?",
+    chars > 0 ? 1 : 0, chars, info.pageCount || doc.page_count, documentId
   );
 
   return { pagesIndexed: indexed, chars, skipped: false };
 }
 
-/** Index every document that has a text layer and no stored page text yet. */
+/** Index every document that has no stored page text yet. */
 export async function indexAllTextLayers(
   onProgress?: (p: IndexProgress) => void,
   shouldCancel?: () => boolean
 ): Promise<{ documents: number; pages: number; failures: { id: number; error: string }[] }> {
   const docs = all(
     `SELECT d.id, d.filename FROM documents d
-     WHERE d.available = 1 AND d.has_text_layer = 1
+     WHERE d.available = 1
        AND NOT EXISTS (SELECT 1 FROM document_pages p WHERE p.document_id = d.id)`
   ) as { id: number; filename: string }[];
 
