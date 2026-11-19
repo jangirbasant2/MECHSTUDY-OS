@@ -5,7 +5,7 @@ import {
   Download, MousePointer2, Trash2, PanelRightClose, PanelRightOpen,
   ArrowLeft, AlertTriangle, Check, Type, Eraser, PanelLeft, PanelLeftOpen,
   PanelTopClose, GripHorizontal, PenLine, Scaling, Save,
-  Crop, Hand, Minus, Lightbulb, Camera, Sparkles, Brain, Cpu, Loader2,
+  Crop, Hand, Minus, Lightbulb, Camera, Sparkles, Brain, Cpu, Loader2, Layers,
 } from 'lucide-react';
 import { ReaderAiPanel } from './reader/ReaderAiPanel';
 import { api } from '../lib/api';
@@ -1670,6 +1670,27 @@ export function ReaderPage() {
 
                         <div className="flex items-center gap-1" onPointerDown={e => e.stopPropagation()}>
                           <button
+                            className="hover:opacity-75 p-0.5 rounded text-blue-800"
+                            onClick={async () => {
+                              try {
+                                await api.flashcards.create({
+                                  source_type: 'NOTE',
+                                  title: `Sticky Note (p. ${pageNum})`,
+                                  front: n.body || 'Review this note concept',
+                                  back: `Source: ${doc?.filename || 'Notes'}, Page ${pageNum}`,
+                                  subject_name: doc?.subject_code || undefined,
+                                });
+                                toast('Sticky note sent to Flashcards!', 'success');
+                              } catch (err: any) {
+                                toast(`Failed to send to flashcards: ${err?.message}`, 'error');
+                              }
+                            }}
+                            title="Send to Active Recall Flashcards"
+                            aria-label="Send to flashcards"
+                          >
+                            <Layers size={9} />
+                          </button>
+                          <button
                             className="hover:opacity-75 p-0.5 rounded"
                             onClick={() => void toggleMinimizeNote(n)}
                             title="Minimize note to compact icon"
@@ -1858,6 +1879,28 @@ export function ReaderPage() {
                     <button className="btn btn-sm gap-1" onClick={() => void annotateSelection('strikethrough')}>
                       <Strikethrough size={11} /> Strike
                     </button>
+                    <button
+                      className="btn btn-sm gap-1 text-amber-400"
+                      onClick={async () => {
+                        if (!selection) return;
+                        try {
+                          await api.flashcards.create({
+                            source_type: 'HIGHLIGHT',
+                            title: `Reader Highlight (p. ${pageNum})`,
+                            front: selection.text,
+                            back: `Source: ${doc?.filename || 'Notes'}, Page ${pageNum}`,
+                            subject_name: doc?.subject_code || undefined,
+                          });
+                          toast('Sent highlighted text to Flashcards!', 'success');
+                          setSelection(null);
+                        } catch (e: any) {
+                          toast(`Failed to create flashcard: ${e?.message}`, 'error');
+                        }
+                      }}
+                      title="Send highlighted concept to Flashcards deck"
+                    >
+                      <Layers size={11} /> To Flashcards
+                    </button>
                     <button className="btn btn-ghost btn-icon h-5 w-5" onClick={() => setSelection(null)} title="Dismiss">
                       <X size={11} />
                     </button>
@@ -2026,6 +2069,27 @@ export function ReaderPage() {
                               title="Select this note on the page"
                             >
                               {n.title ?? `Note #${n.id}`}
+                            </button>
+                            <button
+                              className="btn btn-ghost btn-icon h-5 w-5 text-blue-400"
+                              onClick={async () => {
+                                try {
+                                  await api.flashcards.create({
+                                    source_type: 'NOTE',
+                                    title: `Sticky Note (p. ${pageNum})`,
+                                    front: n.body || 'Review this note concept',
+                                    back: `Source: ${doc?.filename || 'Notes'}, Page ${pageNum}`,
+                                    subject_name: doc?.subject_code || undefined,
+                                  });
+                                  toast('Sticky note sent to Flashcards!', 'success');
+                                } catch (err: any) {
+                                  toast(`Failed to send to flashcards: ${err?.message}`, 'error');
+                                }
+                              }}
+                              title="Send to Flashcards"
+                              aria-label="Send to Flashcards"
+                            >
+                              <Layers size={10} />
                             </button>
                             <button
                               className="btn btn-ghost btn-icon h-5 w-5"

@@ -2,6 +2,7 @@ import React from 'react';
 import {
   Award, Zap, Flame, Sparkles, GraduationCap, Star, CheckCircle2,
   Lock, RefreshCw, Trophy, FileText, Target, ShieldCheck,
+  Share2, Copy, Check, Edit3, UserCheck, Shield
 } from 'lucide-react';
 import { api } from '../lib/api';
 import { useApp } from '../store';
@@ -23,6 +24,9 @@ export function ProfilePage() {
   const [profile, setProfile] = React.useState<UserProfile | null>(null);
   const [trophies, setTrophies] = React.useState<UserTrophy[]>([]);
   const [loading, setLoading] = React.useState(true);
+  const [editingName, setEditingName] = React.useState(false);
+  const [nameInput, setNameInput] = React.useState('');
+  const [copiedCard, setCopiedCard] = React.useState(false);
   const toast = useApp(s => s.toast);
 
   const load = React.useCallback(async () => {
@@ -33,6 +37,7 @@ export function ProfilePage() {
         api.gamification.getTrophies(),
       ]);
       setProfile(p);
+      setNameInput(p.username || 'Mechanical Scholar');
       setTrophies(t);
     } catch (e: any) {
       toast(`Could not load profile: ${e?.message}`, 'error');
@@ -40,6 +45,39 @@ export function ProfilePage() {
       setLoading(false);
     }
   }, [toast]);
+
+  const handleSaveUsername = async () => {
+    if (!nameInput.trim()) return;
+    try {
+      const updated = await api.gamification.updateUsername(nameInput.trim());
+      setProfile(updated);
+      setEditingName(false);
+      toast('Username updated!', 'success');
+    } catch (e: any) {
+      toast(`Failed to update username: ${e?.message}`, 'error');
+    }
+  };
+
+  const handleCopyRank = async () => {
+    if (!profile) return;
+    const rankTier = profile.level >= 10 ? '💎 Diamond Grandmaster' : profile.level >= 6 ? '🥇 Gold GATE Crusader' : profile.level >= 3 ? '🥈 Silver Engineering Scholar' : '🥉 Bronze Mechanical Scholar';
+    const text = `🏆 MECHSTUDY OS — Academic Rank Card 🎓
+Scholar: ${profile.username || 'Mechanical Scholar'} (Level ${profile.level})
+Tier: ${rankTier}
+Total XP: ${profile.total_xp} XP (RTU: ${profile.rtu_xp} XP | GATE: ${profile.gate_xp} XP)
+Active Streak: ${profile.streak_days} Days 🔥
+Trophies Unlocked: ${trophies.length} ★
+Dual Exam Preparation: RTU Kota + GATE Mechanical`;
+
+    try {
+      await navigator.clipboard.writeText(text);
+      setCopiedCard(true);
+      toast('Shareable Rank Card copied to clipboard!', 'success');
+      setTimeout(() => setCopiedCard(false), 2500);
+    } catch {
+      toast('Failed to copy to clipboard', 'error');
+    }
+  };
 
   React.useEffect(() => {
     void load();
@@ -85,9 +123,39 @@ export function ProfilePage() {
               </div>
               <div>
                 <div className="flex items-center gap-2">
-                  <h2 className="text-xl font-bold text-[var(--color-text)]">Level {currentLevel} Scholar</h2>
+                  {editingName ? (
+                    <div className="flex items-center gap-1.5">
+                      <input
+                        type="text"
+                        value={nameInput}
+                        onChange={e => setNameInput(e.target.value)}
+                        className="rounded-lg border border-[var(--color-border)] bg-[var(--color-bg)] px-2.5 py-1 text-sm font-bold text-white focus:outline-hidden"
+                      />
+                      <button
+                        type="button"
+                        onClick={handleSaveUsername}
+                        className="btn btn-sm btn-primary py-1 px-2 text-xs"
+                      >
+                        <Check size={12} />
+                      </button>
+                    </div>
+                  ) : (
+                    <div className="flex items-center gap-1.5">
+                      <h2 className="text-xl font-bold text-[var(--color-text)]">
+                        {profile.username || 'Mechanical Scholar'}
+                      </h2>
+                      <button
+                        type="button"
+                        onClick={() => setEditingName(true)}
+                        className="btn btn-ghost btn-icon h-6 w-6 text-[var(--color-muted)] hover:text-white"
+                        title="Edit Scholar Name"
+                      >
+                        <Edit3 size={12} />
+                      </button>
+                    </div>
+                  )}
                   <span className="rounded-full bg-cyan-500/10 px-2.5 py-0.5 text-xs font-semibold text-cyan-400 border border-cyan-500/20">
-                    {profile.total_xp} Total XP
+                    Level {currentLevel} · {profile.total_xp} Total XP
                   </span>
                 </div>
                 <p className="text-xs text-[var(--color-muted)] mt-0.5">
@@ -121,6 +189,95 @@ export function ProfilePage() {
             </div>
           </div>
         </div>
+
+        {/* Shareable Student Rank Card */}
+        {(() => {
+          const rankTier = currentLevel >= 10
+            ? { name: 'Diamond Grandmaster', gradient: 'from-cyan-500 via-blue-500 to-indigo-600', badge: '💎 DIAMOND TIER', border: 'border-cyan-500/40' }
+            : currentLevel >= 6
+            ? { name: 'Gold GATE Crusader', gradient: 'from-amber-500 via-yellow-500 to-orange-500', badge: '🥇 GOLD TIER', border: 'border-amber-500/40' }
+            : currentLevel >= 3
+            ? { name: 'Silver Engineering Scholar', gradient: 'from-slate-400 via-zinc-400 to-gray-500', badge: '🥈 SILVER TIER', border: 'border-slate-400/40' }
+            : { name: 'Bronze Mechanical Scholar', gradient: 'from-amber-700 via-amber-800 to-yellow-900', badge: '🥉 BRONZE TIER', border: 'border-amber-700/40' };
+
+          const topTrophies = trophies.slice(0, 3);
+
+          return (
+            <div
+              className={`rounded-3xl border p-6 relative overflow-hidden shadow-lg ${rankTier.border}`}
+              style={{
+                background: 'linear-gradient(135deg, rgba(15, 23, 42, 0.95) 0%, rgba(30, 41, 59, 0.9) 100%)',
+              }}
+            >
+              <div className="flex flex-col lg:flex-row lg:items-center justify-between gap-6">
+                {/* Left: Scholar Info & Metallic Tier */}
+                <div className="space-y-3">
+                  <div className="flex items-center gap-2">
+                    <span className="rounded-full bg-white/10 px-3 py-1 text-[11px] font-black uppercase tracking-wider text-white border border-white/20">
+                      {rankTier.badge}
+                    </span>
+                    <span className="text-xs text-[var(--color-muted)]">Verified Student Rank Card</span>
+                  </div>
+
+                  <div>
+                    <h3 className="text-2xl font-black text-white tracking-tight">
+                      {profile.username || 'Mechanical Scholar'}
+                    </h3>
+                    <div className="text-sm font-semibold bg-gradient-to-r bg-clip-text text-transparent mt-0.5"
+                      style={{ backgroundImage: `linear-gradient(to right, #38bdf8, #818cf8)` }}>
+                      {rankTier.name} · Level {profile.level}
+                    </div>
+                  </div>
+
+                  {/* Dual Track Split Badges */}
+                  <div className="flex items-center gap-3 text-xs">
+                    <div className="flex items-center gap-1.5 font-bold text-blue-400">
+                      <GraduationCap size={14} />
+                      <span>{profile.rtu_xp} RTU XP</span>
+                    </div>
+                    <span className="text-[var(--color-faint)]">•</span>
+                    <div className="flex items-center gap-1.5 font-bold text-cyan-400">
+                      <Sparkles size={14} />
+                      <span>{profile.gate_xp} GATE XP</span>
+                    </div>
+                    <span className="text-[var(--color-faint)]">•</span>
+                    <div className="flex items-center gap-1.5 font-bold text-orange-400">
+                      <Flame size={14} />
+                      <span>{profile.streak_days}d Streak</span>
+                    </div>
+                  </div>
+                </div>
+
+                {/* Right: Top 3 Trophies & Share Action */}
+                <div className="flex flex-col sm:flex-row sm:items-center gap-4">
+                  {topTrophies.length > 0 && (
+                    <div className="flex items-center gap-2 bg-[var(--color-panel2)] p-2.5 rounded-2xl border border-[var(--color-border)]">
+                      <div className="text-[10.5px] font-semibold text-[var(--color-muted)] mr-1">Showcase:</div>
+                      {topTrophies.map(t => (
+                        <div
+                          key={t.code}
+                          className="flex h-9 w-9 items-center justify-center rounded-xl bg-amber-500/10 border border-amber-500/30 text-amber-400"
+                          title={`${t.title}: ${t.description}`}
+                        >
+                          <Award size={16} />
+                        </div>
+                      ))}
+                    </div>
+                  )}
+
+                  <button
+                    type="button"
+                    onClick={handleCopyRank}
+                    className="btn btn-primary btn-sm flex items-center gap-2 px-4 py-2 font-bold text-xs shrink-0"
+                  >
+                    {copiedCard ? <Check size={14} /> : <Share2 size={14} />}
+                    <span>{copiedCard ? 'Rank Copied!' : 'Share Student Rank Card'}</span>
+                  </button>
+                </div>
+              </div>
+            </div>
+          );
+        })()}
 
         {/* Dual Track XP Distribution */}
         <div className="grid grid-cols-1 md:grid-cols-2 gap-4">

@@ -747,6 +747,7 @@ export interface ReaderSettings {
 
 export interface UserProfile {
   id: number;
+  username?: string;
   total_xp: number;
   rtu_xp: number;
   gate_xp: number;
@@ -908,5 +909,61 @@ export interface DueRevisionTopic {
   nextReviewAt: string;
   lastReviewedAt: string | null;
 }
+
+export type FlashcardSourceType = 'NOTE' | 'HIGHLIGHT' | 'GATE_MISTAKE' | 'WEAK_TOPIC' | 'CUSTOM';
+
+export interface FlashcardItem {
+  id: number;
+  source_type: FlashcardSourceType;
+  source_id?: string | null;
+  title: string;
+  front: string;
+  back: string;
+  subject_name?: string | null;
+  topic_name?: string | null;
+  interval_days: number;
+  ease_factor: number;
+  repetitions: number;
+  next_review_date: string;
+  last_reviewed_at?: string | null;
+  created_at: string;
+  updated_at: string;
+}
+
+export interface FormulaPracticeNumerical {
+  question: string;
+  givenValues: Record<string, string>;
+  formulaTested: string;
+  correctAnswer: number;
+  tolerance: number;
+  unit: string;
+  unitTraps: string[];
+  stepByStepSolution: string;
+}
+
+export interface CheatSheetOptions {
+  title: string;
+  examTrack: 'RTU' | 'GATE';
+  subjectNames?: string[];
+  includeFormulas: boolean;
+  includeMistakes: boolean;
+  includeHighWeightageTopics: boolean;
+  outPath: string;
+}
+
+export interface CheatSheetResult {
+  outPath: string;
+  pages: number;
+  formulaCount: number;
+  mistakeCount: number;
+  topicCount: number;
+}
+
+export interface BackupArchiveResult {
+  outPath: string;
+  sizeBytes: number;
+  manifest: any;
+}
+
 
 

@@ -1,13 +1,14 @@
 import React from 'react';
 import {
   Repeat2, Check, X, CalendarClock, Flame, ArrowRight, GraduationCap, AlertTriangle,
-  Brain, TrendingUp,
+  Brain, TrendingUp, Layers, FileText, Loader2
 } from 'lucide-react';
 import { api } from '../lib/api';
 import { useApp } from '../store';
 import {
   Badge, EmptyState, ErrorState, Loading, ProgressBar, SectionHeader, Stat, Tabs,
 } from '../components/ui';
+import { FlashcardDeck } from '../components/FlashcardDeck';
 import { dateLabel, pct, relativeDays, shortDate } from '../lib/format';
 import type { ReviewRow } from '../../../shared/types';
 
@@ -28,7 +29,28 @@ export function RevisionPage() {
   const [all, setAll] = React.useState<ReviewRow[]>([]);
   const [error, setError] = React.useState<string | null>(null);
   const [busy, setBusy] = React.useState<number | null>(null);
-  const [tab, setTab] = React.useState<'due' | 'schedule'>('due');
+  const [tab, setTab] = React.useState<'flashcards' | 'due' | 'schedule'>('flashcards');
+  const [exportingCheatSheet, setExportingCheatSheet] = React.useState(false);
+
+  const handleExportCheatSheet = async () => {
+    setExportingCheatSheet(true);
+    try {
+      const savePath = await api.cheatSheet.pickSavePath('MECHSTUDY_Exam_Eve_Rapid_Revision.pdf');
+      if (!savePath) return;
+
+      const res = await api.cheatSheet.compile({
+        title: 'MECHSTUDY OS — Exam-Eve Rapid Revision Cheat-Sheet',
+        examTrack: 'GATE',
+        outPath: savePath,
+      });
+
+      toast(`Cheat-Sheet compiled (${res.pages} pages, ${res.mistakeCount} pitfall traps)!`, 'success');
+    } catch (e: any) {
+      toast(`Export failed: ${e?.message}`, 'error');
+    } finally {
+      setExportingCheatSheet(false);
+    }
+  };
 
   const load = React.useCallback(async () => {
     setError(null);
@@ -69,8 +91,19 @@ export function RevisionPage() {
     <div className="scroll-y h-full">
       <div className="mx-auto max-w-[1100px] px-5 py-5">
         <SectionHeader
-          title="Revision Center"
-          description="Spaced repetition over the topics you have marked complete. Intervals grow as you rate reviews easy, and reset when you forget."
+          title="Active Recall &amp; Revision Center"
+          description="Spaced repetition over flashcards, reader notes, mistake logs, and verified syllabus topics."
+          action={
+            <button
+              className="btn btn-sm btn-secondary gap-1.5 text-xs"
+              disabled={exportingCheatSheet}
+              onClick={handleExportCheatSheet}
+              title="Compile printable Exam-Eve Summary PDF"
+            >
+              {exportingCheatSheet ? <Loader2 size={13} className="animate-spin" /> : <FileText size={13} />}
+              <span>Export Cheat Sheet (PDF)</span>
+            </button>
+          }
         />
 
         <div className="grid grid-cols-2 gap-3 md:grid-cols-4">
@@ -88,15 +121,20 @@ export function RevisionPage() {
         <div className="mt-4">
           <Tabs
             tabs={[
-              { id: 'due' as const, label: 'Due now', count: due.length },
-              { id: 'schedule' as const, label: 'Full schedule', count: all.length },
+              { id: 'flashcards' as const, label: '⚡ Flashcards & Active Recall' },
+              { id: 'due' as const, label: 'Topics Due', count: due.length },
+              { id: 'schedule' as const, label: 'Full Schedule', count: all.length },
             ]}
             active={tab}
             onChange={setTab}
           />
         </div>
 
-        <div className="mt-3">
+        <div className="mt-4">
+          {tab === 'flashcards' && (
+            <FlashcardDeck />
+          )}
+
           {tab === 'due' && (
             <>
               {due.length === 0 ? (

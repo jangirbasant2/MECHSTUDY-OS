@@ -1,10 +1,11 @@
 import React from 'react';
 import {
   Sigma, Search, Copy, Check, Sparkles, BookOpen, ExternalLink,
-  Filter, Award, Lightbulb, Info, ArrowRight,
+  Filter, Award, Lightbulb, Info, ArrowRight, Calculator, FileText, Loader2,
 } from 'lucide-react';
 import katex from 'katex';
 import 'katex/dist/katex.min.css';
+import { api } from '../lib/api';
 import { useApp } from '../store';
 import {
   FORMULA_SUBJECTS,
@@ -14,6 +15,7 @@ import {
   type FormulaItem,
 } from '../data/formulasData';
 import { EmptyState } from '../components/ui';
+import { FormulaSandbox } from '../components/FormulaSandbox';
 
 function KaTeXFormula({ latex, displayMode = true }: { latex: string; displayMode?: boolean }) {
   const html = React.useMemo(() => {
@@ -46,11 +48,43 @@ export function FormulasPage() {
   const [selectedSubject, setSelectedSubject] = React.useState<string>('All Subjects');
   const [searchQuery, setSearchQuery] = React.useState<string>('');
   const [copiedId, setCopiedId] = React.useState<string | null>(null);
+  const [expandedSandboxId, setExpandedSandboxId] = React.useState<string | null>(null);
+  const [exportingCheatSheet, setExportingCheatSheet] = React.useState<boolean>(false);
 
   // Reset selected subject filter when switching exam modes
   React.useEffect(() => {
     setSelectedSubject('All Subjects');
+    setExpandedSandboxId(null);
   }, [activeExamMode]);
+
+  const handleExportCheatSheet = async () => {
+    setExportingCheatSheet(true);
+    try {
+      const defaultName = `MECHSTUDY_${activeExamMode}_Exam_Eve_CheatSheet.pdf`;
+      const savePath = await api.cheatSheet.pickSavePath(defaultName);
+      if (!savePath) return;
+
+      const formulasToExport = filteredFormulas.slice(0, 30).map(f => ({
+        title: f.title,
+        topic: f.topic,
+        latex: f.latex,
+        conditions: f.conditions,
+      }));
+
+      const res = await api.cheatSheet.compile({
+        title: `${activeExamMode === 'RTU' ? 'RTU Kota B.Tech III-Sem' : 'GATE Mechanical'} Exam-Eve Rapid Revision Cheat-Sheet`,
+        examTrack: activeExamMode === 'RTU' ? 'RTU' : 'GATE',
+        formulas: formulasToExport,
+        outPath: savePath,
+      });
+
+      toast(`Exported Exam-Eve Cheat Sheet (${res.pages} pages, ${res.formulaCount} formulas, ${res.mistakeCount} pitfalls)!`, 'success');
+    } catch (err: any) {
+      toast(`Failed to export cheat-sheet: ${err?.message}`, 'error');
+    } finally {
+      setExportingCheatSheet(false);
+    }
+  };
 
   const filteredFormulas = React.useMemo(() => {
     const q = searchQuery.trim().toLowerCase();
@@ -132,6 +166,15 @@ export function FormulasPage() {
         </div>
 
         <div className="flex items-center gap-2">
+          <button
+            className="btn btn-sm btn-secondary gap-1.5 text-xs"
+            disabled={exportingCheatSheet}
+            onClick={handleExportCheatSheet}
+            title="Compile printable Exam-Eve Summary PDF"
+          >
+            {exportingCheatSheet ? <Loader2 size={13} className="animate-spin" /> : <FileText size={13} />}
+            <span>Export Cheat Sheet (PDF)</span>
+          </button>
           <button
             className="btn btn-sm btn-accent gap-1.5"
             onClick={() => setPage('practice')}
@@ -305,18 +348,36 @@ export function FormulasPage() {
                 </div>
 
                 {/* Footer Action */}
-                <div className="pt-2 border-t flex items-center justify-between text-xs" style={{ borderColor: 'var(--color-border)' }}>
+                <div className="pt-2 border-t flex flex-wrap items-center justify-between gap-2 text-xs" style={{ borderColor: 'var(--color-border)' }}>
                   <button
-                    className="btn btn-ghost btn-sm gap-1 text-[11px] text-[var(--color-accent)]"
-                    onClick={() => setPage('practice')}
+                    type="button"
+                    className={`btn btn-sm gap-1.5 text-xs ${
+                      expandedSandboxId === formula.id ? 'btn-primary' : 'btn-ghost'
+                    }`}
+                    onClick={() => setExpandedSandboxId(expandedSandboxId === formula.id ? null : formula.id)}
                   >
-                    <span>Practice Questions</span>
-                    <ArrowRight size={12} />
+                    <Calculator size={13} />
+                    <span>{expandedSandboxId === formula.id ? 'Close Sandbox' : 'Interactive Sandbox'}</span>
                   </button>
-                  <span className="text-[10px] font-mono text-[var(--color-faint)]">
-                    LaTeX: ${formula.latex.slice(0, 24)}...$
-                  </span>
+
+                  <div className="flex items-center gap-2">
+                    <button
+                      className="btn btn-ghost btn-sm gap-1 text-[11px] text-[var(--color-accent)]"
+                      onClick={() => setPage('practice')}
+                    >
+                      <span>Practice</span>
+                      <ArrowRight size={12} />
+                    </button>
+                    <span className="text-[10px] font-mono text-[var(--color-faint)] hidden sm:inline">
+                      ${formula.latex.slice(0, 18)}...$
+                    </span>
+                  </div>
                 </div>
+
+                {/* Expandable Interactive Sandbox & Practice Numerical */}
+                {expandedSandboxId === formula.id && (
+                  <FormulaSandbox formula={formula} />
+                )}
               </div>
             );
           })}

@@ -3,7 +3,7 @@ import {
   Settings as SettingsIcon, Palette, FolderOpen, ScanText, Database, ShieldCheck,
   Info, RefreshCw, FolderSearch, Play, Pause, Square, Check, X, AlertTriangle,
   Download, Trash2, RotateCcw, ExternalLink, HardDrive, FileText, Link2, Save,
-  ChevronRight, Cpu, Clock, CircleAlert, CircleCheck, Wand2,
+  ChevronRight, Cpu, Clock, CircleAlert, CircleCheck, Wand2, Archive, Upload,
 } from 'lucide-react';
 import { api } from '../lib/api';
 import { useApp } from '../store';
@@ -666,6 +666,43 @@ function DataTab({
     }
   };
 
+  const [exportingArchive, setExportingArchive] = React.useState(false);
+  const [importingArchive, setImportingArchive] = React.useState(false);
+
+  const handleExportArchive = async () => {
+    setExportingArchive(true);
+    try {
+      const defaultName = `MECHSTUDY_Workspace_Backup_${new Date().toISOString().slice(0, 10)}.mechbackup`;
+      const savePath = await api.backupArchive.pickSave(defaultName);
+      if (!savePath) return;
+
+      const res = await api.backupArchive.export(savePath);
+      toast(`Workspace archive saved successfully (${bytes(res.sizeBytes)})!`, 'success');
+    } catch (err: any) {
+      toast(`Failed to export archive: ${err?.message}`, 'error');
+    } finally {
+      setExportingArchive(false);
+    }
+  };
+
+  const handleImportArchive = async () => {
+    setImportingArchive(true);
+    try {
+      const filePath = await api.backupArchive.pickOpen();
+      if (!filePath) return;
+
+      const res = await api.backupArchive.import(filePath);
+      toast('Workspace archive restored! Relaunching application…', 'success');
+      setTimeout(() => {
+        api.app.relaunch();
+      }, 1500);
+    } catch (err: any) {
+      toast(`Failed to restore archive: ${err?.message}`, 'error');
+    } finally {
+      setImportingArchive(false);
+    }
+  };
+
   if (loading) return <Loading label="Reading backup information…" />;
   if (error) return <ErrorState message={error} onRetry={() => void load()} />;
 
@@ -677,6 +714,38 @@ function DataTab({
         <Stat label="Annotations" value={(db?.counts.annotations ?? 0) + (db?.counts.notes ?? 0)} sub="Highlights + sticky notes" />
         <Stat label="Backups" value={backups.length} sub="On this machine" accent="var(--color-accent2)" />
       </div>
+
+      <Card
+        title="1-Click Encrypted Workspace Archive (.mechbackup)"
+        description="Export or restore your full workspace (database, annotations, OCR index, flashcards, PYQs, XP, and trophies) into a single portable compressed archive."
+        icon={<Archive size={14} />}
+      >
+        <p className="text-xs text-[var(--color-muted)] leading-relaxed mb-3">
+          Ideal for moving to a new laptop, switching Windows installations, or creating an offline air-gapped backup.
+        </p>
+
+        <div className="flex flex-wrap items-center gap-2">
+          <button
+            type="button"
+            disabled={exportingArchive}
+            onClick={handleExportArchive}
+            className="btn btn-sm btn-primary flex items-center gap-1.5 text-xs"
+          >
+            {exportingArchive ? <Spinner size={12} /> : <Download size={12} />}
+            <span>Export .mechbackup Archive</span>
+          </button>
+
+          <button
+            type="button"
+            disabled={importingArchive}
+            onClick={handleImportArchive}
+            className="btn btn-sm btn-secondary flex items-center gap-1.5 text-xs"
+          >
+            {importingArchive ? <Spinner size={12} /> : <Upload size={12} />}
+            <span>Restore from .mechbackup…</span>
+          </button>
+        </div>
+      </Card>
 
       <Card
         title="Backups"

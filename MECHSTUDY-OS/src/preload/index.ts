@@ -316,6 +316,7 @@ const api: MechStudyApi = {
     getProfile: () => invoke('gamification:getProfile'),
     getTrophies: () => invoke('gamification:getTrophies'),
     awardXp: (amount: number, track?: any) => invoke('gamification:awardXp', { amount, track }),
+    updateUsername: (username: string) => invoke('gamification:updateUsername', { username }),
     verifyMastery: (params: any) => invoke('gamification:verifyMastery', params),
     getDueRevisions: () => invoke('gamification:getDueRevisions'),
     completeRevisionDrill: (topicId: number, isCorrect: boolean) =>
@@ -323,6 +324,29 @@ const api: MechStudyApi = {
   },
   quiz: {
     generateMastery: (params: any) => invoke('quiz:generateMastery', params),
+  },
+  formula: {
+    generateNumerical: (params: any) => invoke('formula:generateNumerical', params),
+  },
+  flashcards: {
+    list: (filter?: any) => invoke('flashcard:list', filter),
+    create: (card: any) => invoke('flashcard:create', card),
+    update: (id: number, patch: any) => invoke('flashcard:update', { id, patch }),
+    delete: (id: number) => invoke('flashcard:delete', { id }),
+    review: (id: number, rating: string) => invoke('flashcard:review', { id, rating }),
+    syncMistakes: () => invoke('flashcard:syncMistakes'),
+    syncWeakTopics: () => invoke('flashcard:syncWeakTopics'),
+    completeSession: (cardsReviewed: number) => invoke('flashcard:completeSession', { cardsReviewed }),
+  },
+  backupArchive: {
+    export: (savePath: string, password?: string) => invoke('backup:exportArchive', { savePath, password }),
+    import: (filePath: string, password?: string) => invoke('backup:importArchive', { filePath, password }),
+    pickSave: (defaultName?: string) => invoke('backup:pickSaveArchive', { defaultName }),
+    pickOpen: () => invoke('backup:pickOpenArchive'),
+  },
+  cheatSheet: {
+    compile: (params: any) => invoke('export:compileCheatSheet', params),
+    pickSavePath: (defaultName?: string) => invoke('export:pickCheatSheetPath', { defaultName }),
   },
 };
 

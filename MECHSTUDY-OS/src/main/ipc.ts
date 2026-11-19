@@ -30,9 +30,10 @@ import {
 import { search, indexPageText } from './services/search';
 import { indexTextLayer, indexAllTextLayers, searchInDocument } from './services/indexer';
 import { inspectPdf, extractPages } from './services/pdf';
-import { exportAnnotatedPdf, exportNotesMarkdown, pageOperations, defaultExportPath } from './services/export';
+import { exportAnnotatedPdf, exportNotesMarkdown, pageOperations, defaultExportPath, compileCheatSheetPdf } from './services/export';
 import {
   createBackup, listBackups, restoreBackup, deleteBackup, databaseInfo, scanBackupFolder,
+  exportEncryptedBackup, importEncryptedBackup,
 } from './services/backup';
 import {
   ocrStatus, createJob, runJob, cancelJob, pauseJob, listJobs, jobForDocument, ocrQueueSuggestions,
@@ -76,9 +77,14 @@ import {
 } from './services/readerSettings';
 import { PYQ_FOLDER } from './data/pyqPapers';
 import {
-  getUserProfile, getUserTrophies, awardXp, recordMasteryQuizResult, getDueRevisions, completeRevisionDrill
+  getUserProfile, getUserTrophies, awardXp, recordMasteryQuizResult, getDueRevisions, completeRevisionDrill,
+  updateUsername
 } from './services/gamification';
-import { generateMasteryQuizWithGemini } from './services/ai/gemini';
+import { generateMasteryQuizWithGemini, generateFormulaPracticeNumerical } from './services/ai/gemini';
+import {
+  listFlashcards, createFlashcard, updateFlashcard, deleteFlashcard, reviewFlashcard,
+  autoSyncMistakeFlashcards, autoSyncWeakTopicFlashcards, completeFlashcardSession
+} from './services/flashcards';
 import {
   ingestPyqPdf, getRtuPyqList, getGatePyqList, createRtuExamPaper, getGateCbtPaper,
   updateRtuPyq, deleteRtuPyq, updateGatePyq, deleteGatePyq,
@@ -770,4 +776,55 @@ export function registerIpc(): void {
     createRtuExamPaper(Number(subjectId), mode, selectedUnits)
   );
   handle('pyq:getGateCbtPaper', ({ mode }) => getGateCbtPaper(mode));
+
+  /* ---------------- Formula Practice Numericals ---------------- */
+  handle('formula:generateNumerical', ({ formulaTitle, latex, subject, variables }) =>
+    generateFormulaPracticeNumerical(formulaTitle, latex, subject, variables)
+  );
+
+  /* ---------------- Flashcards & Active Recall ---------------- */
+  handle('flashcard:list', (filter) => listFlashcards(filter));
+  handle('flashcard:create', (card) => createFlashcard(card));
+  handle('flashcard:update', ({ id, patch }) => updateFlashcard(Number(id), patch));
+  handle('flashcard:delete', ({ id }) => deleteFlashcard(Number(id)));
+  handle('flashcard:review', ({ id, rating }) => reviewFlashcard(Number(id), rating));
+  handle('flashcard:syncMistakes', () => autoSyncMistakeFlashcards());
+  handle('flashcard:syncWeakTopics', () => autoSyncWeakTopicFlashcards());
+  handle('flashcard:completeSession', ({ cardsReviewed }) => completeFlashcardSession(Number(cardsReviewed)));
+
+  /* ---------------- Cheat-Sheet PDF Compiler ---------------- */
+  handle('export:compileCheatSheet', ({ title, examTrack, formulas, outPath }) =>
+    compileCheatSheetPdf({ title, examTrack, formulas, outPath })
+  );
+  handle('export:pickCheatSheetPath', async ({ defaultName }) => {
+    const res = await dialog.showSaveDialog(mainWindow ?? undefined as any, {
+      title: 'Save Exam-Eve Rapid Revision Cheat Sheet PDF',
+      defaultPath: defaultName || 'MECHSTUDY_Exam_Eve_CheatSheet.pdf',
+      filters: [{ name: 'PDF Document', extensions: ['pdf'] }],
+    });
+    return res.canceled || !res.filePath ? null : res.filePath;
+  });
+
+  /* ---------------- 1-Click Encrypted Workspace Backup (.mechbackup) ---------------- */
+  handle('backup:exportArchive', ({ savePath, password }) => exportEncryptedBackup(savePath, password));
+  handle('backup:importArchive', ({ filePath, password }) => importEncryptedBackup(filePath, password));
+  handle('backup:pickSaveArchive', async ({ defaultName }) => {
+    const res = await dialog.showSaveDialog(mainWindow ?? undefined as any, {
+      title: 'Export Workspace Backup (.mechbackup)',
+      defaultPath: defaultName || `MECHSTUDY_Backup_${new Date().toISOString().slice(0, 10)}.mechbackup`,
+      filters: [{ name: 'MECHSTUDY OS Backup Archive', extensions: ['mechbackup'] }],
+    });
+    return res.canceled || !res.filePath ? null : res.filePath;
+  });
+  handle('backup:pickOpenArchive', async () => {
+    const res = await dialog.showOpenDialog(mainWindow ?? undefined as any, {
+      title: 'Select .mechbackup Archive to Restore',
+      properties: ['openFile'],
+      filters: [{ name: 'MECHSTUDY OS Backup Archive', extensions: ['mechbackup'] }],
+    });
+    return res.canceled || !res.filePaths.length ? null : res.filePaths[0];
+  });
+
+  /* ---------------- User Profile Username ---------------- */
+  handle('gamification:updateUsername', ({ username }) => updateUsername(String(username)));
 }

@@ -750,5 +750,33 @@ CREATE TABLE IF NOT EXISTS rtu_evaluations (
   created_at TEXT NOT NULL DEFAULT (datetime('now'))
 );
 `
+  },
+  {
+    version: 13,
+    name: 'flashcards_and_profile_username',
+    sql: `
+CREATE TABLE IF NOT EXISTS flashcards (
+  id INTEGER PRIMARY KEY AUTOINCREMENT,
+  source_type TEXT NOT NULL DEFAULT 'CUSTOM',
+  source_id TEXT,
+  title TEXT NOT NULL,
+  front TEXT NOT NULL,
+  back TEXT NOT NULL,
+  subject_name TEXT,
+  topic_name TEXT,
+  interval_days INTEGER NOT NULL DEFAULT 1,
+  ease_factor REAL NOT NULL DEFAULT 2.5,
+  repetitions INTEGER NOT NULL DEFAULT 0,
+  next_review_date TEXT NOT NULL DEFAULT (date('now')),
+  last_reviewed_at TEXT,
+  created_at TEXT NOT NULL DEFAULT (datetime('now')),
+  updated_at TEXT NOT NULL DEFAULT (datetime('now'))
+);
+CREATE INDEX IF NOT EXISTS idx_flashcards_source ON flashcards(source_type);
+CREATE INDEX IF NOT EXISTS idx_flashcards_next ON flashcards(next_review_date);
+CREATE INDEX IF NOT EXISTS idx_flashcards_subj ON flashcards(subject_name);
+
+ALTER TABLE user_profile ADD COLUMN username TEXT DEFAULT 'Mechanical Scholar';
+`
   }
 ];

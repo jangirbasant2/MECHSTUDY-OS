@@ -1,7 +1,9 @@
 import { app } from 'electron';
 import { existsSync, mkdirSync, copyFileSync, statSync, readdirSync, rmSync } from 'node:fs';
-import { writeFile, readFile } from 'node:fs/promises';
-import { join } from 'node:path';
+import { writeFile, readFile, mkdir } from 'node:fs/promises';
+import { join, dirname } from 'node:path';
+import { gzipSync, gunzipSync } from 'node:zlib';
+import { createCipheriv, createDecipheriv, randomBytes, scryptSync } from 'node:crypto';
 import { all, get, run, getDb, dbPath, appDataDir, closeDb, initDb } from '../db';
 
 /**
@@ -152,3 +154,135 @@ export function databaseInfo() {
   try { size = statSync(p).size; } catch { /* ignore */ }
   return { path: p, sizeBytes: size, dataDir: appDataDir(), backupDir: backupRoot() };
 }
+
+const BACKUP_MAGIC = Buffer.from('MECHBACKUP_V1\0\0\0'); // 16 bytes
+const DEFAULT_KEY_SALT = 'mechstudy-os-aes256-salt';
+
+/**
+ * 1-Click Encrypted Workspace Backup (.mechbackup).
+ * Compresses and securely archives mechstudy.db and table counts into a single portable file.
+ */
+export async function exportEncryptedBackup(savePath: string, userPassword?: string): Promise<{
+  outPath: string;
+  sizeBytes: number;
+  manifest: BackupManifest;
+}> {
+  try { getDb().exec('PRAGMA wal_checkpoint(TRUNCATE);'); } catch { /* ignore */ }
+
+  const srcDbBuffer = await readFile(dbPath());
+  const compressedDb = gzipSync(srcDbBuffer);
+
+  const salt = randomBytes(32);
+  const iv = randomBytes(16);
+  const password = userPassword && userPassword.trim() ? userPassword.trim() : DEFAULT_KEY_SALT;
+  const key = scryptSync(password, salt, 32);
+
+  const cipher = createCipheriv('aes-256-cbc', key, iv);
+  const encryptedDb = Buffer.concat([cipher.update(compressedDb), cipher.final()]);
+
+  const version = (get<{ v: number }>('SELECT MAX(version) v FROM schema_migrations')?.v) ?? 0;
+  const manifest: BackupManifest = {
+    app: 'MECHSTUDY OS',
+    appVersion: app.getVersion(),
+    createdAt: new Date().toISOString(),
+    dbBytes: srcDbBuffer.length,
+    includesPdfs: false,
+    schemaVersion: version,
+    counts: countRows(),
+  };
+
+  const manifestBuf = Buffer.from(JSON.stringify(manifest), 'utf8');
+  const manifestLenBuf = Buffer.alloc(4);
+  manifestLenBuf.writeUInt32BE(manifestBuf.length, 0);
+
+  // File structure:
+  // [16 bytes Magic] [32 bytes Salt] [16 bytes IV] [4 bytes ManifestLen] [ManifestBuf] [EncryptedDb]
+  const finalArchive = Buffer.concat([
+    BACKUP_MAGIC,
+    salt,
+    iv,
+    manifestLenBuf,
+    manifestBuf,
+    encryptedDb,
+  ]);
+
+  await mkdir(dirname(savePath), { recursive: true });
+  await writeFile(savePath, finalArchive);
+
+  return {
+    outPath: savePath,
+    sizeBytes: finalArchive.length,
+    manifest,
+  };
+}
+
+/**
+ * Restore an encrypted workspace backup (.mechbackup) over the live database.
+ */
+export async function importEncryptedBackup(filePath: string, userPassword?: string): Promise<{
+  restored: boolean;
+  requiresRestart: boolean;
+  manifest: BackupManifest;
+  safetyBackup: string | null;
+}> {
+  if (!existsSync(filePath)) throw new Error(`Backup archive not found: ${filePath}`);
+
+  const fileBuf = await readFile(filePath);
+  if (fileBuf.length < 68) throw new Error('Invalid .mechbackup file: archive is corrupted or too small.');
+
+  const magic = fileBuf.subarray(0, 16);
+  if (!magic.equals(BACKUP_MAGIC)) {
+    throw new Error('Not a valid MECHSTUDY OS backup archive (.mechbackup signature missing).');
+  }
+
+  const salt = fileBuf.subarray(16, 48);
+  const iv = fileBuf.subarray(48, 64);
+  const manifestLen = fileBuf.readUInt32BE(64);
+
+  if (fileBuf.length < 68 + manifestLen) {
+    throw new Error('Corrupted .mechbackup header structure.');
+  }
+
+  const manifestBuf = fileBuf.subarray(68, 68 + manifestLen);
+  const manifest: BackupManifest = JSON.parse(manifestBuf.toString('utf8'));
+  const encryptedDb = fileBuf.subarray(68 + manifestLen);
+
+  const password = userPassword && userPassword.trim() ? userPassword.trim() : DEFAULT_KEY_SALT;
+  const key = scryptSync(password, salt, 32);
+
+  let decryptedCompressed: Buffer;
+  try {
+    const decipher = createDecipheriv('aes-256-cbc', key, iv);
+    decryptedCompressed = Buffer.concat([decipher.update(encryptedDb), decipher.final()]);
+  } catch (err) {
+    throw new Error('Failed to decrypt .mechbackup archive. Incorrect password or damaged archive.');
+  }
+
+  const rawDb = gunzipSync(decryptedCompressed);
+  const dbMagic = rawDb.subarray(0, 16).toString('latin1');
+  if (!dbMagic.startsWith('SQLite format 3')) {
+    throw new Error('Decompressed payload is not a valid SQLite database.');
+  }
+
+  // Create safety backup of existing state
+  const safety = await createBackup('pre-import safety copy');
+
+  closeDb();
+  await writeFile(dbPath(), rawDb);
+
+  // Clean stale WAL and SHM
+  for (const suffix of ['-wal', '-shm']) {
+    const f = dbPath() + suffix;
+    if (existsSync(f)) { try { rmSync(f); } catch { /* ignore */ } }
+  }
+
+  initDb();
+
+  return {
+    restored: true,
+    requiresRestart: true,
+    manifest,
+    safetyBackup: safety.path,
+  };
+}
+

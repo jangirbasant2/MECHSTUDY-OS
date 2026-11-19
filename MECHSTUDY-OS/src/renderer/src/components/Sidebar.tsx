@@ -38,7 +38,7 @@ const SYLLABUS: NavItem[] = [
 const PLAN: NavItem[] = [
   { id: 'profile', label: 'Profile & Trophies', icon: Award, hint: 'XP, Levels & Badges' },
   { id: 'planner', label: 'Study Planner', icon: CalendarDays },
-  { id: 'revision', label: 'Revision Center', icon: Repeat2 },
+  { id: 'revision', label: 'Flashcards & Revision', icon: Repeat2, hint: 'Active Recall & Spaced Repetition' },
   { id: 'analytics', label: 'Analytics', icon: BarChart3 },
 ];
 

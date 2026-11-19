@@ -15,6 +15,7 @@ import type {
   TemporaryScreenshotRecord, ReminderSettings, ReminderNotificationPayload, ReaderSettings,
   UserProfile, UserTrophy, TopicQuizResult, RtuPyq, GatePyq, ExamPaperRecord, IngestPyqResult,
   PyqIngestProgress, GateMistakeRecord, RtuEvaluationResult, DueRevisionTopic,
+  FlashcardItem, FormulaPracticeNumerical, CheatSheetOptions, CheatSheetResult, BackupArchiveResult,
 } from './types';
 
 export type Unsubscribe = () => void;
@@ -277,6 +278,7 @@ export interface MechStudyApi {
     getProfile(): Promise<UserProfile>;
     getTrophies(): Promise<UserTrophy[]>;
     awardXp(amount: number, track?: 'RTU' | 'GATE' | 'BOTH'): Promise<{ profile: UserProfile; unlockedTrophies: UserTrophy[] }>;
+    updateUsername(username: string): Promise<UserProfile>;
     verifyMastery(params: {
       topicId: number;
       examTrack: 'RTU' | 'GATE';
@@ -300,5 +302,51 @@ export interface MechStudyApi {
       correctAnswer: string;
       explanation: string;
     }>;
+  };
+  formula: {
+    generateNumerical(params: {
+      formulaTitle: string;
+      latex: string;
+      subject: string;
+      variables: Array<{ symbol: string; name: string }>;
+    }): Promise<FormulaPracticeNumerical>;
+  };
+  flashcards: {
+    list(filter?: {
+      sourceType?: string;
+      dueOnly?: boolean;
+      subjectName?: string;
+      limit?: number;
+    }): Promise<FlashcardItem[]>;
+    create(card: {
+      source_type: string;
+      source_id?: string;
+      title: string;
+      front: string;
+      back: string;
+      subject_name?: string;
+      topic_name?: string;
+    }): Promise<FlashcardItem>;
+    update(id: number, patch: Partial<Pick<FlashcardItem, 'title' | 'front' | 'back' | 'subject_name' | 'topic_name'>>): Promise<FlashcardItem>;
+    delete(id: number): Promise<boolean>;
+    review(id: number, rating: 'again' | 'hard' | 'good' | 'easy'): Promise<FlashcardItem>;
+    syncMistakes(): Promise<number>;
+    syncWeakTopics(): Promise<number>;
+    completeSession(cardsReviewed: number): Promise<{ xpAwarded: number }>;
+  };
+  backupArchive: {
+    export(savePath: string, password?: string): Promise<BackupArchiveResult>;
+    import(filePath: string, password?: string): Promise<{ restored: boolean; requiresRestart: boolean; manifest: any; safetyBackup: string | null }>;
+    pickSave(defaultName?: string): Promise<string | null>;
+    pickOpen(): Promise<string | null>;
+  };
+  cheatSheet: {
+    compile(params: {
+      title?: string;
+      examTrack: 'RTU' | 'GATE';
+      formulas?: Array<{ title: string; topic: string; latex: string; conditions?: string }>;
+      outPath: string;
+    }): Promise<CheatSheetResult>;
+    pickSavePath(defaultName?: string): Promise<string | null>;
   };
 }

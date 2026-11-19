@@ -24,6 +24,7 @@ export function getUserProfile(): UserProfile {
 
   return {
     id: row.id,
+    username: row.username || 'Mechanical Scholar',
     total_xp: row.total_xp || 0,
     rtu_xp: row.rtu_xp || 0,
     gate_xp: row.gate_xp || 0,
@@ -33,6 +34,11 @@ export function getUserProfile(): UserProfile {
     created_at: row.created_at,
     updated_at: row.updated_at,
   };
+}
+
+export function updateUsername(username: string): UserProfile {
+  getDb().prepare(`UPDATE user_profile SET username = ?, updated_at = datetime('now') WHERE id = 1`).run(username.trim() || 'Mechanical Scholar');
+  return getUserProfile();
 }
 
 export function getUserTrophies(): UserTrophy[] {

@@ -549,3 +549,193 @@ export async function exportRtuPaperToPdf(paperData: any, savePath: string): Pro
   return savePath;
 }
 
+/**
+ * 1-Click "Exam-Eve Formula & Mistake Cheat-Sheet" PDF Generator.
+ * Combines high-yield formulas, recent mistake pitfalls, and high-weightage topics.
+ */
+export async function compileCheatSheetPdf(opts: {
+  title?: string;
+  examTrack: 'RTU' | 'GATE';
+  formulas?: Array<{ title: string; topic: string; latex: string; conditions?: string }>;
+  outPath: string;
+}): Promise<{ outPath: string; pages: number; formulaCount: number; mistakeCount: number }> {
+  const doc = await PDFDocument.create();
+  const fontRegular = await doc.embedFont(StandardFonts.Helvetica);
+  const fontBold = await doc.embedFont(StandardFonts.HelveticaBold);
+  const fontOblique = await doc.embedFont(StandardFonts.HelveticaOblique);
+
+  let page = doc.addPage([595.28, 841.89]); // A4
+  const { width, height } = page.getSize();
+  const margin = 36;
+  const contentWidth = width - margin * 2;
+  let y = height - margin;
+
+  const ensureSpace = (needed: number) => {
+    if (y - needed < margin + 30) {
+      page = doc.addPage([595.28, 841.89]);
+      y = height - margin;
+    }
+  };
+
+  // Header Banner
+  page.drawRectangle({
+    x: margin,
+    y: y - 48,
+    width: contentWidth,
+    height: 48,
+    color: rgb(0.08, 0.12, 0.22),
+  });
+
+  const headerTitle = opts.title || (opts.examTrack === 'GATE' ? 'GATE Mechanical Exam-Eve Rapid Revision' : 'RTU Kota B.Tech Exam-Eve Rapid Revision');
+  page.drawText(sanitize(headerTitle), {
+    x: margin + 14,
+    y: y - 22,
+    size: 13,
+    font: fontBold,
+    color: rgb(1, 1, 1),
+  });
+
+  const subtitle = `Generated on ${new Date().toLocaleDateString()} · Formula Vault + Mistake Traps + High-Yield Concepts · MECHSTUDY OS`;
+  page.drawText(sanitize(subtitle), {
+    x: margin + 14,
+    y: y - 38,
+    size: 7.5,
+    font: fontRegular,
+    color: rgb(0.7, 0.8, 1),
+  });
+
+  y -= 62;
+
+  // 1. High-Yield Formulas Section
+  const formulas = opts.formulas || [];
+  let formulaCount = 0;
+  if (formulas.length > 0) {
+    page.drawText('PART I: HIGH-YIELD FORMULAS & GOVERNING EQUATIONS', {
+      x: margin,
+      y,
+      size: 10,
+      font: fontBold,
+      color: rgb(0.12, 0.35, 0.75),
+    });
+    y -= 14;
+
+    for (const f of formulas) {
+      ensureSpace(42);
+      formulaCount++;
+
+      page.drawRectangle({
+        x: margin,
+        y: y - 32,
+        width: contentWidth,
+        height: 32,
+        color: rgb(0.96, 0.97, 0.99),
+        borderColor: rgb(0.85, 0.88, 0.94),
+        borderWidth: 0.5,
+      });
+
+      page.drawText(sanitize(`${f.title} (${f.topic})`), {
+        x: margin + 8,
+        y: y - 11,
+        size: 8.5,
+        font: fontBold,
+        color: rgb(0.1, 0.1, 0.1),
+      });
+
+      page.drawText(sanitize(`Equation: ${f.latex}`), {
+        x: margin + 8,
+        y: y - 24,
+        size: 8,
+        font: fontOblique,
+        color: rgb(0.15, 0.45, 0.2),
+      });
+
+      if (f.conditions) {
+        const condText = sanitize(`Notes: ${f.conditions}`);
+        const cWidth = fontRegular.widthOfTextAtSize(condText, 7);
+        if (cWidth < contentWidth - 16) {
+          page.drawText(condText, {
+            x: width - margin - cWidth - 8,
+            y: y - 24,
+            size: 7,
+            font: fontRegular,
+            color: rgb(0.45, 0.45, 0.45),
+          });
+        }
+      }
+
+      y -= 38;
+    }
+    y -= 10;
+  }
+
+  // 2. Mistake Notebook Section
+  let mistakeCount = 0;
+  const mistakes = all<any>(
+    `SELECT * FROM gate_mistakes ORDER BY id DESC LIMIT 12`
+  );
+
+  if (mistakes.length > 0) {
+    ensureSpace(35);
+    page.drawText('PART II: NEGATIVE-MARK TRAPS & COMMON MISTAKES NOTEBOOK', {
+      x: margin,
+      y,
+      size: 10,
+      font: fontBold,
+      color: rgb(0.8, 0.2, 0.2),
+    });
+    y -= 14;
+
+    for (const m of mistakes) {
+      ensureSpace(50);
+      mistakeCount++;
+
+      const qHeader = sanitize(`[${m.subject_name || 'GATE'}] Question Pitfall #${m.id}`);
+      page.drawText(qHeader, {
+        x: margin,
+        y,
+        size: 8.5,
+        font: fontBold,
+        color: rgb(0.75, 0.15, 0.15),
+      });
+      y -= 11;
+
+      const qSnippet = sanitize(`Problem: ${m.question_text.slice(0, 180)}...`);
+      const wrappedQ = wrapLines(qSnippet, fontRegular, 7.5, contentWidth);
+      for (const line of wrappedQ.slice(0, 2)) {
+        page.drawText(line, { x: margin + 8, y, size: 7.5, font: fontRegular, color: rgb(0.25, 0.25, 0.25) });
+        y -= 10;
+      }
+
+      if (m.solution_text) {
+        const solSnippet = sanitize(`Trap / Correct Method: ${m.solution_text.slice(0, 150)}...`);
+        const wrappedSol = wrapLines(solSnippet, fontBold, 7.5, contentWidth);
+        for (const line of wrappedSol.slice(0, 2)) {
+          page.drawText(line, { x: margin + 8, y, size: 7.5, font: fontBold, color: rgb(0.1, 0.45, 0.2) });
+          y -= 10;
+        }
+      }
+
+      y -= 6;
+    }
+  }
+
+  // Draw Page Footers
+  const totalPages = doc.getPageCount();
+  for (let i = 0; i < totalPages; i++) {
+    const p = doc.getPage(i);
+    const footer = `Page ${i + 1} of ${totalPages} · MECHSTUDY OS — Last-Day Rapid Revision Companion`;
+    p.drawText(footer, {
+      x: margin + (contentWidth - fontRegular.widthOfTextAtSize(footer, 7.5)) / 2,
+      y: 20,
+      size: 7.5,
+      font: fontRegular,
+      color: rgb(0.5, 0.5, 0.5),
+    });
+  }
+
+  await mkdir(dirname(opts.outPath), { recursive: true });
+  await writeFile(opts.outPath, await doc.save());
+  return { outPath: opts.outPath, pages: totalPages, formulaCount, mistakeCount };
+}
+
+

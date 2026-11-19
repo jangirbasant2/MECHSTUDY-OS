@@ -592,3 +592,69 @@ Return ONLY a JSON object matching this schema:
   }
 }
 
+/**
+ * Generate an authentic GATE-level NAT practice numerical for a specific formula.
+ */
+export async function generateFormulaPracticeNumerical(
+  formulaTitle: string,
+  latex: string,
+  subject: string,
+  variables: Array<{ symbol: string; name: string }>,
+  apiKey?: string,
+  model?: string
+): Promise<any> {
+  const key = getEffectiveApiKey(apiKey);
+  if (!key) {
+    throw new Error('Google AI Studio API Key is required to generate practice numerical.');
+  }
+
+  const selectedModel = model || getAiSettings().selectedModel || 'gemini-3.5-flash-lite';
+  const ai = new GoogleGenAI({ apiKey: key });
+
+  const prompt = `You are a Senior GATE Mechanical Engineering Professor and test-setter.
+Create an authentic, challenging GATE-level NAT (Numerical Answer Type) problem testing this specific formula:
+- Formula Name: "${formulaTitle}"
+- Formula LaTeX: $$${latex}$$
+- Subject: "${subject}"
+- Key Variables: ${JSON.stringify(variables)}
+
+REQUIREMENTS:
+1. The question MUST test actual mechanical engineering understanding (thermodynamics, fluid mechanics, SOM, or machine design).
+2. Include realistic engineering values and tricky unit traps (e.g., mixing MPa and kPa, mm and m, Celsius and Kelvin, rpm and rad/s).
+3. The numerical answer must be precise and unambiguous.
+4. Clearly state the required unit and rounding (e.g. "round off to 2 decimal places").
+5. Provide a step-by-step KaTeX derivation/solution showing where students commonly make unit conversion errors.
+
+Respond with ONLY valid JSON:
+{
+  "question": "Full question statement with all given values and units...",
+  "givenValues": { "key": "value" },
+  "formulaTested": "${formulaTitle}",
+  "correctAnswer": 12.34,
+  "tolerance": 0.5,
+  "unit": "kW",
+  "unitTraps": ["Mixing °C with K in Carnot calculation", "Failing to divide diameter by 1000 for mm to m"],
+  "stepByStepSolution": "Step 1: ... \\nStep 2: ... \\nFinal Answer = ..."
+}`;
+
+  const response = await ai.models.generateContent({
+    model: selectedModel,
+    contents: [{ role: 'user', parts: [{ text: prompt }] }],
+    config: {
+      temperature: 0.2,
+      maxOutputTokens: 2048,
+      responseMimeType: 'application/json',
+    },
+  });
+
+  const rawJson = response.text?.trim() || '{}';
+  try {
+    return JSON.parse(rawJson);
+  } catch {
+    const match = rawJson.match(/\{[\s\S]*\}/);
+    if (match) return JSON.parse(match[0]);
+    throw new Error('Failed to parse formula numerical response from AI.');
+  }
+}
+
+
