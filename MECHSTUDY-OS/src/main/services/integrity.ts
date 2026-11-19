@@ -1,5 +1,5 @@
 import { existsSync, readFileSync, readdirSync, statSync, writeFileSync } from 'node:fs';
-import { join, relative, basename, extname } from 'node:path';
+import { join, relative, basename, extname, isAbsolute } from 'node:path';
 import { all, get } from '../db';
 import { refreshAvailability } from './library';
 
@@ -316,7 +316,7 @@ function legacyChecks(projectRoot: string | null, issues: Issue[]): Record<strin
       for (const r of data) {
         const raw = (r[pathCol] ?? '').trim();
         if (!raw) continue;
-        const abs = raw.match(/^[a-zA-Z]:[\\/]/) ? raw : join(projectRoot, raw);
+        const abs = isAbsolute(raw) ? raw : join(projectRoot, raw);
         if (existsSync(abs)) continue;
         if (actualLower.has(abs.toLowerCase())) caseOnly.push(raw);
         else broken.push(raw);

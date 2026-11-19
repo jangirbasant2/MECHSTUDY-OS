@@ -1,6 +1,6 @@
 import { spawn } from 'node:child_process';
 import { existsSync, mkdirSync, writeFileSync, unlinkSync } from 'node:fs';
-import { join, dirname } from 'node:path';
+import { join, dirname, delimiter } from 'node:path';
 import { app } from 'electron';
 import { all, get, run } from '../db';
 import { indexPageText } from './search';
@@ -22,25 +22,35 @@ import { getAiSettings } from './ai/settings';
  */
 
 function getTesseractCandidates(): string[] {
-  const candidates: string[] = [
-    'C:\\Program Files\\Tesseract-OCR\\tesseract.exe',
-    'C:\\Program Files (x86)\\Tesseract-OCR\\tesseract.exe',
-  ];
+  const candidates: string[] = [];
 
-  if (process.env.LOCALAPPDATA) {
-    candidates.push(join(process.env.LOCALAPPDATA, 'Programs', 'Tesseract-OCR', 'tesseract.exe'));
-  }
-  if (process.env.USERPROFILE) {
-    candidates.push(join(process.env.USERPROFILE, 'AppData', 'Local', 'Programs', 'Tesseract-OCR', 'tesseract.exe'));
-  }
-
-  try {
-    const home = app?.getPath?.('home');
-    if (home) {
-      candidates.push(join(home, 'AppData', 'Local', 'Programs', 'Tesseract-OCR', 'tesseract.exe'));
+  if (process.platform === 'win32') {
+    candidates.push(
+      'C:\\Program Files\\Tesseract-OCR\\tesseract.exe',
+      'C:\\Program Files (x86)\\Tesseract-OCR\\tesseract.exe'
+    );
+    if (process.env.LOCALAPPDATA) {
+      candidates.push(join(process.env.LOCALAPPDATA, 'Programs', 'Tesseract-OCR', 'tesseract.exe'));
     }
-  } catch {
-    // Outside Electron app runtime (e.g. CLI or tests)
+    if (process.env.USERPROFILE) {
+      candidates.push(join(process.env.USERPROFILE, 'AppData', 'Local', 'Programs', 'Tesseract-OCR', 'tesseract.exe'));
+    }
+    try {
+      const home = app?.getPath?.('home');
+      if (home) {
+        candidates.push(join(home, 'AppData', 'Local', 'Programs', 'Tesseract-OCR', 'tesseract.exe'));
+      }
+    } catch {
+      // Outside Electron app runtime (e.g. CLI or tests)
+    }
+  } else {
+    // Linux / POSIX common paths
+    candidates.push(
+      '/usr/bin/tesseract',
+      '/usr/local/bin/tesseract',
+      '/bin/tesseract',
+      '/snap/bin/tesseract'
+    );
   }
 
   return candidates;
@@ -60,15 +70,21 @@ export function findTesseract(): string | null {
   }
 
   // Fall back to PATH lookup
-  const pathDirs = (process.env.PATH || '').split(';').map(p => p.trim()).filter(Boolean);
+  const pathDirs = (process.env.PATH || '')
+    .split(delimiter || (process.platform === 'win32' ? ';' : ':'))
+    .map(p => p.trim())
+    .filter(Boolean);
+  const exeNames = process.platform === 'win32' ? ['tesseract.exe', 'tesseract'] : ['tesseract'];
   for (const dir of pathDirs) {
-    try {
-      const candidate = join(dir, 'tesseract.exe');
-      if (existsSync(candidate)) {
-        cachedExe = candidate;
-        return candidate;
-      }
-    } catch { /* ignore */ }
+    for (const exeName of exeNames) {
+      try {
+        const candidate = join(dir, exeName);
+        if (existsSync(candidate)) {
+          cachedExe = candidate;
+          return candidate;
+        }
+      } catch { /* ignore */ }
+    }
   }
 
   cachedExe = null;
@@ -89,10 +105,13 @@ export async function ocrStatus(): Promise<OcrStatus> {
   const exe = findTesseract();
   if (!exe) {
     return {
-      available: false, engine: 'tesseract', path: null, languages: [],
-      installHint:
-        'Tesseract OCR was not found. Install it (UB Mannheim Windows build) or add tesseract.exe to PATH. ' +
-        'OCR is optional — text-layer PDFs and all other features work without it.',
+      available: false,
+      engine: 'tesseract',
+      path: null,
+      languages: [],
+      installHint: process.platform === 'win32'
+        ? 'Tesseract OCR was not found in PATH or C:\\Program Files\\Tesseract-OCR. Install it (UB Mannheim Windows build) or add tesseract.exe to PATH.'
+        : 'Tesseract OCR was not found in PATH or /usr/bin/tesseract. Install via: sudo apt-get install tesseract-ocr tesseract-ocr-eng'
     };
   }
   if (!langsCache) {

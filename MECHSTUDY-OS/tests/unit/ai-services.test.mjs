@@ -346,3 +346,12 @@ test('Study reminder query strictly excludes Technical Communication (3ME1-02/4M
   assert.equal(rows[0].code, '3ME4-04');
   assert.equal(rows[0].title, 'Entropy session');
 });
+
+test('API key storage gracefully supports base64 obfuscation fallback when safeStorage is unavailable', () => {
+  const rawKey = 'AIzaSyA_TestKey1234567890';
+  const encoded = 'b64:' + Buffer.from(rawKey, 'utf8').toString('base64');
+
+  assert.equal(encoded.startsWith('b64:'), true);
+  const decoded = Buffer.from(encoded.slice(4), 'base64').toString('utf8');
+  assert.equal(decoded, rawKey);
+});

@@ -31,32 +31,61 @@ export const DEFAULT_AI_SETTINGS: AiSettings = {
   ragTopK: 4,
 };
 
+function isKeyringAvailable(): boolean {
+  try {
+    return !!safeStorage && typeof safeStorage.isEncryptionAvailable === 'function' && safeStorage.isEncryptionAvailable();
+  } catch {
+    return false;
+  }
+}
+
+function obfuscateKey(key: string): string {
+  // Graceful fallback for environments lacking native OS keyring (e.g. Linux without gnome-keyring / kwallet)
+  return 'b64:' + Buffer.from(key, 'utf8').toString('base64');
+}
+
+function deobfuscateKey(val: string): string {
+  if (val.startsWith('b64:')) {
+    try {
+      return Buffer.from(val.slice(4), 'base64').toString('utf8');
+    } catch {
+      return '';
+    }
+  }
+  return val;
+}
+
 function secureDecrypt(val: string): string {
   if (!val) return '';
   if (val.startsWith('enc:')) {
-    try {
-      if (safeStorage && safeStorage.isEncryptionAvailable()) {
+    if (isKeyringAvailable()) {
+      try {
         const hex = val.slice(4);
         return safeStorage.decryptString(Buffer.from(hex, 'hex'));
+      } catch (err) {
+        console.warn('[settings] safeStorage decryption failed, attempting fallback:', err);
       }
-    } catch {
-      // Fallback
     }
+    // If safeStorage is not available on this platform/session, or failed to decrypt
+    return '';
+  }
+  if (val.startsWith('b64:')) {
+    return deobfuscateKey(val);
   }
   return val;
 }
 
 function secureEncrypt(key: string): string {
   if (!key) return '';
-  try {
-    if (safeStorage && safeStorage.isEncryptionAvailable()) {
+  if (isKeyringAvailable()) {
+    try {
       const encrypted = safeStorage.encryptString(key);
       return 'enc:' + encrypted.toString('hex');
+    } catch (err) {
+      console.warn('[settings] safeStorage encryption failed, falling back to obfuscation:', err);
     }
-  } catch {
-    // If running in headless/mock or safeStorage unavailable
   }
-  return key;
+  return obfuscateKey(key);
 }
 
 export function getAiSettings(): AiSettings {

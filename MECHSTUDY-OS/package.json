@@ -18,7 +18,9 @@
     "test:integration": "tsc -p tests/integration/tsconfig.json && node --test .test-build/tests/integration/*.test.js",
     "tools:build-index": "python tools/build_index.py",
     "tools:validate-index": "python tools/validate_index.py",
-    "package": "node tools/package.mjs"
+    "package": "node tools/package.mjs",
+    "package:win": "node tools/package.mjs",
+    "package:linux": "electron-vite build && electron-builder --linux --x64"
   },
   "dependencies": {
     "@google/genai": "^3.6.1",
@@ -98,6 +100,44 @@
     },
     "portable": {
       "artifactName": "MECHSTUDY-OS-Portable-${version}.${ext}"
+    },
+    "linux": {
+      "icon": "resources/icon.png",
+      "category": "Education",
+      "target": [
+        {
+          "target": "AppImage",
+          "arch": [
+            "x64"
+          ]
+        },
+        {
+          "target": "deb",
+          "arch": [
+            "x64"
+          ]
+        }
+      ],
+      "maintainer": "Basant Jangir",
+      "synopsis": "RTU + GATE Mechanical Engineering Study Workspace",
+      "description": "MECHSTUDY OS - RTU Kota B.Tech & GATE Mechanical Engineering preparation desktop workspace with interactive formulas, PYQ bank, flashcards, and Google AI Studio integration.",
+      "desktop": {
+        "StartupWMClass": "mechstudy-os",
+        "Terminal": "false"
+      }
+    },
+    "deb": {
+      "artifactName": "MECHSTUDY-OS-${version}-linux-amd64.${ext}",
+      "packageCategory": "education",
+      "priority": "optional",
+      "depends": [
+        "libnotify4",
+        "libxtst6",
+        "libnss3"
+      ]
+    },
+    "appImage": {
+      "artifactName": "MECHSTUDY-OS-${version}-linux-x86_64.${ext}"
     }
   }
 }
