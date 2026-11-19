@@ -31,6 +31,10 @@ export async function indexTextLayer(
   // Re-verify against the real file: the cached flag may be stale.
   const info = await inspectPdf(doc.path);
   if (info.error) return { pagesIndexed: 0, chars: 0, skipped: true, reason: info.error };
+  if (!info.hasTextLayer) {
+    run('UPDATE documents SET has_text_layer = 0, text_chars = 0 WHERE id = ?', documentId);
+    return { pagesIndexed: 0, chars: 0, skipped: true, reason: 'No selectable text layer (scanned document)' };
+  }
 
   const pages = await extractPages(doc.path, 'all', (done, total) => {
     onProgress?.({

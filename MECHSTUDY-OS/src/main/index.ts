@@ -317,8 +317,10 @@ app.whenReady().then(() => {
     createWindow();
     cleanupExpiredScreenshots();
     startReminderScheduler(() => mainWindow);
-    // Background extraction of selectable text for existing PDFs into SQLite/FTS5 (no API key required)
-    indexAllTextLayers().catch(err => console.warn('[main] Background text layer indexing error:', err));
+    // Defer background extraction of selectable text so UI starts instantaneously
+    setTimeout(() => {
+      indexAllTextLayers().catch(err => console.warn('[main] Background text layer indexing error:', err));
+    }, 4000);
   } catch (e) {
     const message = e instanceof Error ? (e.stack ?? e.message) : String(e);
     console.error('[main] fatal startup error:', message);

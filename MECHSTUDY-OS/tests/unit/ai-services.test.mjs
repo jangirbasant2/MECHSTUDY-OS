@@ -328,8 +328,8 @@ test('Study reminder query strictly excludes Technical Communication (3ME1-02/4M
   db.prepare("INSERT INTO subjects (id, version_id, code, name) VALUES (2, 1, '3ME1-02', 'Technical Communication')").run();
 
   // Create tasks for today
-  db.prepare("INSERT INTO study_tasks (title, subject_id, planned_date, status) VALUES ('Entropy session', 1, date('now'), 'pending')").run();
-  db.prepare("INSERT INTO study_tasks (title, subject_id, planned_date, status) VALUES ('Tech Comm session', 2, date('now'), 'pending')").run();
+  db.prepare("INSERT INTO study_tasks (title, subject_id, planned_date, status) VALUES ('Entropy session', 1, date('now', 'localtime'), 'pending')").run();
+  db.prepare("INSERT INTO study_tasks (title, subject_id, planned_date, status) VALUES ('Tech Comm session', 2, date('now', 'localtime'), 'pending')").run();
 
   // Query today's tasks with exclusion filter
   const rows = db.prepare(`

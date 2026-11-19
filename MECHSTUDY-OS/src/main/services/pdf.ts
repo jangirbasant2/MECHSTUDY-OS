@@ -114,8 +114,9 @@ export async function inspectPdf(path: string): Promise<{
   pageCount: number; hasTextLayer: boolean; textChars: number; error?: string;
 }> {
   if (!existsSync(path)) return { pageCount: 0, hasTextLayer: false, textChars: 0, error: 'File not found' };
+  let doc: any = null;
   try {
-    const doc = await openDoc(path);
+    doc = await openDoc(path);
     const n = doc.numPages;
     const sample = new Set<number>();
     if (n <= 6) { for (let i = 1; i <= n; i++) sample.add(i); }
@@ -129,6 +130,8 @@ export async function inspectPdf(path: string): Promise<{
     return { pageCount: n, hasTextLayer, textChars: Math.round(avg * n) };
   } catch (e) {
     return { pageCount: 0, hasTextLayer: false, textChars: 0, error: (e as Error).message };
+  } finally {
+    if (doc) await closePdf(doc);
   }
 }
 
@@ -138,12 +141,17 @@ export async function extractPages(
   pages: number[] | 'all',
   onProgress?: (done: number, total: number) => void
 ): Promise<{ page: number; text: string }[]> {
-  const doc = await openDoc(path);
-  const list = pages === 'all' ? Array.from({ length: doc.numPages }, (_, i) => i + 1) : pages;
-  const out: { page: number; text: string }[] = [];
-  for (let i = 0; i < list.length; i++) {
-    out.push({ page: list[i], text: await pageText(doc, list[i]) });
-    onProgress?.(i + 1, list.length);
+  let doc: any = null;
+  try {
+    doc = await openDoc(path);
+    const list = pages === 'all' ? Array.from({ length: doc.numPages }, (_, i) => i + 1) : pages;
+    const out: { page: number; text: string }[] = [];
+    for (let i = 0; i < list.length; i++) {
+      out.push({ page: list[i], text: await pageText(doc, list[i]) });
+      onProgress?.(i + 1, list.length);
+    }
+    return out;
+  } finally {
+    if (doc) await closePdf(doc);
   }
-  return out;
 }
