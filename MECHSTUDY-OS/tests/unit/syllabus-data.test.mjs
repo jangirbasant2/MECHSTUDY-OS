@@ -7,17 +7,18 @@ import { GATE_SYLLABUS } from '../../src/main/data/gateSyllabus.ts';
 const topicCount = (subject) =>
   subject.units.reduce((sum, unit) => sum + unit.topics.length, 0);
 
-test('RTU syllabus is the verified III-semester Mechanical curriculum', () => {
+test('RTU syllabus is the verified 8-semester Mechanical curriculum (Batch 2025–2029)', () => {
   assert.equal(RTU_SYLLABUS.exam_type, 'RTU');
-  assert.equal(RTU_SYLLABUS.semester, 3);
   assert.equal(RTU_SYLLABUS.verification, 'VERIFIED');
-  assert.equal(RTU_SYLLABUS.source_doc, 'syllabus.pdf');
-  assert.equal(RTU_SYLLABUS.subjects.length, 10);
+  const semesters = new Set(RTU_SYLLABUS.subjects.map(s => s.semester));
+  assert.deepEqual(Array.from(semesters).sort((a, b) => a - b), [1, 2, 3, 4, 5, 6, 7, 8]);
+  assert.ok(RTU_SYLLABUS.subjects.length >= 60, 'All 8 semesters must be populated');
 });
 
-test('RTU credit totals match the official curriculum (17 theory + 6 practical)', () => {
-  const theory = RTU_SYLLABUS.subjects.filter(s => !s.is_practical);
-  const practical = RTU_SYLLABUS.subjects.filter(s => s.is_practical);
+test('RTU Semester 3 credit totals match the official curriculum (17 theory + 6 practical)', () => {
+  const sem3 = RTU_SYLLABUS.subjects.filter(s => s.semester === 3);
+  const theory = sem3.filter(s => !s.is_practical);
+  const practical = sem3.filter(s => s.is_practical);
 
   assert.equal(theory.length, 6);
   assert.equal(practical.length, 4);
@@ -25,10 +26,11 @@ test('RTU credit totals match the official curriculum (17 theory + 6 practical)'
   assert.equal(practical.reduce((sum, s) => sum + s.credits, 0), 6);
 });
 
-test('RTU subject codes are unique and complete', () => {
+test('RTU subject codes are unique and include Semester 3 core subjects', () => {
   const codes = RTU_SYLLABUS.subjects.map(s => s.code);
   assert.equal(new Set(codes).size, codes.length);
-  assert.deepEqual(codes.slice().sort(), [
+  const sem3Codes = RTU_SYLLABUS.subjects.filter(s => s.semester === 3).map(s => s.code);
+  assert.deepEqual(sem3Codes.slice().sort(), [
     '3ME1-03/4ME1-03', '3ME2-01', '3ME3-04', '3ME4-05', '3ME4-06',
     '3ME4-07', '3ME4-21', '3ME4-22', '3ME4-23', '3ME4-24',
   ].sort());
@@ -54,7 +56,9 @@ test('every RTU subject has units with named topics', () => {
       }
     }
   }
-  assert.equal(RTU_SYLLABUS.subjects.reduce((sum, s) => sum + topicCount(s), 0), 248);
+  const sem3Topics = RTU_SYLLABUS.subjects.filter(s => s.semester === 3).reduce((sum, s) => sum + topicCount(s), 0);
+  assert.equal(sem3Topics, 248);
+  assert.ok(RTU_SYLLABUS.subjects.reduce((sum, s) => sum + topicCount(s), 0) > 1000);
 });
 
 test('GATE syllabus points at the official 2027 source', () => {

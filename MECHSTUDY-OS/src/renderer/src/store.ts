@@ -46,9 +46,14 @@ interface AppState {
   timer: TimerState;
   toasts: Toast[];
 
+  examActive: boolean;
+  pyqVersion: number;
+
   boot(): void;
   setPage(page: PageId): void;
   setActiveExamMode(mode: 'RTU' | 'GATE' | 'IIT'): void;
+  setExamActive(active: boolean): void;
+  invalidatePyqs(): void;
   openDocument(id: number, page?: number): void;
   openTopic(topicId: number, examType: 'GATE' | 'IIT' | 'RTU'): void;
   clearPendingTopic(): void;
@@ -137,6 +142,16 @@ export const useApp = create<AppState>((set, get) => ({
   quickNote: null,
   timer: read<TimerState>(LS.timer, defaultTimer),
   toasts: [],
+  examActive: false,
+  pyqVersion: 0,
+
+  setExamActive(active: boolean) {
+    set({ examActive: active });
+  },
+
+  invalidatePyqs() {
+    set(s => ({ pyqVersion: s.pyqVersion + 1 }));
+  },
 
   boot() {
     applyTheme(get().theme);

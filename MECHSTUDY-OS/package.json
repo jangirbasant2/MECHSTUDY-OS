@@ -120,11 +120,7 @@
       ],
       "maintainer": "Basant Jangir",
       "synopsis": "RTU + GATE Mechanical Engineering Study Workspace",
-      "description": "MECHSTUDY OS - RTU Kota B.Tech & GATE Mechanical Engineering preparation desktop workspace with interactive formulas, PYQ bank, flashcards, and Google AI Studio integration.",
-      "desktop": {
-        "StartupWMClass": "mechstudy-os",
-        "Terminal": "false"
-      }
+      "description": "MECHSTUDY OS - RTU Kota B.Tech & GATE Mechanical Engineering preparation desktop workspace with interactive formulas, PYQ bank, flashcards, and Google AI Studio integration."
     },
     "deb": {
       "artifactName": "MECHSTUDY-OS-${version}-linux-amd64.${ext}",

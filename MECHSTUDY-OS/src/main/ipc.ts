@@ -80,13 +80,13 @@ import {
   getUserProfile, getUserTrophies, awardXp, recordMasteryQuizResult, getDueRevisions, completeRevisionDrill,
   updateUsername
 } from './services/gamification';
-import { generateMasteryQuizWithGemini, generateFormulaPracticeNumerical } from './services/ai/gemini';
+import { generateMasteryQuizWithGemini, generateFormulaPracticeNumerical, coachExamQuestionWithGemini } from './services/ai/gemini';
 import {
   listFlashcards, createFlashcard, updateFlashcard, deleteFlashcard, reviewFlashcard,
   autoSyncMistakeFlashcards, autoSyncWeakTopicFlashcards, completeFlashcardSession
 } from './services/flashcards';
 import {
-  ingestPyqPdf, getRtuPyqList, getGatePyqList, createRtuExamPaper, getGateCbtPaper,
+  ingestPyqPdf, ingestPyqDirectory, getRtuPyqList, getGatePyqList, createRtuExamPaper, getGateCbtPaper,
   updateRtuPyq, deleteRtuPyq, updateGatePyq, deleteGatePyq,
   recordGateMistakes, getGateMistakes, updateGateMistake, deleteGateMistake,
   evaluateRtuAnswers, exportRtuPaper
@@ -601,9 +601,14 @@ export function registerIpc(): void {
     const hasKey = Boolean(apiKey);
     return {
       connected: hasKey,
-      keyConfigured: hasKey,
-      model: settings.selectedModel,
+      installed: true,
+      host: 'https://generativelanguage.googleapis.com',
+      version: 'v1.4-cloud',
+      activeModel: settings.selectedModel || 'gemini-3.5-flash-lite',
+      availableModelsCount: 3,
+      model: settings.selectedModel || 'gemini-3.5-flash-lite',
       provider: 'google-ai-studio',
+      keyConfigured: hasKey,
     };
   });
   handle('ai:testKey', async ({ apiKey, model }) => {
@@ -750,6 +755,17 @@ export function registerIpc(): void {
   handle('pyq:ingestPdf', ({ filePath, targetExamHint, forceReingest }) =>
     ingestPyqPdf(filePath, targetExamHint, p => send('pyq:ingest-progress', p), forceReingest)
   );
+  handle('pyq:ingestDirectory', ({ dirPath, targetExamHint, forceReingest }) =>
+    ingestPyqDirectory(dirPath, targetExamHint, p => send('pyq:ingest-progress', p), forceReingest)
+  );
+  handle('pyq:coachExamQuestion', (data) => coachExamQuestionWithGemini(data));
+  handle('window:setFullScreen', ({ flag }: { flag: boolean }) => {
+    if (mainWindow && !mainWindow.isDestroyed()) {
+      mainWindow.setFullScreen(Boolean(flag));
+      return mainWindow.isFullScreen();
+    }
+    return false;
+  });
   handle('pyq:getRtuList', ({ subjectId, part }) => getRtuPyqList(subjectId ? Number(subjectId) : undefined, part));
   handle('pyq:getGateList', ({ subjectId, section }) => getGatePyqList(subjectId ? Number(subjectId) : undefined, section));
   handle('pyq:updateRtu', ({ id, patch }) => updateRtuPyq(Number(id), patch));

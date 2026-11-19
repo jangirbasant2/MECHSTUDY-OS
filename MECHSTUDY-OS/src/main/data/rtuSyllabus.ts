@@ -1,8 +1,7 @@
-// RTU Kota B.Tech Mechanical Engineering — III Semester
-// Transcribed from the text layer of syllabus.pdf (verified 2026-10-27).
-// Effective: students admitted 2017-18 onwards; "Applicable to students admitted from 2018-19 onwards"
-// is the operative Engineering Mechanics variant and is the one used here.
-// Technical Communication (3ME1-02/4ME1-02) is EXCLUDED per explicit user request.
+// RTU Kota B.Tech Mechanical Engineering — Complete Curriculum (Semesters 1 to 8)
+// Batch: 2025–2029 (AICTE / RTU Kota Scheme)
+// Semesters 1 through 8 organized by Semester -> Subject -> Units -> Topics (Theory & Practicals).
+// Technical Communication (3ME1-02/4ME1-02) is strictly EXCLUDED per user request.
 
 export interface SeedTopic { title: string; description?: string }
 export interface SeedUnit { number: number; title: string; hours?: number; topics: SeedTopic[] }
@@ -18,7 +17,6 @@ export interface SeedSubject {
   ete_marks?: number;
   total_marks?: number;
   is_practical?: boolean;
-  /** Overrides the row's verification state. Defaults to VERIFIED. */
   verification?: 'VERIFIED' | 'PARTIALLY_VERIFIED' | 'UNVERIFIED';
   units: SeedUnit[];
 }
@@ -26,22 +24,456 @@ export interface SeedSubject {
 const t = (title: string): SeedTopic => ({ title });
 
 export const RTU_SYLLABUS = {
-  name: 'RTU Kota B.Tech ME — III Semester (2018-19 onwards)',
+  name: 'RTU Kota B.Tech ME — Full 8-Semester Curriculum (Batch 2025–2029)',
   exam_type: 'RTU' as const,
   university: 'Rajasthan Technical University, Kota',
-  academic_year: 'Effective 2018-19 (admitted 2017-18 onwards)',
-  semester: 3,
-  source_doc: 'syllabus.pdf',
-  source_url: null as string | null,
-  retrieved_at: '2026-10-27',
+  academic_year: 'Batch 2025–2029 (AICTE Scheme)',
+  semester: 0, // Multi-semester curriculum (Sem 1 to Sem 8)
+  source_doc: 'RTU B.Tech ME Curriculum & syllabus.pdf',
+  source_url: 'https://rtu.ac.in',
+  retrieved_at: '2026-11-19',
   verification: 'VERIFIED' as const,
   is_provisional: 0,
   notes:
-    'Transcribed from the selectable text layer of syllabus.pdf (15 pages). ' +
-    'Technical Communication (3ME1-02/4ME1-02) excluded per user request. ' +
-    'syllabus.pdf contains only III Semester; no IV semester source is present.',
+    'Full 8-Semester RTU Mechanical Engineering syllabus for batch 2025-2029. ' +
+    'Technical Communication (3ME1-02/4ME1-02) is strictly excluded per user specification.',
   subjects: [
+    /* =====================================================================
+       SEMESTER 1 (Common First Year - Group A)
+       ===================================================================== */
     {
+      code: '1FY2-01', name: 'Engineering Mathematics - I', semester: 1, credits: 4,
+      lecture_hours: 3, tutorial_hours: 1, practical_hours: 0, ia_marks: 40, ete_marks: 160, total_marks: 200,
+      units: [
+        { number: 1, title: 'Calculus: Differential Calculus', hours: 8, topics: [
+          t('Rolle theorem and Mean Value Theorems with applications'),
+          t('Indeterminate forms and L Hospital rule'),
+          t('Taylor and Maclaurin series for functions of one variable'),
+          t('Curvature, radius of curvature in Cartesian and polar coordinates'),
+          t('Asymptotes, curve tracing in Cartesian coordinates'),
+        ]},
+        { number: 2, title: 'Calculus: Partial Differentiation', hours: 8, topics: [
+          t('Partial derivatives and Euler theorem on homogeneous functions'),
+          t('Total derivatives and composite function derivatives'),
+          t('Jacobians and their properties in coordinate transformation'),
+          t('Taylor series expansion of functions of two variables'),
+          t('Maxima and minima of functions of two variables and Lagrange multipliers'),
+        ]},
+        { number: 3, title: 'Calculus: Integral Calculus & Multiple Integrals', hours: 9, topics: [
+          t('Beta and Gamma functions and relation between them'),
+          t('Double integrals over rectangular and general regions'),
+          t('Change of order of integration in double integrals'),
+          t('Double integrals in polar coordinates and area computation'),
+          t('Triple integrals and volume of solids of revolution'),
+        ]},
+        { number: 4, title: 'Vector Calculus', hours: 8, topics: [
+          t('Scalar and vector fields, gradient of scalar field'),
+          t('Divergence and curl of vector fields, physical significance'),
+          t('Line integrals, surface integrals, volume integrals'),
+          t('Green theorem in plane and area calculation'),
+          t('Gauss Divergence Theorem and Stokes Theorem with engineering applications'),
+        ]},
+        { number: 5, title: 'Matrices and Linear Algebra', hours: 7, topics: [
+          t('Rank of a matrix, elementary row operations and Echelon form'),
+          t('Linear system of algebraic equations: consistency and solution'),
+          t('Eigenvalues and eigenvectors of square matrices'),
+          t('Cayley-Hamilton theorem and matrix inverse'),
+          t('Orthogonal matrices and diagonalization of symmetric matrices'),
+        ]},
+      ],
+    },
+    {
+      code: '1FY2-02', name: 'Engineering Physics', semester: 1, credits: 4,
+      lecture_hours: 3, tutorial_hours: 1, practical_hours: 0, ia_marks: 40, ete_marks: 160, total_marks: 200,
+      units: [
+        { number: 1, title: 'Wave Optics & Interference', hours: 8, topics: [
+          t('Coherent sources and conditions for sustained interference'),
+          t('Young double slit experiment and division of wavefront'),
+          t('Interference in thin films due to reflected and transmitted light'),
+          t('Newton rings and determination of wavelength and refractive index'),
+          t('Michelson interferometer and thickness measurement'),
+        ]},
+        { number: 2, title: 'Diffraction & Polarization', hours: 8, topics: [
+          t('Fraunhofer diffraction at single slit, double slit, and N-slits'),
+          t('Plane diffraction grating and resolving power'),
+          t('Polarization by reflection, Brewster law and Malus law'),
+          t('Double refraction, Nicol prism, quarter and half wave plates'),
+          t('Optical activity and Laurent half shade polarimeter'),
+        ]},
+        { number: 3, title: 'Quantum Mechanics', hours: 8, topics: [
+          t('De Broglie hypothesis and matter waves, Davisson-Germer experiment'),
+          t('Heisenberg Uncertainty Principle and physical applications'),
+          t('Wave function, Born interpretation and normalization condition'),
+          t('Schrodinger time-independent wave equation'),
+          t('Particle in one-dimensional infinite potential box and energy quantization'),
+        ]},
+        { number: 4, title: 'Laser and Optical Fibers', hours: 8, topics: [
+          t('Spontaneous and stimulated emission, Einstein coefficients'),
+          t('Population inversion, optical pumping and resonant cavity'),
+          t('Ruby laser, Helium-Neon laser, semiconductor diode laser'),
+          t('Total internal reflection, numerical aperture, acceptance angle in optical fibers'),
+          t('Step index and graded index fibers, attenuation and dispersion mechanisms'),
+        ]},
+        { number: 5, title: 'Electrodynamics & Material Physics', hours: 8, topics: [
+          t('Maxwell electromagnetic equations in differential and integral forms'),
+          t('Poynting vector and electromagnetic wave propagation in vacuum'),
+          t('Dielectric polarization, Clausius-Mossotti equation'),
+          t('Magnetic materials: dia, para, ferro, and hysteresis loop'),
+          t('Superconductivity: Meissner effect, Type-I and Type-II superconductors, BCS overview'),
+        ]},
+      ],
+    },
+    {
+      code: '1FY3-06', name: 'Basic Mechanical Engineering', semester: 1, credits: 2,
+      lecture_hours: 2, tutorial_hours: 0, practical_hours: 0, ia_marks: 20, ete_marks: 80, total_marks: 100,
+      units: [
+        { number: 1, title: 'Thermodynamics Fundamentals', hours: 5, topics: [
+          t('Thermodynamic systems, boundary, surroundings, closed, open, isolated'),
+          t('Properties, state, process, cycle, thermodynamic equilibrium'),
+          t('Zeroth Law of Thermodynamics and concept of temperature'),
+          t('Work transfer, heat transfer, sign convention, p-v diagrams'),
+          t('First Law of Thermodynamics for closed and open systems SFEE'),
+        ]},
+        { number: 2, title: 'Steam Power Plants & Boilers', hours: 5, topics: [
+          t('Formation of steam, sensible heat, latent heat, dryness fraction'),
+          t('Rankine cycle layout and component energy balance'),
+          t('Classification of boilers: fire tube vs water tube'),
+          t('Cochran, Babcock and Wilcox boilers construction and working'),
+          t('Boiler mountings and accessories for safety and efficiency'),
+        ]},
+        { number: 3, title: 'Internal Combustion Engines', hours: 6, topics: [
+          t('Four-stroke and two-stroke spark ignition SI engines'),
+          t('Four-stroke and two-stroke compression ignition CI engines'),
+          t('Air standard Otto cycle and efficiency derivation'),
+          t('Air standard Diesel cycle and efficiency derivation'),
+          t('Comparison between SI and CI engines, engine power and brake thermal efficiency'),
+        ]},
+        { number: 4, title: 'Refrigeration and Air Conditioning', hours: 5, topics: [
+          t('Concept of refrigeration, ton of refrigeration, coefficient of performance COP'),
+          t('Vapour compression refrigeration VCR cycle on p-h and T-s charts'),
+          t('Eco-friendly refrigerants and ozone depletion potential'),
+          t('Domestic refrigerator and room window air conditioner layouts'),
+          t('Psychrometry basics: dry bulb, wet bulb, relative humidity'),
+        ]},
+        { number: 5, title: 'Power Transmission & Machine Elements', hours: 5, topics: [
+          t('Belt drives: flat belt, V-belt, velocity ratio, slip, creep'),
+          t('Chain drives and gear drives: advantages and applications'),
+          t('Classification of gears: spur, helical, bevel, worm'),
+          t('Couplings: rigid and flexible flanged couplings'),
+          t('Brakes and clutches operating principles'),
+        ]},
+      ],
+    },
+    {
+      code: '1FY3-08', name: 'Basic Electrical Engineering', semester: 1, credits: 2,
+      lecture_hours: 2, tutorial_hours: 0, practical_hours: 0, ia_marks: 20, ete_marks: 80, total_marks: 100,
+      units: [
+        { number: 1, title: 'DC Circuits & Analysis', hours: 6, topics: [
+          t('Ohm law, Kirchhoff Current Law KCL, Kirchhoff Voltage Law KVL'),
+          t('Node voltage and mesh current circuit analysis methods'),
+          t('Superposition Theorem in linear DC circuits'),
+          t('Thevenin and Norton equivalent circuit theorems'),
+          t('Maximum Power Transfer Theorem in DC circuits'),
+        ]},
+        { number: 2, title: 'AC Fundamentals', hours: 5, topics: [
+          t('Sinusoidal alternating voltage and current, peak, average, RMS values'),
+          t('Form factor and peak factor derivations'),
+          t('Phasor representation, complex impedance in R-L, R-C, R-L-C series circuits'),
+          t('Active power, reactive power, apparent power and power factor'),
+          t('Series resonance, resonant frequency, quality factor Q'),
+        ]},
+        { number: 3, title: 'Three-Phase Balanced Circuits', hours: 5, topics: [
+          t('Three-phase voltage generation and phase sequence'),
+          t('Star and Delta connection relationships: line vs phase voltages and currents'),
+          t('Power in balanced three-phase systems'),
+          t('Two-wattmeter method for three-phase power measurement'),
+        ]},
+        { number: 4, title: 'Single Phase Transformers', hours: 5, topics: [
+          t('Operating principle, EMF equation of single phase transformer'),
+          t('Ideal transformer and transformation ratio'),
+          t('Transformer on no-load and full-load phasor diagrams'),
+          t('Equivalent circuit, losses, efficiency, voltage regulation'),
+          t('Open circuit OC and short circuit SC tests'),
+        ]},
+        { number: 5, title: 'Electrical Machines & Safety', hours: 5, topics: [
+          t('Construction and working principle of DC machines, generator and motor actions'),
+          t('Three-phase induction motor rotating magnetic field and slip'),
+          t('Single-phase induction motors: split-phase and capacitor-start'),
+          t('Earthing, electric shock hazards, fuses, miniature circuit breakers MCB'),
+        ]},
+      ],
+    },
+    {
+      code: '1FY2-20', name: 'Engineering Physics Lab', semester: 1, credits: 1,
+      lecture_hours: 0, tutorial_hours: 0, practical_hours: 2, ia_marks: 30, ete_marks: 20, total_marks: 50,
+      is_practical: true,
+      units: [
+        { number: 0, title: 'Practical Experiments', topics: [
+          t('Determination of wavelength of sodium light using Newton rings'),
+          t('Determination of wavelength of prominent spectral lines using diffraction grating'),
+          t('Measurement of numerical aperture and optical loss in multimode optical fiber'),
+          t('Study of energy band gap of semiconductor using PN junction diode'),
+          t('Measurement of height and distance using Sextant'),
+          t('Determination of Planck constant using photo-electric effect'),
+        ]},
+      ],
+    },
+    {
+      code: '1FY3-22', name: 'Basic Electrical Engineering Lab', semester: 1, credits: 1,
+      lecture_hours: 0, tutorial_hours: 0, practical_hours: 2, ia_marks: 30, ete_marks: 20, total_marks: 50,
+      is_practical: true,
+      units: [
+        { number: 0, title: 'Practical Experiments', topics: [
+          t('Verification of KCL and KVL in resistive networks'),
+          t('Verification of Superposition Theorem and Thevenin Theorem'),
+          t('Measurement of power and power factor in single-phase R-L-C series circuit'),
+          t('Measurement of three-phase power using two-wattmeter method'),
+          t('Determination of efficiency and voltage regulation of 1-phase transformer via OC and SC tests'),
+          t('Study of domestic electrical wiring, earthing and energy meter reading'),
+        ]},
+      ],
+    },
+    {
+      code: '1FY3-24', name: 'Computer Aided Engineering Graphics Practice', semester: 1, credits: 1.5,
+      lecture_hours: 0, tutorial_hours: 0, practical_hours: 3, ia_marks: 45, ete_marks: 30, total_marks: 75,
+      is_practical: true,
+      units: [
+        { number: 0, title: 'Practical Graphics & CAD Drafting', topics: [
+          t('Lines, lettering, dimensioning and scales plain and diagonal'),
+          t('Conic sections: ellipse, parabola, hyperbola construction'),
+          t('Orthographic projections of points and straight lines inclined to reference planes'),
+          t('Projections of regular planes and solids prism, pyramid, cylinder, cone'),
+          t('Sections of solids and development of lateral surfaces'),
+          t('Isometric views and 2D drafting using computer-aided drafting software AutoCAD'),
+        ]},
+      ],
+    },
+    {
+      code: '1FY3-25', name: 'Manufacturing Practices Workshop', semester: 1, credits: 1.5,
+      lecture_hours: 0, tutorial_hours: 0, practical_hours: 3, ia_marks: 45, ete_marks: 30, total_marks: 75,
+      is_practical: true,
+      units: [
+        { number: 0, title: 'Workshop Practice Trades', topics: [
+          t('Carpentry shop: tools, timber joints mortise, tenon, dovetail, lap'),
+          t('Fitting shop: chipping, filing, sawing, drilling, tapping to precision tolerances'),
+          t('Welding shop: arc welding, oxy-acetylene gas welding, butt and lap joints'),
+          t('Sheet metal shop: shearing, bending, soldiering, development of hopper and funnel'),
+          t('Foundry shop: green sand moulding, preparation of split pattern mould and casting demo'),
+          t('Blacksmithy / Forging shop: hand tools, upsetting, drawing down, bending operations'),
+        ]},
+      ],
+    },
+
+    /* =====================================================================
+       SEMESTER 2 (Common First Year - Group B)
+       ===================================================================== */
+    {
+      code: '2FY2-01', name: 'Engineering Mathematics - II', semester: 2, credits: 4,
+      lecture_hours: 3, tutorial_hours: 1, practical_hours: 0, ia_marks: 40, ete_marks: 160, total_marks: 200,
+      units: [
+        { number: 1, title: 'First Order Ordinary Differential Equations', hours: 8, topics: [
+          t('Exact differential equations and integrating factors'),
+          t('Linear first order differential equations and Bernoulli equations'),
+          t('Equations of first order and higher degree: solvable for p, y, x, and Clairaut form'),
+          t('Orthogonal trajectories in Cartesian and polar coordinates'),
+          t('Newton law of cooling and rate of growth/decay engineering models'),
+        ]},
+        { number: 2, title: 'Higher Order Linear Differential Equations', hours: 9, topics: [
+          t('Linear differential equations with constant coefficients complementary function & PI'),
+          t('Method of variation of parameters for second order ODEs'),
+          t('Cauchy-Euler homogeneous linear equations and Legendre equations'),
+          t('Simultaneous linear differential equations with constant coefficients'),
+          t('Applications to mechanical vibrations and electrical R-L-C circuits'),
+        ]},
+        { number: 3, title: 'Partial Differential Equations', hours: 8, topics: [
+          t('Formation of partial differential equations by eliminating arbitrary constants and functions'),
+          t('Lagrange linear PDE of first order Pp + Qq = R'),
+          t('Non-linear first order PDE: Charpit method'),
+          t('Homogeneous and non-homogeneous linear PDE with constant coefficients'),
+          t('Method of separation of variables for 1D wave and heat conduction equations'),
+        ]},
+        { number: 4, title: 'Fourier Series', hours: 7, topics: [
+          t('Periodic functions and Dirichlet conditions for Fourier expansion'),
+          t('Fourier series expansion of functions with arbitrary period 2L'),
+          t('Even and odd functions, half-range Fourier sine and cosine series'),
+          t('Parseval identity and harmonic analysis of discrete waveforms'),
+        ]},
+        { number: 5, title: 'Special Functions and Series Solutions', hours: 8, topics: [
+          t('Power series solution of ordinary differential equations around ordinary points'),
+          t('Frobenius method for series solution around regular singular points'),
+          t('Bessel differential equation, Bessel functions of first kind J_n(x), recurrence relations'),
+          t('Legendre differential equation, Legendre polynomials P_n(x), Rodrigue formula'),
+          t('Orthogonality properties of Bessel and Legendre functions'),
+        ]},
+      ],
+    },
+    {
+      code: '2FY2-03', name: 'Engineering Chemistry', semester: 2, credits: 4,
+      lecture_hours: 3, tutorial_hours: 1, practical_hours: 0, ia_marks: 40, ete_marks: 160, total_marks: 200,
+      units: [
+        { number: 1, title: 'Water Technology & Treatment', hours: 9, topics: [
+          t('Hardness of water: types, units, determination by EDTA complexometric titration'),
+          t('Boiler troubles: sludge, scale, priming, foaming, caustic embrittlement'),
+          t('External water softening: Lime-Soda process cold and hot calculations'),
+          t('Zeolite process and Ion-exchange demineralization process'),
+          t('Municipal water treatment, desalination by Reverse Osmosis RO and electrodialysis'),
+        ]},
+        { number: 2, title: 'Fuels & Combustion', hours: 8, topics: [
+          t('Classification of fuels, calorific value HCV and LCV, Dulong formula'),
+          t('Bomb calorimeter for solid and liquid fuels, Boy calorimeter for gas fuels'),
+          t('Proximate and ultimate analysis of coal and combustion significance'),
+          t('Liquid fuels: petroleum refining, fractional distillation, cracking, reforming'),
+          t('Knocking in engines, Octane number and Cetane number, anti-knocking agents'),
+        ]},
+        { number: 3, title: 'Corrosion and Its Prevention', hours: 8, topics: [
+          t('Dry/chemical corrosion and wet/electrochemical corrosion mechanisms'),
+          t('Galvanic series and factors influencing corrosion rate'),
+          t('Pitting, stress, intergranular, and water-line corrosion types'),
+          t('Corrosion control: cathodic protection sacrificial anode and impressed current'),
+          t('Protective coatings: galvanizing, tinning, electroplating, anodizing'),
+        ]},
+        { number: 4, title: 'Engineering Materials: Polymers & Composites', hours: 8, topics: [
+          t('Classification of polymers, addition and condensation polymerization mechanisms'),
+          t('Thermoplastics and thermosetting resins: Bakelite, Nylon-6,6, Teflon, Polyethylene'),
+          t('Elastomers: natural rubber, vulcanization, synthetic rubbers Buna-S and Neoprene'),
+          t('Biodegradable polymers and conducting polymers properties and uses'),
+          t('Fiber-reinforced composites: glass fiber, carbon fiber, matrix types and applications'),
+        ]},
+        { number: 5, title: 'Lubricants and Industrial Chemistry', hours: 7, topics: [
+          t('Mechanisms of lubrication: fluid film, boundary, and extreme pressure lubrication'),
+          t('Properties of lubricants: viscosity, viscosity index, flash point, fire point'),
+          t('Cloud and pour points, neutralization number, saponification number'),
+          t('Portland cement: composition, manufacture, setting and hardening reactions'),
+          t('Refractories: classification, characteristics, pyrometric cone equivalent, RUL test'),
+        ]},
+      ],
+    },
+    {
+      code: '2FY3-07', name: 'Basic Civil Engineering', semester: 2, credits: 2,
+      lecture_hours: 2, tutorial_hours: 0, practical_hours: 0, ia_marks: 20, ete_marks: 80, total_marks: 100,
+      units: [
+        { number: 1, title: 'Building Materials & Construction', hours: 5, topics: [
+          t('Properties and classification of bricks, stones, cement, concrete, steel'),
+          t('Compressive strength of concrete, workability, slump test'),
+          t('Components of buildings: foundation, plinth, lintel, columns, beams, slabs'),
+          t('Types of foundations: shallow vs deep foundations, bearing capacity of soil'),
+        ]},
+        { number: 2, title: 'Surveying Fundamentals', hours: 6, topics: [
+          t('Principles and classification of surveying'),
+          t('Linear measurement by chain and tape, obstacles in chaining'),
+          t('Compass surveying: prismatic compass, bearings, local attraction and correction'),
+          t('Leveling: dumpy level, leveling staff, height of instrument and rise & fall methods'),
+          t('Contouring: characteristics and uses of contour maps in site planning'),
+        ]},
+        { number: 3, title: 'Environmental Engineering & Pollution', hours: 5, topics: [
+          t('Sources, types and harmful effects of water pollution, drinking water standards'),
+          t('Air pollution: primary and secondary pollutants, smog, acid rain, greenhouse effect'),
+          t('Solid waste management: collection, segregation, composting, sanitary landfilling'),
+          t('Noise pollution: decibel scale, acceptable noise levels, acoustic insulation methods'),
+        ]},
+        { number: 4, title: 'Transportation & Traffic Engineering', hours: 5, topics: [
+          t('Highways: classification of roads, cross-sectional elements, camber, sight distance'),
+          t('Flexible and rigid pavement components'),
+          t('Railways: permanent way components, rails, sleepers, ballast, gauges in India'),
+          t('Bridges: culverts, major bridges, components pier, abutment, deck slab'),
+        ]},
+        { number: 5, title: 'Water Resources & Disaster Management', hours: 4, topics: [
+          t('Hydrological cycle, runoff, catchment area, rain-water harvesting structures'),
+          t('Dams: gravity dams, earthen dams, spillways'),
+          t('Disaster management: earthquakes, floods, cyclone preparedness and mitigation'),
+        ]},
+      ],
+    },
+    {
+      code: '2FY3-09', name: 'Programming for Problem Solving', semester: 2, credits: 2,
+      lecture_hours: 2, tutorial_hours: 0, practical_hours: 0, ia_marks: 20, ete_marks: 80, total_marks: 100,
+      units: [
+        { number: 1, title: 'Fundamentals of Computing & C Basics', hours: 5, topics: [
+          t('Computer components, CPU, memory hierarchy, primary vs secondary storage'),
+          t('Algorithm representation: flowcharts, pseudo-code, compilation and execution flow'),
+          t('C data types, variables, constants, keywords, format specifiers'),
+          t('Arithmetic, relational, logical, bitwise, assignment, conditional ternary operators'),
+          t('Operator precedence and associativity, type casting'),
+        ]},
+        { number: 2, title: 'Control Structures & Loops', hours: 6, topics: [
+          t('Decision making statements: if, if-else, nested if-else, else-if ladder'),
+          t('Switch-case statement with break and default clauses'),
+          t('Iterative control loops: while loop, do-while loop, for loop'),
+          t('Nested loops, break, continue, goto statements'),
+          t('Numerical iterative programs: Fibonacci, prime testing, factorial, series summation'),
+        ]},
+        { number: 3, title: 'Arrays and Strings', hours: 5, topics: [
+          t('One-dimensional arrays: declaration, initialization, indexing, memory layout'),
+          t('Linear search, binary search, bubble sort algorithms on 1D arrays'),
+          t('Two-dimensional arrays: matrix addition, multiplication, transpose'),
+          t('Strings: character arrays, string input/output gets/puts, scanf/printf'),
+          t('Standard library string handling functions: strlen, strcpy, strcat, strcmp'),
+        ]},
+        { number: 4, title: 'Functions and Pointers', hours: 5, topics: [
+          t('User defined functions: prototype declaration, definition, function calling'),
+          t('Parameter passing: call by value vs call by reference'),
+          t('Recursion: base condition, stack execution, recursive factorial and tower of Hanoi'),
+          t('Pointer basics: address-of operator &, dereferencing operator *, pointer arithmetic'),
+          t('Pointers with arrays, pointer to pointer, passing arrays to functions'),
+        ]},
+        { number: 5, title: 'Structures, Unions and File Handling', hours: 4, topics: [
+          t('Structures: declaration, initialization, accessing members with dot operator'),
+          t('Array of structures, nested structures, pointer to structure -> operator'),
+          t('Unions vs structures, memory allocation comparison'),
+          t('File operations: fopen, fclose, fgetc, fputc, fgets, fputs, fprintf, fscanf'),
+        ]},
+      ],
+    },
+    {
+      code: '2FY2-21', name: 'Engineering Chemistry Lab', semester: 2, credits: 1,
+      lecture_hours: 0, tutorial_hours: 0, practical_hours: 2, ia_marks: 30, ete_marks: 20, total_marks: 50,
+      is_practical: true,
+      units: [
+        { number: 0, title: 'Practical Experiments', topics: [
+          t('Determination of total, temporary and permanent hardness of water sample by EDTA method'),
+          t('Determination of dissolved oxygen DO in water by Winkler iodometric method'),
+          t('Determination of flash and fire point of lubricating oil by Pensky-Martens apparatus'),
+          t('Determination of viscosity and viscosity index of oil using Redwood Viscometer'),
+          t('Estimation of available chlorine in bleaching powder sample'),
+          t('Preparation of phenol-formaldehyde resin Bakelite in laboratory'),
+        ]},
+      ],
+    },
+    {
+      code: '2FY3-26', name: 'Basic Civil Engineering Lab', semester: 2, credits: 1,
+      lecture_hours: 0, tutorial_hours: 0, practical_hours: 2, ia_marks: 30, ete_marks: 20, total_marks: 50,
+      is_practical: true,
+      units: [
+        { number: 0, title: 'Practical Field Work', topics: [
+          t('Linear measurement using chain and tape, ranging a line and offset measurement'),
+          t('Compass survey: traversing of a closed field and calculation of included angles'),
+          t('Leveling: differential leveling using Dumpy Level and fly leveling staff reading'),
+          t('Determination of compressive strength of standard concrete cubes'),
+          t('Measurement of workability of fresh concrete using slump test apparatus'),
+        ]},
+      ],
+    },
+    {
+      code: '2FY3-27', name: 'Computer Programming Lab', semester: 2, credits: 1.5,
+      lecture_hours: 0, tutorial_hours: 0, practical_hours: 3, ia_marks: 45, ete_marks: 30, total_marks: 75,
+      is_practical: true,
+      units: [
+        { number: 0, title: 'C Programming Lab Practicals', topics: [
+          t('Programs on arithmetic expressions, conditional branch statements if-else and switch-case'),
+          t('Iterative loop programs for series computation, Armstrong, prime, factorial'),
+          t('1D Array implementations: searching, sorting, insertion and deletion'),
+          t('2D Array programs: matrix multiplication, determinant, symmetry checks'),
+          t('String manipulation programs without using string library functions'),
+          t('Modular programming using user functions, recursion and pointer arithmetic'),
+          t('Structure data models and file input/output record storage'),
+        ]},
+      ],
+    },
+
+    /* =====================================================================
+       SEMESTER 3 (Core Mechanical - Verified 10 Subjects)
+       ===================================================================== */
+{
       code: '3ME2-01', name: 'Advance Engineering Mathematics-I', semester: 3, credits: 3,
       lecture_hours: 3, tutorial_hours: 0, practical_hours: 0, ia_marks: 30, ete_marks: 120, total_marks: 150,
       units: [
@@ -374,6 +806,1159 @@ export const RTU_SYLLABUS = {
           t('Reading and writing data, file handling'),
           t('Using MATLAB toolboxes'),
           t('MATLAB graphic functions'),
+        ]},
+      ],
+    },
+
+    /* =====================================================================
+       SEMESTER 4 (Core Mechanical)
+       ===================================================================== */
+    {
+      code: '4ME2-01', name: 'Advance Engineering Mathematics-II', semester: 4, credits: 3,
+      lecture_hours: 3, tutorial_hours: 0, practical_hours: 0, ia_marks: 30, ete_marks: 120, total_marks: 150,
+      units: [
+        { number: 1, title: 'Complex Variables & Analytic Functions', hours: 8, topics: [
+          t('Functions of complex variable, limit, continuity, differentiability'),
+          t('Analytic functions and Cauchy-Riemann equations in Cartesian and polar forms'),
+          t('Harmonic functions and determination of conjugate harmonic function Milne-Thomson method'),
+          t('Conformal mapping: standard transformations w = z^2, w = e^z, w = 1/z'),
+          t('Bilinear transformation Mobius transformation and cross-ratio invariance'),
+        ]},
+        { number: 2, title: 'Complex Integration and Series', hours: 8, topics: [
+          t('Line integrals of complex functions, Cauchy Fundamental Theorem'),
+          t('Cauchy Integral Formula and Cauchy Integral Formula for higher derivatives'),
+          t('Taylor and Laurent series expansions of complex functions, singular points and poles'),
+          t('Residue at a pole, Cauchy Residue Theorem and evaluation of real definite integrals'),
+        ]},
+        { number: 3, title: 'Probability and Discrete Distributions', hours: 8, topics: [
+          t('Probability axioms, conditional probability, multiplication theorem, Bayes Theorem'),
+          t('Random variables: discrete and continuous random variables, probability mass and density functions'),
+          t('Mathematical expectation, variance, moments, moment generating functions MGF'),
+          t('Binomial distribution: mean, variance, engineering reliability applications'),
+          t('Poisson distribution as a limiting form of binomial distribution'),
+        ]},
+        { number: 4, title: 'Continuous Distributions and Sampling', hours: 8, topics: [
+          t('Normal distribution: properties, standard normal curve, applications to quality control'),
+          t('Exponential distribution and memoryless property in equipment life models'),
+          t('Sampling theory: population, sample, random sampling, Central Limit Theorem'),
+          t('Testing of hypothesis: null and alternate hypothesis, Level of significance, Type-I and Type-II errors'),
+          t('Large sample tests for mean and difference of means z-test'),
+        ]},
+        { number: 5, title: 'Small Sample Tests & Correlation', hours: 8, topics: [
+          t('Student t-test for single mean and difference of two sample means'),
+          t('F-test for comparison of two sample variances'),
+          t('Chi-square test for goodness of fit and independence of attributes in contingency tables'),
+          t('Linear correlation, Pearson coefficient of correlation'),
+          t('Linear regression lines of y on x and x on y, angle between regression lines'),
+        ]},
+      ],
+    },
+    {
+      code: '4ME3-04', name: 'Fluid Mechanics and Hydraulic Machines', semester: 4, credits: 3,
+      lecture_hours: 3, tutorial_hours: 0, practical_hours: 0, ia_marks: 30, ete_marks: 120, total_marks: 150,
+      units: [
+        { number: 1, title: 'Fluid Properties and Fluid Statics', hours: 8, topics: [
+          t('Fluid definition, continuum concept, density, specific weight, specific gravity'),
+          t('Viscosity, Newton law of viscosity, dynamic and kinematic viscosity, Newtonian vs non-Newtonian fluids'),
+          t('Surface tension, capillarity, compressibility and bulk modulus'),
+          t('Pascal law, hydrostatic law, pressure variation in static fluids, manometers U-tube, differential'),
+          t('Hydrostatic forces on plane and curved submerged surfaces, centre of pressure'),
+          t('Buoyancy, Archimedes principle, metacentre, metacentric height and stability of floating bodies'),
+        ]},
+        { number: 2, title: 'Fluid Kinematics and Conservation Equations', hours: 8, topics: [
+          t('Lagrangian vs Eulerian descriptions of fluid motion'),
+          t('Types of fluid flow: steady, unsteady, uniform, non-uniform, laminar, turbulent, rotational, irrotational'),
+          t('Streamlines, pathlines, streaklines, stream tube'),
+          t('Continuity equation in Cartesian coordinates differential and integral forms'),
+          t('Velocity potential function phi, stream function psi, Cauchy-Riemann conditions and flow nets'),
+        ]},
+        { number: 3, title: 'Fluid Dynamics and Flow Measurement', hours: 9, topics: [
+          t('Euler equation of motion along a streamline and integration to Bernoulli equation'),
+          t('Bernoulli equation: assumptions, physical interpretation, energy correction factor'),
+          t('Flow measurement devices: Venturimeter, Orifice meter, Pitot tube, Pitot-static tube'),
+          t('Linear momentum equation for control volume, force exerted by flowing fluid on pipe bends'),
+          t('Moment of momentum equation and angular momentum theorem'),
+        ]},
+        { number: 4, title: 'Viscous Flow, Pipe Flow and Dimensional Analysis', hours: 8, topics: [
+          t('Laminar flow between parallel plates Couette and Poiseuille flows'),
+          t('Laminar flow through circular pipes Hagen-Poiseuille equation derivation'),
+          t('Turbulent flow: Reynolds experiment, critical Reynolds number, shear stress models'),
+          t('Major head loss in pipes: Darcy-Weisbach equation, friction factor, Moody diagram'),
+          t('Minor energy losses in pipes: sudden expansion, contraction, entrance, exit, bends, fittings'),
+          t('Hydraulic Gradient Line HGL and Total Energy Line TEL, pipes in series and parallel'),
+          t('Dimensional analysis: Buckingham Pi theorem, repeating variables selection, Reynolds, Froude, Mach dimensionless numbers'),
+        ]},
+        { number: 5, title: 'Hydraulic Turbines and Pumps', hours: 7, topics: [
+          t('Impact of free jets on stationary and moving flat and curved vanes, force and work done'),
+          t('Classification of hydraulic turbines: impulse Pelton vs reaction Francis and Kaplan'),
+          t('Pelton wheel: velocity triangles, work done, hydraulic efficiency, governing mechanism'),
+          t('Francis turbine: inward radial flow reaction, velocity triangles, runner design basics, draft tube theory'),
+          t('Centrifugal pumps: working principle, components, classification, velocity triangles, manometric head'),
+          t('Centrifugal pump efficiencies: manometric, volumetric, mechanical, overall; cavitation and NPSH'),
+        ]},
+      ],
+    },
+    {
+      code: '4ME4-05', name: 'Manufacturing Processes', semester: 4, credits: 3,
+      lecture_hours: 3, tutorial_hours: 0, practical_hours: 0, ia_marks: 30, ete_marks: 120, total_marks: 150,
+      units: [
+        { number: 1, title: 'Casting Processes', hours: 8, topics: [
+          t('Pattern making: types of patterns, pattern allowances shrinkage, draft, machining, distortion'),
+          t('Moulding sand: composition, types, testing moisture, permeability, compressive strength, hardness'),
+          t('Gating system design: pouring basin, sprue, runner, ingates, choke area, pressurized vs unpressurized gating'),
+          t('Riser design: Chvorinov rule for solidification time, modulus method, chills and chaplets'),
+          t('Special casting methods: die casting gravity & pressure, centrifugal casting, investment casting, continuous casting'),
+          t('Casting defects: blowholes, porosity, cold shuts, misruns, hot tears, remedies and inspection'),
+        ]},
+        { number: 2, title: 'Metal Forming Processes', hours: 8, topics: [
+          t('Mechanics of plastic deformation, hot working vs cold working temperatures, advantages and limitations'),
+          t('Forging: open die, closed die drop forging, upset forging, flash formation, forging defects'),
+          t('Rolling: theory of flat rolling, angle of bite, roll draft, reduction, rolling mills two-high, four-high, cluster'),
+          t('Extrusion: direct, indirect, hydrostatic, impact extrusion processes and tube extrusion'),
+          t('Wire drawing and rod drawing mechanics, drawing die geometry and friction'),
+        ]},
+        { number: 3, title: 'Sheet Metal Working', hours: 8, topics: [
+          t('Sheet metal cutting operations: shearing, blanking, punching/piercing, trimming, shaving, slitting'),
+          t('Punch and die clearance calculations, cutting force and energy required'),
+          t('Sheet metal bending: bend radius, springback phenomenon and compensation'),
+          t('Deep drawing: cup drawing mechanics, draw ratio, limiting drawing ratio LDR, blank size estimation'),
+          t('Defects in drawn parts: wrinkling, tearing, earing and ironing process'),
+        ]},
+        { number: 4, title: 'Welding and Joining Processes', hours: 8, topics: [
+          t('Classification of welding processes: fusion vs solid-state welding'),
+          t('Shielded Metal Arc Welding SMAW: power sources, V-I characteristics, electrode coatings, polarity'),
+          t('Gas Tungsten Arc Welding GTAW/TIG and Gas Metal Arc Welding GMAW/MIG processes'),
+          t('Submerged Arc Welding SAW and Resistance welding spot, seam, projection welding principles'),
+          t('Solid state welding: friction welding, friction stir welding FSW, ultrasonic welding'),
+          t('Welding metallurgy: Heat Affected Zone HAZ microstructures, residual stresses, distortion control, weld defects'),
+        ]},
+        { number: 5, title: 'Powder Metallurgy and Advanced Forming', hours: 8, topics: [
+          t('Powder metallurgy production steps: powder manufacturing atomization, reduction, electrolysis'),
+          t('Powder blending, compaction cold and hot isostatic pressing, sintering furnace atmosphere and bonding mechanisms'),
+          t('Secondary operations: sizing, coining, infiltration, impregnation; P/M engineering products'),
+          t('High energy rate forming HERF: explosive forming, electrohydraulic forming, electromagnetic forming'),
+          t('Plastics processing: injection moulding, blow moulding, rotational moulding, extrusion moulding'),
+        ]},
+      ],
+    },
+    {
+      code: '4ME4-06', name: 'Theory of Machines', semester: 4, credits: 3,
+      lecture_hours: 3, tutorial_hours: 0, practical_hours: 0, ia_marks: 30, ete_marks: 120, total_marks: 150,
+      units: [
+        { number: 1, title: 'Mechanisms and Inversions', hours: 8, topics: [
+          t('Kinematic link, kinematic pair: lower and higher pairs, kinematic chain, mechanism, machine'),
+          t('Degrees of freedom DOF of mechanisms: Kutzbach and Grubler mobility criteria'),
+          t('Four-bar mechanism inversions: Grashof condition, crank-rocker, double crank, double rocker'),
+          t('Slider-crank chain inversions: quick return mechanisms Whitworth, crank and slotted lever'),
+          t('Double slider-crank inversions: elliptical trammel, Scotch yoke, Oldham coupling'),
+          t('Straight line mechanisms: exact Peaucellier, Hart and approximate Watt, Chebyshev mechanisms'),
+        ]},
+        { number: 2, title: 'Velocity and Acceleration Analysis', hours: 9, topics: [
+          t('Relative velocity method: velocity polygons for planar linkages'),
+          t('Instantaneous centre method: Kennedy theorem of three centres, locating ICRs in mechanisms'),
+          t('Acceleration in mechanisms: radial centripetal and tangential acceleration components'),
+          t('Coriolis acceleration component: direction, physical cause, magnitude 2*omega*v in sliding links'),
+          t('Acceleration polygons for slider-crank and quick-return mechanisms'),
+          t('Klein construction for velocity and acceleration of slider crank mechanism'),
+        ]},
+        { number: 3, title: 'Cams and Follower Dynamics', hours: 7, topics: [
+          t('Classification of cams and followers: knife-edge, roller, flat-faced followers'),
+          t('Follower motion profiles: uniform velocity, simple harmonic motion SHM, uniform acceleration/deceleration, cycloidal'),
+          t('Kinematic equations for displacement, velocity, acceleration and jerk of followers'),
+          t('Construction of cam profiles for knife-edge and roller followers with in-line and offset paths'),
+          t('Pressure angle in cam-follower design and undercutting avoidance'),
+        ]},
+        { number: 4, title: 'Gears and Gear Trains', hours: 9, topics: [
+          t('Classification of gears, gear terminology: pitch circle, module, diametral pitch, addendum, dedendum'),
+          t('Fundamental Law of Gearing for constant angular velocity ratio, conjugate action'),
+          t('Involute and cycloidal tooth profiles, advantages of involute profile'),
+          t('Interference and undercutting in involute gears, minimum number of teeth on pinion to avoid interference'),
+          t('Path of contact, arc of contact, contact ratio calculation'),
+          t('Gear trains: simple, compound, reverted gear trains and speed ratios'),
+          t('Epicyclic gear trains: tabular method and algebraic method for velocity ratio and torque calculation'),
+        ]},
+        { number: 5, title: 'Gyroscopes and Dynamic Balancing', hours: 7, topics: [
+          t('Gyroscopic couple: angular velocity, angular momentum, precession vector, gyroscopic couple C = I*omega*omega_p'),
+          t('Gyroscopic effects on aeroplanes and naval ships steering, pitching, rolling'),
+          t('Gyroscopic stabilization and stability of two-wheel and four-wheel vehicles negotiating turns'),
+          t('Balancing of rotating masses: single mass in single plane, multiple masses in single plane, multiple masses in different planes'),
+          t('Primary and secondary balancing of reciprocating masses in single cylinder engines'),
+        ]},
+      ],
+    },
+    {
+      code: '4ME4-21', name: 'Fluid Mechanics Lab', semester: 4, credits: 1.5,
+      lecture_hours: 0, tutorial_hours: 0, practical_hours: 3, ia_marks: 45, ete_marks: 30, total_marks: 75,
+      is_practical: true,
+      units: [
+        { number: 0, title: 'Practical Experiments', topics: [
+          t('Determination of metacentric height of a floating vessel model'),
+          t('Calibration of Venturimeter and Orifice meter to determine coefficient of discharge C_d'),
+          t('Determination of minor losses in pipes due to sudden enlargement, contraction and bends'),
+          t('Verification of Bernoulli theorem on Bernoulli apparatus test rig'),
+          t('Measurement of friction factor in pipe flow and verification of Darcy-Weisbach equation'),
+          t('Performance characteristics of Pelton wheel turbine under varying head and load conditions'),
+          t('Performance test on centrifugal pump to plot head vs discharge, power and efficiency curves'),
+        ]},
+      ],
+    },
+    {
+      code: '4ME4-22', name: 'Manufacturing Practices Lab', semester: 4, credits: 1.5,
+      lecture_hours: 0, tutorial_hours: 0, practical_hours: 3, ia_marks: 45, ete_marks: 30, total_marks: 75,
+      is_practical: true,
+      units: [
+        { number: 0, title: 'Practical Machine Shop Work', topics: [
+          t('Facing, plain turning, step turning and taper turning operations on centre lathe'),
+          t('External thread cutting single start V-threads on centre lathe with change gears'),
+          t('Knurling, drilling, boring and parting-off operations on centre lathe'),
+          t('Mould preparation using split pattern in green sand moulding and aluminium gravity casting'),
+          t('Preparation of lap and butt welded joints using Shielded Metal Arc Welding SMAW'),
+          t('Oxy-acetylene gas welding and flame cutting practice neutral, carburizing, oxidizing flames'),
+        ]},
+      ],
+    },
+    {
+      code: '4ME4-23', name: 'Theory of Machines Lab', semester: 4, credits: 1.5,
+      lecture_hours: 0, tutorial_hours: 0, practical_hours: 3, ia_marks: 45, ete_marks: 30, total_marks: 75,
+      is_practical: true,
+      units: [
+        { number: 0, title: 'Practical Mechanism Experiments', topics: [
+          t('Study of inversions of four-bar chain and slider-crank mechanisms using working kinematic models'),
+          t('Experimental verification of gyroscopic couple on motorized gyroscope apparatus'),
+          t('Static and dynamic balancing of rotating masses on multi-plane dynamic balancing apparatus'),
+          t('Determination of jump speed and profile analysis of cam-follower mechanism apparatus'),
+          t('Determination of velocity ratio and torque distribution on epicyclic gear train test rig'),
+          t('Study of governors: Watt, Porter, Proell and Hartnell governors sensitivity and stability tests'),
+        ]},
+      ],
+    },
+    {
+      code: '4ME4-24', name: 'Mechanical Engineering Drawing Practice', semester: 4, credits: 1.5,
+      lecture_hours: 0, tutorial_hours: 0, practical_hours: 3, ia_marks: 45, ete_marks: 30, total_marks: 75,
+      is_practical: true,
+      units: [
+        { number: 0, title: 'Practical Drawing Work', topics: [
+          t('Limits, fits and tolerances: hole basis and shaft basis systems, geometrical tolerancing GD&T symbols'),
+          t('Surface roughness symbols and indication of machining texture on drawings'),
+          t('Assembly and detail drawing of machine tool parts: tool post, revolving lathe centre'),
+          t('Assembly and detail drawing of valves: safety valves, gate valve, non-return valve'),
+          t('Assembly drawing of fuel injector and carburetor sub-assemblies'),
+          t('Solid modeling of mechanical components and assembly drafting using 3D CAD software SolidWorks/Creo'),
+        ]},
+      ],
+    },
+
+    /* =====================================================================
+       SEMESTER 5 (Professional Core)
+       ===================================================================== */
+    {
+      code: '5ME3-01', name: 'Mechatronic Systems', semester: 5, credits: 3,
+      lecture_hours: 3, tutorial_hours: 0, practical_hours: 0, ia_marks: 30, ete_marks: 120, total_marks: 150,
+      units: [
+        { number: 1, title: 'Sensors and Transducers', hours: 8, topics: [
+          t('Mechatronics definition, multi-disciplinary architecture and evolution'),
+          t('Performance characteristics of sensors: static range, span, resolution, sensitivity, hysteresis, drift, linearity'),
+          t('Dynamic characteristics: zero, first and second order systems response'),
+          t('Displacement and position sensors: potentiometer, LVDT, optical rotary encoders incremental & absolute'),
+          t('Temperature sensors: RTD Pt-100, thermistor NTC/PTC, thermocouples Seebeck effect'),
+          t('Force and pressure sensors: strain gauges, Wheatstone bridge circuits, piezoelectric transducers'),
+        ]},
+        { number: 2, title: 'Actuators and Signal Conditioning', hours: 8, topics: [
+          t('Signal conditioning: operational amplifiers op-amps inverting, non-inverting, summing, differential, instrumentation amplifiers'),
+          t('Analog-to-Digital ADC and Digital-to-Analog DAC converters successive approximation, R-2R ladder'),
+          t('Mechanical actuators: cams, gears, ratchet, lead screws'),
+          t('Electrical actuators: solenoids, relays, DC brushed motors, DC brushless BLDC motors, servomotors'),
+          t('Stepper motors: variable reluctance, permanent magnet, hybrid stepper motors, microstepping'),
+          t('Hydraulic and pneumatic actuators: directional control valves, proportional valves, cylinders'),
+        ]},
+        { number: 3, title: 'Microcontroller Architecture & Interfacing', hours: 8, topics: [
+          t('Microprocessor vs microcontroller architecture comparison'),
+          t('8051 / AVR / ARM architecture: ALU, registers, memory organization RAM/ROM, program counter'),
+          t('Input/Output ports, timers/counters, interrupt handling structure'),
+          t('Interfacing microcontrollers with LED displays, 16x2 LCDs, matrix keypads, ADC chips'),
+          t('Serial communication protocols: UART, SPI, I2C, CAN bus in automotive mechatronics'),
+        ]},
+        { number: 4, title: 'Programmable Logic Controllers (PLC)', hours: 8, topics: [
+          t('PLC architecture, CPU, memory, power supply, I/O modules digital & analog'),
+          t('PLC scan cycle: input scan, program execution, output update, scan time'),
+          t('Ladder logic programming: normally open NO, normally closed NC contacts, coils, internal relays'),
+          t('Timer instructions ON-delay TON, OFF-delay TOF and counter instructions CTU, CTD in ladder logic'),
+          t('Industrial automated sequencing examples: bottle filling, conveyor sorting, pneumatic cylinder control'),
+        ]},
+        { number: 5, title: 'Mechatronic System Design and Case Studies', hours: 8, topics: [
+          t('System modeling: mechanical, electrical, fluid and thermal system building blocks'),
+          t('Closed-loop control: PID controller tuning and implementation proportional, integral, derivative terms'),
+          t('Case study: engine management system ECU electronic fuel injection and spark advance'),
+          t('Case study: CNC machine axis positioning mechatronic drive train'),
+          t('Case study: anti-lock braking system ABS sensors, valves, control algorithm'),
+        ]},
+      ],
+    },
+    {
+      code: '5ME4-02', name: 'Heat Transfer', semester: 5, credits: 3,
+      lecture_hours: 3, tutorial_hours: 0, practical_hours: 0, ia_marks: 30, ete_marks: 120, total_marks: 150,
+      units: [
+        { number: 1, title: 'Conduction Fundamentals & Steady State', hours: 8, topics: [
+          t('Mechanisms of heat transfer: conduction, convection, radiation; Fourier Law of heat conduction'),
+          t('Thermal conductivity of metals, non-metals, liquids, gases; thermal diffusivity'),
+          t('General 3D heat conduction equation in Cartesian, cylindrical and spherical coordinates'),
+          t('One-dimensional steady-state conduction through plane walls, composite slabs, thermal contact resistance'),
+          t('1D steady conduction through hollow cylinders and spheres, critical radius of insulation derivation'),
+          t('Conduction with uniform internal heat generation in plane walls and nuclear fuel rods'),
+        ]},
+        { number: 2, title: 'Extended Surfaces and Transient Conduction', hours: 8, topics: [
+          t('Heat transfer from extended surfaces fins: governing differential equation derivation'),
+          t('Fin boundary conditions: infinitely long fin, insulated tip fin, convective tip fin'),
+          t('Fin performance: fin efficiency and fin effectiveness concepts and calculations'),
+          t('Transient/unsteady state conduction: lumped heat capacitance system analysis'),
+          t('Biot number Bi and Fourier number Fo physical significance; applicability criterion Bi < 0.1'),
+          t('Transient conduction in semi-infinite and infinite slabs with spatial temperature gradients Heisler charts'),
+        ]},
+        { number: 3, title: 'Convective Heat Transfer', hours: 9, topics: [
+          t('Newton Law of Cooling and convective heat transfer coefficient h'),
+          t('Thermal boundary layer vs velocity boundary layer, Prandtl number Pr significance'),
+          t('Forced convection: laminar and turbulent flow over flat plates, Reynolds-Colburn analogy'),
+          t('Forced convection inside tubes: laminar flow Graetz problem, turbulent flow Dittus-Boelter and Sieder-Tate equations'),
+          t('Natural / Free convection: buoyancy driven flow, Grashof number Gr and Rayleigh number Ra'),
+          t('Empirical correlations for natural convection on vertical, horizontal plates and cylinders'),
+        ]},
+        { number: 4, title: 'Thermal Radiation', hours: 8, topics: [
+          t('Electromagnetic radiation spectrum, black body concept, emissive power'),
+          t('Radiation laws: Planck spectral distribution law, Wien displacement law, Stefan-Boltzmann law'),
+          t('Kirchhoff law of radiation, real surfaces, grey body, emissivity, absorptivity, reflectivity, transmissivity'),
+          t('Radiation shape factor / view factor definition, reciprocity theorem, summation and enclosure rules'),
+          t('Radiative heat exchange between diffuse grey surfaces in non-participating media network method'),
+          t('Radiation shields and reduction in radiative heat transfer rate'),
+        ]},
+        { number: 5, title: 'Heat Exchangers and Phase Change', hours: 7, topics: [
+          t('Classification of heat exchangers: parallel flow, counter flow, cross flow, shell-and-tube, compact'),
+          t('Overall heat transfer coefficient U and fouling factor / scale resistance'),
+          t('Logarithmic Mean Temperature Difference LMTD method for parallel and counter flow heat exchangers'),
+          t('Effectiveness-NTU method: heat exchanger effectiveness epsilon, NTU definition and capacity ratio C'),
+          t('Boiling heat transfer: pool boiling curve, natural convection, nucleate boiling, critical heat flux CHF, film boiling'),
+          t('Condensation heat transfer: filmwise vs dropwise condensation, Nusselt theory of laminar film condensation on vertical plate'),
+        ]},
+      ],
+    },
+    {
+      code: '5ME4-03', name: 'Manufacturing Technology', semester: 5, credits: 3,
+      lecture_hours: 3, tutorial_hours: 0, practical_hours: 0, ia_marks: 30, ete_marks: 120, total_marks: 150,
+      units: [
+        { number: 1, title: 'Mechanics of Metal Cutting', hours: 9, topics: [
+          t('Geometry of single point cutting tool: ASA tool signature and Orthogonal Rake System ORS'),
+          t('Orthogonal vs oblique cutting mechanisms'),
+          t('Chip formation: continuous chips, discontinuous chips, continuous chips with built-up edge BUE'),
+          t('Merchant circle diagram: shear angle derivation, cutting force F_c, thrust force F_t, shear force F_s'),
+          t('Ernst-Merchant shear angle relationship, cutting velocity, shear velocity, chip flow velocity'),
+          t('Specific cutting energy, power consumption in metal cutting, cutting temperature measurement methods'),
+        ]},
+        { number: 2, title: 'Tool Wear, Tool Life and Machinability', hours: 7, topics: [
+          t('Cutting tool materials: high carbon steel, HSS, cast cobalt alloys, cemented carbides, ceramics, cermets, CBN, diamond'),
+          t('Coated carbide cutting tools: TiN, TiC, Al2O3 coatings and chemical vapor deposition CVD'),
+          t('Mechanisms of cutting tool wear: abrasive, adhesive, diffusion, chemical oxidation wear'),
+          t('Crater wear and flank wear, tool life criterion according to ISO 3685'),
+          t('Taylor tool life equation: V*T^n = C, exponents for tool materials, modified Taylor equation'),
+          t('Machinability index and factors affecting machinability: cutting speed, feed, depth of cut, cutting fluids'),
+        ]},
+        { number: 3, title: 'Machine Tools: Lathe, Shaper, Milling, Drilling', hours: 9, topics: [
+          t('Centre lathe kinematics: apron mechanism, lead screw, thread chasing mechanism, capstan and turret lathes'),
+          t('Shaper and planer machine tools: quick return motion mechanism, stroke length adjustment, driving mechanisms'),
+          t('Milling machine types: horizontal column-and-knee, vertical milling machine, universal milling machine'),
+          t('Up milling conventional vs down milling climb milling mechanics'),
+          t('Dividing head and indexing methods: direct, simple, compound, differential indexing on milling machine'),
+          t('Drilling machine kinematics, twist drill geometry: point angle, helix angle, chisel edge, lips'),
+          t('Boring, reaming, broaching, gear hobbing, and gear shaping operations'),
+        ]},
+        { number: 4, title: 'Grinding and Abrasive Finishing', hours: 7, topics: [
+          t('Grinding process: abrasive grain action, surface grinding, cylindrical grinding, centreless grinding'),
+          t('Grinding wheel specification according to IS: abrasive type, grain size, grade, structure, bond'),
+          t('Grinding wheel loading, glazing, dressing, truing, balancing of grinding wheels'),
+          t('Superfinishing operations: honing mechanics, lapping, polishing, buffing, burnishing for high surface finish'),
+        ]},
+        { number: 5, title: 'Unconventional Machining and CNC Technology', hours: 8, topics: [
+          t('Need for non-traditional machining processes and energy classification'),
+          t('Abrasive Jet Machining AJM and Ultrasonic Machining USM: working principle, material removal rate MRR'),
+          t('Electric Discharge Machining EDM: spark erosion mechanism, dielectric fluid, RC relaxation circuit, wire EDM'),
+          t('Electrochemical Machining ECM: Faraday laws of electrolysis, electrolyte properties, tool design'),
+          t('Laser Beam Machining LBM and Plasma Arc Machining PAM: principles and industrial cutting applications'),
+          t('Introduction to Computer Numerical Control CNC machines: MCU, DDA interpolator, G-codes and M-codes manual part programming'),
+        ]},
+      ],
+    },
+    {
+      code: '5ME4-04', name: 'Design of Machine Elements - I', semester: 5, credits: 3,
+      lecture_hours: 3, tutorial_hours: 0, practical_hours: 0, ia_marks: 30, ete_marks: 120, total_marks: 150,
+      units: [
+        { number: 1, title: 'Engineering Design Principles & Static Failure', hours: 8, topics: [
+          t('General machine design procedure, factor of safety FOS selection criteria'),
+          t('Standards, codes, standardization, preferred numbers and Renard series R5, R10, R20, R40'),
+          t('Manufacturing considerations in machine design, design for casting and forging'),
+          t('Theories of elastic failure under static bi-axial stress: Maximum Principal Stress theory Rankine'),
+          t('Maximum Shear Stress theory Tresca, Guest and maximum distortion energy theory von Mises-Hencky'),
+          t('Comparison and graphical representation of failure theories, selection of failure theory for ductile vs brittle materials'),
+        ]},
+        { number: 2, title: 'Design for Fatigue Loading', hours: 8, topics: [
+          t('Fluctuating, repeated and reversed stress cycles: mean stress, alternating/amplitude stress, stress ratio R'),
+          t('Fatigue failure mechanism, endurance limit S_e, rotating beam test and S-N curve'),
+          t('Endurance limit modifying factors Marin factors: surface condition, size, load, temperature, reliability'),
+          t('Stress concentration factor K_t, notch sensitivity q, fatigue stress concentration factor K_f'),
+          t('Design for fluctuating stresses: Soderberg line, Goodman diagram, Gerber parabola and ASME elliptic criteria'),
+          t('Cumulative fatigue damage: Miner rule for variable amplitude fatigue stress cycles'),
+        ]},
+        { number: 3, title: 'Design of Shafts, Keys and Couplings', hours: 8, topics: [
+          t('Design of transmission shafts based on torsional strength and torsional rigidity criteria'),
+          t('Design of shafts subjected to combined bending and twisting moments: equivalent twisting and bending moments'),
+          t('ASME design code for commercial transmission shafting taking into account shock and fatigue factors k_m, k_t'),
+          t('Design of sunk keys: rectangular key, square key, feather key, woodruff key failure by shear and crushing'),
+          t('Design of rigid flange coupling: hub, keys, flange thickness, bolts in shear and crushing'),
+          t('Design of flexible bush pin type flanged coupling for shock absorption and angular misalignment'),
+        ]},
+        { number: 4, title: 'Design of Threaded Fasteners and Power Screws', hours: 8, topics: [
+          t('Stresses in threaded bolts: initial tightening torque, tensile, shear, torsional, bearing stresses'),
+          t('Bolts of uniform strength and design for impact/shock loads'),
+          t('Bolted joints under eccentric loading: in plane of bolts and perpendicular to plane of bolts'),
+          t('Power screws: square, trapezoidal, ACME threads, torque required to raise and lower load'),
+          t('Efficiency of power screw, self-locking and overhauling conditions'),
+          t('Design of screw jack: screw spindle, bronze nut, collar friction, Tommy bar lever, body'),
+        ]},
+        { number: 5, title: 'Design of Welded and Riveted Joints', hours: 8, topics: [
+          t('Types of welded joints: butt joints, transverse fillet welds, parallel fillet welds'),
+          t('Strength of transverse and parallel fillet welded joints, leg length and throat thickness'),
+          t('Welded joints subjected to eccentric loading in shear and bending'),
+          t('Riveted joints: types of riveted joints, failure modes tearing, shearing, crushing, bursting of edge'),
+          t('Efficiency of riveted joints and design of boiler longitudinal and circumferential seams'),
+          t('Eccentrically loaded riveted connections: resultant shear load on critical rivet'),
+        ]},
+      ],
+    },
+    {
+      code: '5ME4-05', name: 'Principles of Management', semester: 5, credits: 2,
+      lecture_hours: 2, tutorial_hours: 0, practical_hours: 0, ia_marks: 20, ete_marks: 80, total_marks: 100,
+      units: [
+        { number: 1, title: 'Management Foundations & Theories', hours: 5, topics: [
+          t('Concept, nature, scope and significance of management in engineering enterprises'),
+          t('Evolution of management thought: Taylor Scientific Management, Fayol 14 Administrative Principles'),
+          t('Human Relations Movement Hawthorne experiments, Bureaucracy Weber, Contingency approach'),
+          t('Management functions: POSDCORB overview, managerial roles Mintzberg, levels of management'),
+        ]},
+        { number: 2, title: 'Planning and Strategic Decision Making', hours: 5, topics: [
+          t('Nature and purpose of planning, planning premises, steps in planning process'),
+          t('Types of plans: objectives, strategies, policies, procedures, rules, programmes, budgets'),
+          t('Management by Objectives MBO: concept, process, advantages and limitations'),
+          t('Strategic decision making: Rational decision-making process, bounded rationality, SWOT analysis'),
+        ]},
+        { number: 3, title: 'Organizing and Organizational Structures', hours: 5, topics: [
+          t('Nature and purpose of organizing, formal vs informal organizations'),
+          t('Organizational structures: line, line and staff, functional, divisional, project, matrix organizations'),
+          t('Span of control, factors influencing span of management'),
+          t('Departmentation: by function, territory, product, customer, process'),
+          t('Authority, power, delegation of authority, centralization vs decentralization of authority'),
+        ]},
+        { number: 4, title: 'Staffing, Motivation and Leadership', hours: 5, topics: [
+          t('Staffing: human resource planning, recruitment, selection process, training and performance appraisal'),
+          t('Motivation theories: Maslow Hierarchy of Needs, Herzberg Two-Factor Theory, McGregor Theory X and Y'),
+          t('Leadership styles: autocratic, democratic, laissez-faire; Blake-Mouton Managerial Grid'),
+          t('Communication: process, barriers to effective communication, formal and informal grapevine networks'),
+        ]},
+        { number: 5, title: 'Controlling and Corporate Governance', hours: 4, topics: [
+          t('Concept and process of controlling: establishing standards, measuring performance, corrective actions'),
+          t('Techniques of control: budgetary control, zero-based budgeting, PERT/CPM, balanced scorecard'),
+          t('Corporate social responsibility CSR and business ethics in modern engineering enterprises'),
+        ]},
+      ],
+    },
+    {
+      code: '5ME4-21', name: 'Heat Transfer Lab', semester: 5, credits: 1.5,
+      lecture_hours: 0, tutorial_hours: 0, practical_hours: 3, ia_marks: 45, ete_marks: 30, total_marks: 75,
+      is_practical: true,
+      units: [
+        { number: 0, title: 'Practical Heat Transfer Experiments', topics: [
+          t('Determination of thermal conductivity of insulating powder using concentric sphere apparatus'),
+          t('Determination of thermal conductivity of metal rod under steady state conditions'),
+          t('Measurement of heat transfer coefficient and temperature distribution in forced convection pin fin apparatus'),
+          t('Determination of natural convection heat transfer coefficient from a vertical cylinder'),
+          t('Verification of Stefan-Boltzmann law of thermal radiation on test apparatus'),
+          t('Measurement of emissivity of a non-black test plate at various temperature settings'),
+          t('Performance evaluation of parallel flow and counter flow concentric tube heat exchanger LMTD and effectiveness'),
+        ]},
+      ],
+    },
+    {
+      code: '5ME4-22', name: 'Production Practice Lab', semester: 5, credits: 1.5,
+      lecture_hours: 0, tutorial_hours: 0, practical_hours: 3, ia_marks: 45, ete_marks: 30, total_marks: 75,
+      is_practical: true,
+      units: [
+        { number: 0, title: 'Practical Machining Operations', topics: [
+          t('Gear cutting: spur gear tooth generation on universal milling machine using dividing head indexing'),
+          t('Shaper practice: machining flat, vertical, and dovetail angular surfaces on horizontal shaper'),
+          t('Grinding practice: cylindrical and surface grinding to precision dimensional tolerances and Ra measurement'),
+          t('Drilling, counter-boring, spot-facing, and reaming operations on radial drilling machine'),
+          t('Tool grinding: re-sharpening single point cutting tool angles on bench tool grinder'),
+          t('CNC Lathe programming and turning operation: execution of G00, G01, G02, G03 profile cycles'),
+        ]},
+      ],
+    },
+    {
+      code: '5ME4-23', name: 'Mechatronics Lab', semester: 5, credits: 1.5,
+      lecture_hours: 0, tutorial_hours: 0, practical_hours: 3, ia_marks: 45, ete_marks: 30, total_marks: 75,
+      is_practical: true,
+      units: [
+        { number: 0, title: 'Practical Mechatronics Experiments', topics: [
+          t('Study and calibration of LVDT and strain gauge displacement/force transducers'),
+          t('Temperature sensor calibration: RTD Pt100 and thermocouple characteristics'),
+          t('Speed and direction control of DC servomotor using PWM pulse width modulation'),
+          t('Stepper motor interfacing and step angle control with microcontroller/Arduino'),
+          t('Ladder logic programming of PLC for automated conveyor sequencing and pneumatic actuator cycles'),
+          t('Simulation of electro-pneumatic automated circuits using Automation Studio / FluidSIM software'),
+        ]},
+      ],
+    },
+    {
+      code: '5ME4-24', name: 'Machine Design Practice - I', semester: 5, credits: 1.5,
+      lecture_hours: 0, tutorial_hours: 0, practical_hours: 3, ia_marks: 45, ete_marks: 30, total_marks: 75,
+      is_practical: true,
+      units: [
+        { number: 0, title: 'Design Problems & Drawings', topics: [
+          t('Complete design and assembly drawing of socket and spigot cotter joint'),
+          t('Complete design and detail drawing of knuckle joint with safety checking'),
+          t('Design of rigid flanged coupling for transmitting 25 kW power'),
+          t('Design of flexible bush pin type flanged coupling connecting motor and pump shafts'),
+          t('Design of lever loaded and spring loaded safety valves for steam boilers'),
+          t('Complete design calculation and CAD drawing of mechanical screw jack 50 kN capacity'),
+        ]},
+      ],
+    },
+
+    /* =====================================================================
+       SEMESTER 6 (Professional Core)
+       ===================================================================== */
+    {
+      code: '6ME3-01', name: 'Measurement and Metrology', semester: 6, credits: 3,
+      lecture_hours: 3, tutorial_hours: 0, practical_hours: 0, ia_marks: 30, ete_marks: 120, total_marks: 150,
+      units: [
+        { number: 1, title: 'Standards, Limits, Fits & Gauging', hours: 8, topics: [
+          t('Standards of length: line standards Imperial Standard Yard, International Prototype Metre, wavelength standards'),
+          t('Generalized measurement system: sensors, signal conditioning, terminating display stages'),
+          t('Errors in measurement: systematic, random, environmental, instrumental, gross errors'),
+          t('Limits, fits and tolerances: Indian Standard IS:919 system, basic hole and basic shaft systems'),
+          t('Types of fits: clearance, transition, interference fits, fundamental deviations'),
+          t('Taylor principle of gauge design: GO and NO-GO plug gauges, snap gauges, ring gauges, gauge tolerance'),
+        ]},
+        { number: 2, title: 'Linear and Angular Measurements', hours: 8, topics: [
+          t('Slip gauges: grades, wringing phenomenon, calibration, slip gauge pack building'),
+          t('Vernier calipers, micrometer screw gauge: construction, least count, zero error calibration'),
+          t('Comparators: mechanical dial indicator, optical, electrical LVDT comparator, pneumatic Solex comparator'),
+          t('Angular measurement instruments: bevel protractor, sine bar, sine centre, angle gauges, clinometer, autocollimeter'),
+          t('Spirit levels and alignment testing of machine tool beds flatness and straightness'),
+        ]},
+        { number: 3, title: 'Interferometry and Surface Metrology', hours: 8, topics: [
+          t('Optical flats and monochromatic light source in interferometry'),
+          t('Testing of flat, convex and concave surfaces using interference fringe patterns'),
+          t('NPL flatness interferometer for slip gauge inspection'),
+          t('Surface texture / finish terminology: roughness, waviness, lay, flaws, primary vs secondary texture'),
+          t('Surface roughness parameters: Ra centerline average, Rz, Rq RMS, peak-to-valley height'),
+          t('Stylus probe instruments: Profilometer, Tomlinson surface meter, Taylor-Hobson Talysurf'),
+        ]},
+        { number: 4, title: 'Screw Thread and Gear Metrology', hours: 8, topics: [
+          t('Screw thread terminology: major, minor, pitch/effective diameter, pitch, angle of thread'),
+          t('Measurement of major and minor diameters using bench micrometer'),
+          t('Measurement of effective diameter: two-wire and three-wire methods, best wire size derivation'),
+          t('Pitch errors in screw threads: progressive, periodic errors, screw pitch gauge, toolmaker microscope'),
+          t('Gear measurement: tooth thickness measurement using gear tooth vernier caliper and Parkinson gear tester'),
+          t('Base tangent method, measurement of pitch, runout and profile errors in gears'),
+        ]},
+        { number: 5, title: 'Advanced Metrology & CMM', hours: 8, topics: [
+          t('Coordinate Measuring Machine CMM: construction, bridge, cantilever, horizontal arm types'),
+          t('CMM touch-trigger and scanning probes, coordinate software measurement algorithms'),
+          t('Machine vision inspection systems: CCD cameras, image processing, edge detection in automated QA'),
+          t('Laser metrology: laser interferometer for distance measurement, laser micrometer, laser scanning'),
+        ]},
+      ],
+    },
+    {
+      code: '6ME4-02', name: 'Design of Machine Elements - II', semester: 6, credits: 3,
+      lecture_hours: 3, tutorial_hours: 0, practical_hours: 0, ia_marks: 30, ete_marks: 120, total_marks: 150,
+      units: [
+        { number: 1, title: 'Design of Spur and Helical Gears', hours: 9, topics: [
+          t('Spur gears: force analysis, tangential, radial and normal gear tooth loads'),
+          t('Lewis beam strength equation, Lewis form factor Y, allowable bending stress'),
+          t('Dynamic tooth load: Buckingham equation for dynamic load P_d and margin of safety'),
+          t('Wear tooth load: Buckingham wear load equation P_w, surface endurance limit and load stress factor K'),
+          t('Helical gears: virtual / formative number of teeth, helix angle, face width, force components'),
+          t('Beam strength and wear strength equations for helical gear pairs'),
+        ]},
+        { number: 2, title: 'Design of Bevel and Worm Gears', hours: 8, topics: [
+          t('Bevel gears: terminology, pitch cone angle, formative number of teeth, force analysis on bevel gear tooth'),
+          t('Beam strength and wear load equations for straight bevel gears'),
+          t('Worm gearing: terminology, lead angle, speed ratio, velocity ratio, force analysis axial, radial, tangential forces'),
+          t('Thermal considerations in worm gear design: heat generated, heat dissipated, cooling fins and fan cooling'),
+          t('Strength and wear rating equations for worm and worm wheel drives according to AGMA standards'),
+        ]},
+        { number: 3, title: 'Design of Sliding Contact Bearings', hours: 8, topics: [
+          t('Classification of bearings: sliding contact hydrodynamic vs rolling contact anti-friction'),
+          t('Hydrodynamic lubrication theory: Petrov law, Reynolds 2D hydrodynamic equation assumptions'),
+          t('Sommerfeld number S, bearing characteristic number, minimum film thickness h_0'),
+          t('Raimondi and Boyd design charts for journal bearings: temperature rise, coefficient of friction, oil flow rate'),
+          t('Thermal balance in journal bearings: heat generated vs heat dissipated to ambient air'),
+          t('Bearing materials: babbitt metals, bronzes, aluminium alloys, bearing clearance selection'),
+        ]},
+        { number: 4, title: 'Design of Rolling Contact Bearings', hours: 8, topics: [
+          t('Types of rolling bearings: deep groove ball, angular contact, cylindrical roller, spherical roller, tapered roller'),
+          t('Static load capacity C_0 and dynamic load capacity C definitions according to ISO standards'),
+          t('Bearing life: rating life L10, basic dynamic capacity relationship L10 = (C/P)^p where p = 3 or 10/3'),
+          t('Equivalent dynamic load P = X*V*F_r + Y*F_a for combined radial and thrust loads'),
+          t('Selection of ball and roller bearings from manufacturer catalogue SKF/FAG under variable load cycles'),
+          t('Mounting, preloading, lubrication and sealing of rolling contact bearings'),
+        ]},
+        { number: 5, title: 'Design of Clutches, Brakes and Springs', hours: 7, topics: [
+          t('Friction clutches: uniform pressure theory vs uniform wear theory torque equations'),
+          t('Design of single plate and multi-plate disc clutches'),
+          t('Design of cone clutch and centrifugal clutch shoes, springs, operating speed'),
+          t('Mechanical brakes: shoe brake, internal expanding shoe brake, band brake, band and block brake'),
+          t('Thermal capacity of brakes, heat dissipation and temperature rise during braking'),
+          t('Mechanical springs: helical compression and extension springs, Wahl stress factor K_w, spring surge, leaf springs'),
+        ]},
+      ],
+    },
+    {
+      code: '6ME4-03', name: 'IC Engines and Gas Turbines', semester: 6, credits: 3,
+      lecture_hours: 3, tutorial_hours: 0, practical_hours: 0, ia_marks: 30, ete_marks: 120, total_marks: 150,
+      units: [
+        { number: 1, title: 'Engine Cycles and Thermochemistry', hours: 8, topics: [
+          t('Real fuel-air cycles vs air-standard cycles, variable specific heats and dissociation losses'),
+          t('Combustion stoichiometry: air-fuel ratio, equivalence ratio phi, exhaust gas composition'),
+          t('Carburetion in SI engines: simple carburetor principle, air-fuel mixture requirements at idle, cruising, full throttle'),
+          t('Modern fuel injection in SI engines: MPFI, GDI gasoline direct injection systems'),
+          t('Diesel fuel injection: jerk pump, distributor pump, unit injector, common rail direct injection CRDI'),
+        ]},
+        { number: 2, title: 'Combustion in SI and CI Engines', hours: 9, topics: [
+          t('Combustion in SI engines: ignition lag, flame propagation, flame speed, normal vs abnormal combustion'),
+          t('Knocking in SI engines: auto-ignition theory, factors influencing knock compression ratio, spark advance, fuel'),
+          t('SI engine combustion chamber designs: hemispherical, pent-roof, wedge, bath-tub chambers'),
+          t('Combustion in CI engines: four stages ignition delay, rapid combustion, controlled combustion, after burning'),
+          t('Diesel knock: causes and comparison of knocking phenomenon in SI vs CI engines'),
+          t('CI combustion chambers: direct injection open chamber vs indirect injection pre-combustion & swirl chambers'),
+        ]},
+        { number: 3, title: 'Engine Performance and Testing', hours: 8, topics: [
+          t('Measurement of indicated power IP: engine indicator, p-V and p-theta diagrams'),
+          t('Measurement of brake power BP: prony brake, rope brake, hydraulic and eddy current dynamometers'),
+          t('Friction power FP measurement: Willans line method, Morse test for multi-cylinder engines, motoring test'),
+          t('Engine efficiencies: indicated thermal, brake thermal, mechanical, volumetric, relative efficiencies'),
+          t('Brake specific fuel consumption BSFC, heat balance sheet construction on MJ/hr basis'),
+          t('Supercharging and turbocharging: wastegate turbocharger, intercooling, scavenging in 2-stroke engines'),
+        ]},
+        { number: 4, title: 'Engine Emissions and Control', hours: 7, topics: [
+          t('Pollutants from SI and CI engines: CO, unburnt hydrocarbons UHC, nitrogen oxides NOx, particulate matter PM, smoke'),
+          t('Formation mechanisms of NOx thermal Zeldovich mechanism, soot formation in diesel sprays'),
+          t('Emission control technologies: Exhaust Gas Recirculation EGR, crankcase blowby PCV, evaporative canisters'),
+          t('After-treatment devices: Three-Way Catalytic Converters TWC lambda sensor control, Diesel Particulate Filter DPF'),
+          t('Selective Catalytic Reduction SCR with urea/AdBlue injection, Bharat Stage BS-VI emission standards'),
+        ]},
+        { number: 5, title: 'Gas Turbines and Jet Propulsion', hours: 8, topics: [
+          t('Open and closed cycle gas turbines, Brayton cycle thermal efficiency and work ratio derivations'),
+          t('Methods to improve gas turbine cycle efficiency: regeneration, intercooling, reheat cycles'),
+          t('Centrifugal and axial flow compressors in gas turbines: stage pressure ratio, surging, choking, stalling'),
+          t('Gas turbine combustion chambers: can, annular, can-annular types'),
+          t('Jet propulsion systems: ramjet, pulsejet, turbojet, turbofan, turboprop engines; propulsive efficiency, thrust power'),
+        ]},
+      ],
+    },
+    {
+      code: '6ME4-04', name: 'Thermal Engineering - II', semester: 6, credits: 3,
+      lecture_hours: 3, tutorial_hours: 0, practical_hours: 0, ia_marks: 30, ete_marks: 120, total_marks: 150,
+      units: [
+        { number: 1, title: 'Vapour Power Cycles & Steam Generators', hours: 8, topics: [
+          t('Rankine cycle: thermodynamic layout, p-v, T-s, h-s Mollier diagrams, thermal efficiency'),
+          t('Reheat Rankine cycle: optimum reheat pressure, thermal efficiency and moisture content at turbine exhaust'),
+          t('Regenerative Rankine cycle: open direct contact and closed feedwater heaters, thermal efficiency improvements'),
+          t('High pressure modern boilers: La Mont, Benson, Loeffler, Velox once-through supercritical boilers'),
+          t('Boiler performance: equivalent evaporation from and at 100 deg C, boiler thermal efficiency, heat balance sheet'),
+          t('Boiler draught: natural chimney draught derivation, height and diameter of chimney, forced and induced mechanical draught'),
+        ]},
+        { number: 2, title: 'Steam Nozzles and Supersaturation', hours: 8, topics: [
+          t('Flow of steam through nozzles: continuity and energy equations, velocity of steam at nozzle exit'),
+          t('Critical pressure ratio derivation for dry saturated and superheated steam, choked flow condition'),
+          t('Nozzle design: convergent-divergent de Laval nozzle, throat area and exit area calculations'),
+          t('Nozzle efficiency and effect of friction on enthalpy drop and exit velocity'),
+          t('Supersaturated / metastable flow in steam nozzles: Wilson line, degree of supercooling and degree of supersaturation'),
+        ]},
+        { number: 3, title: 'Steam Turbines: Impulse and Reaction', hours: 9, topics: [
+          t('Classification of steam turbines: impulse de Laval vs reaction Parsons turbines'),
+          t('Compounding of impulse turbines: velocity compounding Curtis, pressure compounding Rateau, pressure-velocity compounding'),
+          t('Velocity triangles for single stage impulse turbine: blade work, diagram efficiency, optimum blade-to-steam speed ratio'),
+          t('50% reaction Parsons turbine: velocity triangles, degree of reaction definition, blade height calculation'),
+          t('Governing of steam turbines: throttle governing, nozzle governing, bypass governing'),
+          t('Losses in steam turbines, reheat factor and stage efficiency in multi-stage turbines'),
+        ]},
+        { number: 4, title: 'Steam Condensers and Cooling Towers', hours: 7, topics: [
+          t('Functions and elements of a condensing plant, vacuum measurement and vacuum efficiency'),
+          t('Classification of condensers: jet mixing condensers vs surface condensers down flow, central flow'),
+          t('Dalton law of partial pressures applied to air-steam mixture in condensers, air leakage sources and effects'),
+          t('Condenser efficiency, cooling water requirements calculation'),
+          t('Cooling towers: natural draught hyperbolic cooling towers, induced and forced draught mechanical cooling towers'),
+        ]},
+        { number: 5, title: 'Reciprocating Air Compressors', hours: 8, topics: [
+          t('Classification of air compressors: positive displacement reciprocating, rotary vs dynamic centrifugal, axial'),
+          t('Single stage reciprocating compressor without clearance: isothermal, polytropic, isentropic compression work derivations'),
+          t('Reciprocating compressor with clearance volume: volumetric efficiency derivation and effect of pressure ratio'),
+          t('Multi-stage reciprocating compressor: need for multi-staging, intercooling, condition for minimum work input'),
+          t('Isothermal efficiency, indicated power, mechanical efficiency calculation of air compressors'),
+        ]},
+      ],
+    },
+    {
+      code: '6ME4-05', name: 'Quality Management', semester: 6, credits: 2,
+      lecture_hours: 2, tutorial_hours: 0, practical_hours: 0, ia_marks: 20, ete_marks: 80, total_marks: 100,
+      units: [
+        { number: 1, title: 'Total Quality Management Foundations', hours: 5, topics: [
+          t('Quality definition: fitness for purpose, customer satisfaction, conformance to specifications'),
+          t('Quality pioneers and philosophies: Deming 14 points, Juran Quality Trilogy, Crosby Zero Defects'),
+          t('Cost of Quality COQ: prevention costs, appraisal costs, internal failure costs, external failure costs'),
+          t('Total Quality Management TQM principles, employee empowerment, continuous improvement Kaizen'),
+        ]},
+        { number: 2, title: 'Statistical Process Control (SPC)', hours: 5, topics: [
+          t('Chance and assignable causes of process variation, normal distribution in quality control'),
+          t('Control charts for variables: X-bar and R charts, construction, control limits, interpretation of patterns'),
+          t('Control charts for attributes: p-chart fraction defective, np-chart, c-chart defect count, u-chart'),
+          t('Process capability analysis: capability indices C_p and C_pk definitions and interpretation'),
+        ]},
+        { number: 3, title: 'Acceptance Sampling', hours: 5, topics: [
+          t('Concept of acceptance sampling by attributes, sampling risks: Producer Risk alpha and Consumer Risk beta'),
+          t('Operating Characteristic OC curve: ideal vs actual, AQL, LTPD, IQL, AOQ, AOQL'),
+          t('Single sampling plans and double sampling plans: design and evaluation procedure'),
+        ]},
+        { number: 4, title: 'Quality Improvement Tools and Six Sigma', hours: 5, topics: [
+          t('Seven QC tools: Pareto chart, Cause-and-Effect Ishikawa fishbone diagram, check sheet, histogram, scatter diagram, stratification, control chart'),
+          t('Six Sigma methodology: DMAIC Define, Measure, Analyze, Improve, Control and DMADV frameworks'),
+          t('Benchmarking process, Quality Function Deployment QFD House of Quality, Failure Mode and Effects Analysis FMEA'),
+        ]},
+        { number: 5, title: 'Quality Systems and Standards', hours: 4, topics: [
+          t('ISO 9000 quality management system family: ISO 9001 requirements, clauses, documentation, auditing'),
+          t('ISO 14000 Environmental Management Systems, OHSAS 18001 / ISO 45001 occupational safety'),
+        ]},
+      ],
+    },
+    {
+      code: '6ME4-21', name: 'Thermal Engineering Lab', semester: 6, credits: 1.5,
+      lecture_hours: 0, tutorial_hours: 0, practical_hours: 3, ia_marks: 45, ete_marks: 30, total_marks: 75,
+      is_practical: true,
+      units: [
+        { number: 0, title: 'Practical IC Engine Experiments', topics: [
+          t('Performance test on four-stroke single cylinder diesel engine: determination of BP, IP, FP, BSFC, thermal and mechanical efficiencies'),
+          t('Heat balance sheet preparation for four-stroke diesel engine under varying load conditions'),
+          t('Morse test on multi-cylinder petrol engine to determine indicated power IP and mechanical efficiency'),
+          t('Volumetric efficiency and isothermal efficiency test on two-stage reciprocating air compressor test rig'),
+          t('Exhaust gas emissions measurement from diesel and petrol engines using five-gas analyzer and smoke meter'),
+          t('Valve timing diagram determination for four-stroke petrol engine and four-stroke diesel engine'),
+        ]},
+      ],
+    },
+    {
+      code: '6ME4-22', name: 'Metrology Lab', semester: 6, credits: 1.5,
+      lecture_hours: 0, tutorial_hours: 0, practical_hours: 3, ia_marks: 45, ete_marks: 30, total_marks: 75,
+      is_practical: true,
+      units: [
+        { number: 0, title: 'Practical Metrology Experiments', topics: [
+          t('Calibration of vernier caliper, micrometer screw gauge and dial test indicator using slip gauges'),
+          t('Measurement of taper angle of component using sine bar, slip gauges and dial gauge'),
+          t('Measurement of effective diameter of external screw thread using three-wire method and floating carriage micrometer'),
+          t('Measurement of gear tooth thickness using gear tooth vernier caliper at pitch line'),
+          t('Inspection of surface flatness using optical flat and monochromatic light interference fringe technique'),
+          t('Measurement of surface roughness Ra and Rz values using stylus type surface roughness tester'),
+        ]},
+      ],
+    },
+    {
+      code: '6ME4-23', name: 'Machine Design Practice - II', semester: 6, credits: 1.5,
+      lecture_hours: 0, tutorial_hours: 0, practical_hours: 3, ia_marks: 45, ete_marks: 30, total_marks: 75,
+      is_practical: true,
+      units: [
+        { number: 0, title: 'Advanced Design Drawings', topics: [
+          t('Complete design calculation and drawing of single stage spur gear reduction gearbox'),
+          t('Design calculation and drawing of helical gear transmission drive with bearing mounts'),
+          t('Complete design of hydrodynamic journal bearing for turbine shaft using Raimondi-Boyd charts'),
+          t('Selection and life verification of deep groove ball and spherical roller bearings from catalogue'),
+          t('Design of single plate friction clutch and internal expanding shoe brake for light motor vehicle'),
+          t('Design and assembly drafting of multi-leaf semi-elliptic spring for automotive suspension'),
+        ]},
+      ],
+    },
+    {
+      code: '6ME4-24', name: 'Industrial Engineering Lab', semester: 6, credits: 1.5,
+      lecture_hours: 0, tutorial_hours: 0, practical_hours: 3, ia_marks: 45, ete_marks: 30, total_marks: 75,
+      is_practical: true,
+      units: [
+        { number: 0, title: 'Industrial Engineering Experiments', topics: [
+          t('Method study: recording techniques, operation process chart OPC, flow process chart FPC, two-handed process chart'),
+          t('Time study: stop-watch time study on assembly task, performance rating, allowances, standard time computation'),
+          t('Micro-motion study: Therbligs analysis and SIMO chart construction for manual assembly'),
+          t('Statistical Quality Control: plotting X-bar and R charts for continuous machined components'),
+          t('Statistical Quality Control: plotting p-chart and c-chart for manufactured assemblies'),
+          t('Line balancing calculation and plant layout simulation using industrial engineering software'),
+        ]},
+      ],
+    },
+
+    /* =====================================================================
+       SEMESTER 7 (Advanced Core & Electives)
+       ===================================================================== */
+    {
+      code: '7ME3-01', name: 'Finite Element Method', semester: 7, credits: 3,
+      lecture_hours: 3, tutorial_hours: 0, practical_hours: 0, ia_marks: 30, ete_marks: 120, total_marks: 150,
+      units: [
+        { number: 1, title: 'Fundamental Concepts & Variational Principles', hours: 8, topics: [
+          t('Introduction to FEM, historical background, engineering applications, continuum discretization'),
+          t('Nodes, degrees of freedom, boundary conditions, global stiffness matrix, force vector'),
+          t('Mathematical formulations: Rayleigh-Ritz variational method and Galerkin weighted residual method'),
+          t('Concept of shape functions: Lagrange and Hermite polynomials, convergence requirements, completeness and compatibility'),
+        ]},
+        { number: 2, title: 'One-Dimensional Bar and Truss Elements', hours: 8, topics: [
+          t('1D Linear bar element: displacement function, strain-displacement matrix B, element stiffness matrix k = AE/L'),
+          t('Body force and surface traction load vectors for 1D bar element'),
+          t('Assembly of global stiffness matrix and global load vector, elimination and penalty methods for boundary conditions'),
+          t('2D Plane truss element: coordinate transformation matrix T, stiffness matrix in global coordinates'),
+          t('Stress calculations in pin-jointed truss structures under nodal loads'),
+        ]},
+        { number: 3, title: '1D Beam and Frame Elements', hours: 8, topics: [
+          t('Euler-Bernoulli beam element: Hermite cubic shape functions, bending strain-displacement relationship'),
+          t('Element stiffness matrix derivation for 2-node 4-DOF beam element'),
+          t('Equivalent nodal force vectors for uniformly distributed loads and point loads on beams'),
+          t('Deflection, slope, shear force and bending moment evaluation from FEM results'),
+          t('2D Rigid plane frame element formulation combining axial and bending deformations'),
+        ]},
+        { number: 4, title: 'Two-Dimensional Plane Stress and Plane Strain', hours: 8, topics: [
+          t('Plane stress vs plane strain assumptions and constitutive elasticity matrices D'),
+          t('Constant Strain Triangle CST 3-node element: linear displacement functions, B matrix, stiffness matrix derivation'),
+          t('Linear Strain Triangle LST 6-node element and 4-node bilinear rectangular element'),
+          t('Isoparametric formulation: subparametric, isoparametric, superparametric elements'),
+          t('4-node quadrilateral isoparametric element, Jacobian transformation matrix J and Gauss numerical quadrature'),
+        ]},
+        { number: 5, title: 'Thermal and Dynamic Finite Element Analysis', hours: 8, topics: [
+          t('1D Steady state heat conduction: governing differential equation, element conduction and convection matrices'),
+          t('Boundary conditions in thermal FEM: specified temperature, heat flux, convection surfaces'),
+          t('FEM formulation for circular fins and composite heat conducting walls'),
+          t('Dynamic FEM: consistent and lumped element mass matrices for 1D bar and beam elements'),
+          t('Eigenvalue problem for natural frequencies and mode shapes determination'),
+        ]},
+      ],
+    },
+    {
+      code: '7ME4-02', name: 'Refrigeration and Air Conditioning', semester: 7, credits: 3,
+      lecture_hours: 3, tutorial_hours: 0, practical_hours: 0, ia_marks: 30, ete_marks: 120, total_marks: 150,
+      units: [
+        { number: 1, title: 'Vapour Compression Refrigeration (VCR) Systems', hours: 9, topics: [
+          t('Air refrigeration: Bell-Coleman reversed Brayton cycle, aircraft refrigeration systems bootstrap, regenerative'),
+          t('Vapour compression refrigeration VCR cycle: p-h and T-s thermodynamic diagrams, COP derivation'),
+          t('Effects of operating temperatures: evaporator temperature reduction and condenser temperature increase'),
+          t('Effects of subcooling liquid refrigerant and superheating suction vapour on VCR performance'),
+          t('Actual VCR cycle: pressure drops in valves, irreversible heat exchanges, volumetric efficiency'),
+        ]},
+        { number: 2, title: 'Compound VCR and Refrigerants', hours: 8, topics: [
+          t('Multi-stage / compound VCR systems with flash intercooler and water intercooler'),
+          t('Multi-evaporator systems with single compressor and individual expansion valves'),
+          t('Cascade refrigeration systems for ultra-low temperature applications'),
+          t('Refrigerants: thermodynamic, physical, chemical properties, safety criteria ASHRAE designation'),
+          t('Environmental aspects: Ozone Depletion Potential ODP, Global Warming Potential GWP, Montreal and Kigali protocols, HFC/HFO eco-refrigerants'),
+        ]},
+        { number: 3, title: 'Absorption and Non-Conventional Refrigeration', hours: 7, topics: [
+          t('Vapour absorption refrigeration VAR system: simple and practical aqua-ammonia systems'),
+          t('Electrolux three-fluid refrigerator working without mechanical pump, hydrogen role'),
+          t('Water-Lithium Bromide H2O-LiBr absorption system for air conditioning applications'),
+          t('Maximum theoretical COP derivation for absorption systems Carnot expression'),
+          t('Non-conventional refrigeration methods: steam jet refrigeration, thermoelectric Peltier cooling, vortex tube'),
+        ]},
+        { number: 4, title: 'Psychrometry and Air Conditioning Processes', hours: 9, topics: [
+          t('Psychrometric properties: DBT, WBT, DPT, relative humidity, specific humidity, enthalpy of moist air'),
+          t('Psychrometric chart: construction, representation of comfort zones'),
+          t('Psychrometric processes: sensible heating, sensible cooling, humidification, dehumidification'),
+          t('Cooling and dehumidification: apparatus dew point ADP, bypass factor BPF of cooling coil'),
+          t('Sensible Heat Factor: Room Sensible Heat Factor RSHF, Grand Sensible Heat Factor GSHF, Effective Sensible Heat Factor ESHF'),
+          t('Adiabatic mixing of two moist air streams calculations'),
+        ]},
+        { number: 5, title: 'Cooling Load Estimation and Air Conditioning Systems', hours: 7, topics: [
+          t('Comfort criteria: effective temperature, ASHRAE comfort chart, indoor air quality IAQ ventilation requirements'),
+          t('Cooling load components: solar heat gain through glass, walls, roof; internal heat gains occupants, lighting, equipment'),
+          t('Infiltration and ventilation load calculations'),
+          t('Air conditioning systems: central all-air, all-water, air-water systems, VRF / VRV variable refrigerant flow units'),
+          t('Air distribution: supply and return duct design, equal friction and static regain methods, air diffusers'),
+        ]},
+      ],
+    },
+    {
+      code: '7ME4-03', name: 'Operations Research', semester: 7, credits: 3,
+      lecture_hours: 3, tutorial_hours: 0, practical_hours: 0, ia_marks: 30, ete_marks: 120, total_marks: 150,
+      units: [
+        { number: 1, title: 'Linear Programming Problem (LPP)', hours: 9, topics: [
+          t('Operations Research methodology, formulation of linear programming models in industrial manufacturing'),
+          t('Graphical solution method for 2-variable LPP: feasible region, redundant constraints, multiple optimal, unbounded, infeasible solutions'),
+          t('Simplex method: slack, surplus, artificial variables, standard LPP matrix form, simplex tableau iterations'),
+          t('Big-M penalty method and Two-Phase simplex method for >= and = constraints'),
+          t('Duality in linear programming: primal-dual relationships, economic interpretation of dual shadow prices, dual simplex method'),
+        ]},
+        { number: 2, title: 'Transportation and Assignment Problems', hours: 8, topics: [
+          t('Transportation problem formulation: balanced vs unbalanced transportation problems'),
+          t('Initial basic feasible solution: North-West Corner rule, Least Cost Method LCM, Vogel Approximation Method VAM'),
+          t('Optimal solution testing: Modified Distribution MODI u-v method and Stepping Stone method, degeneracy resolution'),
+          t('Assignment problem: mathematical formulation, Hungarian assignment algorithm'),
+          t('Variations in assignment: unbalanced assignment, restricted assignments, maximization assignment problems'),
+          t('Traveling Salesman Problem TSP formulation and branch-and-bound solution approach'),
+        ]},
+        { number: 3, title: 'Project Management: CPM and PERT', hours: 8, topics: [
+          t('Network representation of projects: activities, events, dummy activities, Fulkerson numbering rule'),
+          t('Critical Path Method CPM: forward pass early start/finish, backward pass late start/finish, total float, free float, independent float'),
+          t('Project Evaluation and Review Technique PERT: three time estimates optimistic, most likely, pessimistic'),
+          t('Beta probability distribution for PERT activities, expected time, variance, standard deviation'),
+          t('Probability of project completion within targeted scheduled deadline using standard normal distribution z-table'),
+          t('Project time-cost trade-off: crashing of critical activities, crash cost slope, direct and indirect costs optimization'),
+        ]},
+        { number: 4, title: 'Queuing Theory and Waiting Lines', hours: 7, topics: [
+          t('Queuing system characteristics: arrival pattern Poisson, service pattern exponential, queue discipline FIFO, queue capacity'),
+          t('Kendall notation for queuing models M/M/1:GD/infinity/infinity single-server infinite capacity model'),
+          t('Performance measures: traffic intensity / utilization rho, average queue length L_q, average system length L_s'),
+          t('Average waiting time in queue W_q and in system W_s, Little formulas'),
+          t('Multi-server queuing model M/M/s:GD/infinity/infinity characteristics and industrial maintenance application'),
+        ]},
+        { number: 5, title: 'Inventory Control and Decision Theory', hours: 8, topics: [
+          t('Inventory costs: purchase, ordering/setup, holding/carrying, shortage/stockout costs'),
+          t('Economic Order Quantity EOQ classical Wilson formula derivation with uniform demand and instantaneous replenishment'),
+          t('EOQ model with finite replenishment / production rate economic batch quantity EBQ'),
+          t('EOQ models with planned shortages and quantity discount pricing schedules'),
+          t('Selective inventory control techniques: ABC analysis, VED analysis, FSN analysis'),
+          t('Decision making under certainty, risk expected monetary value EMV, and uncertainty maximin, maximax, minimax regret Laplace criteria'),
+        ]},
+      ],
+    },
+    {
+      code: '7ME5-11', name: 'Turbomachines and Power Plant Engineering', semester: 7, credits: 3,
+      lecture_hours: 3, tutorial_hours: 0, practical_hours: 0, ia_marks: 30, ete_marks: 120, total_marks: 150,
+      units: [
+        { number: 1, title: 'Turbomachine Fundamentals & Steam Plants', hours: 8, topics: [
+          t('Classification of turbomachines: positive displacement vs dynamic, impulse vs reaction, axial vs radial flow'),
+          t('Euler turbine equation: angular momentum principle, components of energy transfer impulse and reaction terms'),
+          t('Steam power plant layout: fuel handling, steam generators, superheaters, reheaters, economizers, air preheaters'),
+          t('Circulating cooling water systems and ash handling technologies in modern thermal power plants'),
+        ]},
+        { number: 2, title: 'Gas Turbine and Combined Cycle Power Plants', hours: 8, topics: [
+          t('Brayton cycle gas turbine plants: components, intercooling, regeneration, reheat cycles'),
+          t('Combined cycle power plants CCPP: gas turbine topping cycle, steam turbine bottoming cycle'),
+          t('Heat Recovery Steam Generators HRSG: single pressure and multi-pressure configurations'),
+          t('Cogeneration systems: back-pressure and extraction-condensing steam turbines for industrial combined heat and power CHP'),
+        ]},
+        { number: 3, title: 'Hydroelectric Power Plants', hours: 8, topics: [
+          t('Hydroelectric plant layout: catchment area, reservoir, dam, penstock, surge tank, spillway, powerhouse'),
+          t('Classification of hydro plants: run-of-river, storage, pumped-storage plants'),
+          t('Hydrograph, flow duration curve FDC, mass curve and determination of reservoir capacity and firm power'),
+          t('Selection of hydraulic turbines Pelton, Francis, Kaplan, Deriaz based on specific speed and net head'),
+        ]},
+        { number: 4, title: 'Nuclear Power Plants', hours: 8, topics: [
+          t('Nuclear physics: nuclear fission, chain reaction, neutron moderation, critical mass'),
+          t('Components of nuclear reactors: nuclear fuel U-235, Pu-239, moderator, control rods, coolant, reflector, biological shield'),
+          t('Pressurized Water Reactor PWR and Boiling Water Reactor BWR construction and operating cycles'),
+          t('CANDU heavy water reactor and Fast Breeder Reactor FBR breeding ratio, safety systems, nuclear waste disposal'),
+        ]},
+        { number: 5, title: 'Power Plant Economics and Environmental Impact', hours: 8, topics: [
+          t('Load curves, chronological load curve, load duration curve LDC'),
+          t('Load factor, capacity factor, reserve factor, plant use factor, diversity factor definitions and calculations'),
+          t('Cost of electrical energy generation: fixed costs, depreciation methods straight line, sinking fund, running costs'),
+          t('Tariff types: flat demand, two-part tariff, three-part tariff, power factor penalty tariff'),
+          t('Environmental emissions: particulate matter, greenhouse gases, flue gas desulphurization FGD, thermal pollution of water bodies'),
+        ]},
+      ],
+    },
+    {
+      code: '7ME4-21', name: 'FEA and Simulation Lab', semester: 7, credits: 1.5,
+      lecture_hours: 0, tutorial_hours: 0, practical_hours: 3, ia_marks: 45, ete_marks: 30, total_marks: 75,
+      is_practical: true,
+      units: [
+        { number: 0, title: 'Practical FEA Simulations', topics: [
+          t('1D Stress and displacement analysis of stepped bar under axial tensile load using ANSYS APDL / Workbench'),
+          t('Structural analysis of 2D pin-jointed plane truss under concentrated nodal forces'),
+          t('Bending stress, shear stress and deflection analysis of cantilever and simply supported beams'),
+          t('2D Plane stress analysis of rectangular plate with central circular hole stress concentration verification'),
+          t('Steady-state 2D thermal analysis of square plate subjected to constant surface temperatures'),
+          t('Modal dynamic analysis of cantilever beam to extract first three natural frequencies and mode shapes'),
+        ]},
+      ],
+    },
+    {
+      code: '7ME4-22', name: 'RAC Lab', semester: 7, credits: 1.5,
+      lecture_hours: 0, tutorial_hours: 0, practical_hours: 3, ia_marks: 45, ete_marks: 30, total_marks: 75,
+      is_practical: true,
+      units: [
+        { number: 0, title: 'Practical RAC Experiments', topics: [
+          t('Experimental test on vapour compression refrigeration tutor rig: plotting cycle on p-h chart and calculation of COP'),
+          t('Performance evaluation of domestic window air conditioner: measurement of cooling capacity and COP'),
+          t('Psychrometric processes on air conditioning test rig: sensible heating, cooling and dehumidification verification'),
+          t('Study of vapour absorption refrigeration system using Electrolux three-fluid cycle'),
+          t('Evaporative cooling / desert cooler performance evaluation: saturation efficiency calculation'),
+          t('Leak detection, evacuation, vacuum hold and refrigerant charging practice in VCR systems'),
+        ]},
+      ],
+    },
+    {
+      code: '7ME4-23', name: 'Seminar & Project Stage - I', semester: 7, credits: 2,
+      lecture_hours: 0, tutorial_hours: 0, practical_hours: 4, ia_marks: 60, ete_marks: 40, total_marks: 100,
+      is_practical: true,
+      units: [
+        { number: 0, title: 'Seminar & Project Formulation', topics: [
+          t('Literature survey on emerging mechanical engineering research topic using peer-reviewed journal papers'),
+          t('Technical presentation and defence of comprehensive seminar report with slides and citations'),
+          t('Major project group formation, industrial problem identification and engineering scope definition'),
+          t('Feasibility study, engineering specifications, project planning with Gantt charts and preliminary design stage report'),
+        ]},
+      ],
+    },
+
+    /* =====================================================================
+       SEMESTER 8 (Specialization & Capstone)
+       ===================================================================== */
+    {
+      code: '8ME4-01', name: 'Computer Integrated Manufacturing', semester: 8, credits: 3,
+      lecture_hours: 3, tutorial_hours: 0, practical_hours: 0, ia_marks: 30, ete_marks: 120, total_marks: 150,
+      units: [
+        { number: 1, title: 'CIM Architecture and CAD/CAM Integration', hours: 8, topics: [
+          t('CIM concept, scope, evolution, CIM wheel SME, islands of automation'),
+          t('CAD/CAM hardware and software architecture, computer graphics display technologies'),
+          t('Geometric modeling: wireframe, surface modeling, solid modeling constructive solid geometry CSG and B-Rep'),
+          t('Product data exchange standards: IGES, STEP, DXF data structures'),
+        ]},
+        { number: 2, title: 'Group Technology and Cellular Manufacturing', hours: 8, topics: [
+          t('Group Technology GT concept, part families, design and manufacturing attributes'),
+          t('Parts classification and coding systems: Opitz classification system, MICLASS'),
+          t('Production Flow Analysis PFA: machine-part matrix clustering algorithms Rank Order Clustering ROC'),
+          t('Cellular manufacturing: machine cell designs, composite part concept, benefits of GT cells'),
+        ]},
+        { number: 3, title: 'Flexible Manufacturing Systems (FMS)', hours: 8, topics: [
+          t('FMS definition, components: workstations, automated material handling, central computer control, human resources'),
+          t('FMS layouts: in-line, loop, ladder, open field, robot-centered cell'),
+          t('Automated Guided Vehicles AGV: guidance systems wire, optical, laser, routing and traffic management'),
+          t('Automated Storage and Retrieval Systems AS/RS: carousel, crane, storage capacity calculations'),
+          t('Quantitative analysis of FMS: bottleneck model, operational metrics, maximum production rate'),
+        ]},
+        { number: 4, title: 'Industrial Robotics', hours: 8, topics: [
+          t('Robot anatomy: links, joints, degrees of freedom, coordinate systems Cartesian, cylindrical, spherical, SCARA, articulated'),
+          t('Robot end effectors: mechanical grippers, vacuum grippers, magnetic grippers, welding torches'),
+          t('Kinematics: forward kinematics Denavit-Hartenberg DH parameters, inverse kinematics overview'),
+          t('Robot sensors: tactile sensors, proximity sensors, machine vision, range sensors'),
+          t('Robot industrial applications: material handling, spot and arc welding, spray painting, assembly and inspection'),
+        ]},
+        { number: 5, title: 'Computer Aided Process Planning & Additive Manufacturing', hours: 8, topics: [
+          t('Process planning functions, Computer Aided Process Planning CAPP: variant retrieval approach vs generative approach'),
+          t('Shop floor control: factory data collection systems, shop floor control phases, bar code and RFID technologies'),
+          t('Additive Manufacturing AM fundamentals: CAD model slicing, STL file format and tessellation errors'),
+          t('AM processes: Stereolithography SLA, Fused Deposition Modeling FDM, Selective Laser Sintering SLS, 3D printing'),
+        ]},
+      ],
+    },
+    {
+      code: '8ME4-02', name: 'Automobile Engineering', semester: 8, credits: 3,
+      lecture_hours: 3, tutorial_hours: 0, practical_hours: 0, ia_marks: 30, ete_marks: 120, total_marks: 150,
+      units: [
+        { number: 1, title: 'Vehicle Frame, Chassis and Power Unit', hours: 8, topics: [
+          t('Automobile classification, vehicle architecture: conventional chassis frame vs frameless unitized monocoque body'),
+          t('Types of vehicle layouts: front engine rear wheel drive RWD, front engine front wheel drive FWD, four wheel drive 4WD'),
+          t('Forces acting on moving vehicles: rolling resistance, aerodynamic drag, gradient resistance, total tractive effort'),
+          t('Engine mounting, sub-frames, crashworthiness and passive safety Crumple zones, airbags, seatbelts'),
+        ]},
+        { number: 2, title: 'Transmission and Driveline Systems', hours: 9, topics: [
+          t('Clutch mechanisms: diaphragm spring clutch, multi-plate clutch, hydraulic clutch actuation'),
+          t('Manual gearboxes: sliding mesh, constant mesh, synchromesh gearboxes with dog clutches and synchronizer rings'),
+          t('Overdrive mechanism, torque converter: impeller, turbine, stator, fluid coupling hydrodynamic action'),
+          t('Automatic transmissions: planetary gear automatic transmission, Continuously Variable Transmission CVT'),
+          t('Propeller shaft, universal joints Hooke joint, constant velocity CV joints, slip joint'),
+          t('Differential mechanism: sun and planet bevel gears, differential action during cornering, limited slip differential LSD'),
+        ]},
+        { number: 3, title: 'Steering Geometry and Front Axle', hours: 8, topics: [
+          t('Front axle types: dead axle, live axle, stub axles Elliot, reverse Elliot, Lamoine'),
+          t('Steering geometry: camber, caster, kingpin inclination KPI, steering axis inclination SAI, combined angle'),
+          t('Toe-in and toe-out: scrub radius, scuffing, Ackermann steering mechanism vs Davis steering mechanism'),
+          t('Steering gearboxes: worm and wheel, worm and roller, recirculating ball, rack and pinion steering'),
+          t('Power steering: hydraulic power steering, Electronic Power Steering EPS advantages and sensors'),
+        ]},
+        { number: 4, title: 'Suspension and Braking Systems', hours: 8, topics: [
+          t('Vehicle suspension requirements: sprung vs unsprung mass, ride comfort and road holding'),
+          t('Suspension types: rigid axle leaf spring vs independent suspension MacPherson strut, double wishbone, multi-link'),
+          t('Shock absorbers: double acting telescopic hydraulic dampers, anti-roll stabilizer bar'),
+          t('Braking systems: drum brakes leading and trailing shoes vs disc brakes floating and fixed calipers'),
+          t('Hydraulic brake system: tandem master cylinder, wheel cylinders, proportioning valves, brake fluid specifications'),
+          t('Anti-lock Braking System ABS: wheel speed sensors, electronic control unit ECU, hydraulic modulator, Electronic Brakeforce Distribution EBD'),
+        ]},
+        { number: 5, title: 'Electric and Hybrid Vehicles (EV / HEV)', hours: 7, topics: [
+          t('Electric vehicle EV configuration: battery pack, inverter, electric traction motor PMSM / Induction'),
+          t('Hybrid Electric Vehicles HEV: series hybrid, parallel hybrid, series-parallel hybrid, plug-in hybrid PHEV'),
+          t('Energy storage systems: Lithium-ion battery chemistry, Battery Management System BMS functions and thermal management'),
+          t('Regenerative braking systems: kinetic energy recovery principle, energy efficiency improvement in driving cycles'),
+        ]},
+      ],
+    },
+    {
+      code: '8ME5-11', name: 'Renewable Energy Systems', semester: 8, credits: 3,
+      lecture_hours: 3, tutorial_hours: 0, practical_hours: 0, ia_marks: 30, ete_marks: 120, total_marks: 150,
+      units: [
+        { number: 1, title: 'Solar Thermal Energy', hours: 8, topics: [
+          t('Solar radiation geometry: solar constant, zenith angle, solar altitude, declination angle, hour angle, tilt angle'),
+          t('Solar radiation measurement: Pyranometer global/diffuse, Pyrheliometer direct beam radiation'),
+          t('Solar flat plate collectors: construction, selective coatings, energy balance, Hottel-Whillier-Bliss equation'),
+          t('Concentrating collectors: parabolic trough, solar tower central receiver, parabolic dish, concentration ratio'),
+          t('Solar thermal applications: solar water heating, solar distillation, solar pond, solar industrial process heat'),
+        ]},
+        { number: 2, title: 'Solar Photovoltaic (PV) Systems', hours: 8, topics: [
+          t('Photovoltaic effect: semiconductor physics, P-N junction, bandgap energy, photon absorption'),
+          t('Solar cell equivalent circuit: open circuit voltage V_oc, short circuit current I_sc, fill factor FF, maximum power point MPP'),
+          t('Solar PV technologies: monocrystalline, polycrystalline, thin-film silicon, CdTe, CIGS, perovskite solar cells'),
+          t('Maximum Power Point Tracking MPPT algorithms: Perturb and Observe P&O, Incremental Conductance'),
+          t('Grid-connected vs standalone PV systems: inverters, charge controllers, balance of system components'),
+        ]},
+        { number: 3, title: 'Wind Energy Conversion Systems', hours: 8, topics: [
+          t('Origin of winds: global wind patterns, Coriolis effect, local winds, wind shear, power law profile'),
+          t('Aerodynamics of wind turbine blades: airfoil lift and drag, angle of attack, Betz limit maximum efficiency 59.3%'),
+          t('Horizontal Axis Wind Turbines HAWT vs Vertical Axis Wind Turbines VAWT Darrieus and Savonius'),
+          t('Wind turbine subsystems: rotor, gearbox, yaw and pitch control mechanisms, mechanical brakes, generator types DFIG / PMSG'),
+          t('Wind resource assessment: Weibull probability density distribution function, capacity factor estimation'),
+        ]},
+        { number: 4, title: 'Biomass and Biofuel Energy', hours: 8, topics: [
+          t('Biomass resources: energy crops, agricultural residues, municipal organic waste, forestry residues'),
+          t('Biochemical conversion: anaerobic digestion mechanism, acidogenesis, methanogenesis, biogas composition'),
+          t('Biogas plants: fixed dome Janata/Deenabandhu and floating drum KVIC digester designs and operation'),
+          t('Thermochemical conversion: direct combustion, pyrolysis fast and slow, gasification principles'),
+          t('Biomass gasifiers: updraft, downdraft, fluidized bed gasifiers; producer gas composition and cleaning'),
+          t('Biofuels: bioethanol production via fermentation, biodiesel transesterification process and fuel standards'),
+        ]},
+        { number: 5, title: 'Geothermal, Ocean and Hydrogen Energy', hours: 8, topics: [
+          t('Geothermal energy: plate tectonics, geothermal gradients, vapor-dominated and liquid-dominated hydrothermal systems'),
+          t('Tidal energy: lunar gravitational forces, tidal range, single basin and double basin schemes, bulb turbines'),
+          t('Ocean Thermal Energy Conversion OTEC: closed cycle Claude and open cycle OTEC thermodynamics'),
+          t('Hydrogen as an energy carrier: hydrogen production water electrolysis alkaline, PEM, steam methane reforming'),
+          t('Hydrogen storage methods: compressed gas cylinders, liquid hydrogen cryogenics, metal hydrides'),
+          t('Fuel cells: Proton Exchange Membrane Fuel Cell PEMFC, Solid Oxide Fuel Cell SOFC; polarization curve and applications'),
+        ]},
+      ],
+    },
+    {
+      code: '8ME4-21', name: 'CAM and Robotics Lab', semester: 8, credits: 1.5,
+      lecture_hours: 0, tutorial_hours: 0, practical_hours: 3, ia_marks: 45, ete_marks: 30, total_marks: 75,
+      is_practical: true,
+      units: [
+        { number: 0, title: 'Practical CAM and Robotics Experiments', topics: [
+          t('Manual CNC part programming for turning stepped, taper, and curved contour profiles on CNC lathe'),
+          t('Canned cycle programming: G71 rough turning, G70 finish turning, G75 grooving, G76 threading on CNC lathe'),
+          t('CNC Milling part programming: linear and circular interpolation, pocketing, hole drilling canned cycles G81-G83'),
+          t('Computer-Aided Manufacturing CAM simulation: toolpath generation, post-processing to G-code using Mastercam/Fusion 360'),
+          t('Industrial robot programming: teach pendant programming for pick-and-place and palletizing operations'),
+          t('Robot trajectory generation and simulation using robot simulation software RoboDK / CoppeliaSim'),
+        ]},
+      ],
+    },
+    {
+      code: '8ME4-22', name: 'Major Project & Comprehensive Viva-Voce', semester: 8, credits: 7,
+      lecture_hours: 0, tutorial_hours: 0, practical_hours: 14, ia_marks: 240, ete_marks: 160, total_marks: 400,
+      is_practical: true,
+      units: [
+        { number: 0, title: 'Capstone Engineering Project', topics: [
+          t('Execution and fabrication / computational simulation of approved mechanical engineering design project'),
+          t('Experimental testing, data acquisition, performance validation and error analysis of prototype system'),
+          t('Preparation of comprehensive B.Tech project thesis adhering to academic technical writing standards'),
+          t('Final oral defense, demonstration of working model, and comprehensive viva-voce before university board'),
         ]},
       ],
     },

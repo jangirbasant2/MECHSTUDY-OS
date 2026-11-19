@@ -39,17 +39,21 @@ test('IIT syllabus holds Physics, Chemistry, and Mathematics subjects', () => {
   assert.ok(iit.some((s: any) => s.code.includes('MTH') || s.code.includes('MATH')));
 });
 
-test('RTU syllabus holds exactly the ten in-scope subjects', () => {
+test('RTU syllabus holds all 8 semesters with verified Semester 3 subjects', () => {
   const rtu = subjectStats().filter((s: any) => s.exam_type === 'RTU');
+  const sem3 = rtu.filter((s: any) => s.semester === 3);
   assert.deepEqual(
-    rtu.map((s: any) => s.code).sort(),
+    sem3.map((s: any) => s.code).sort(),
     ['3ME1-03/4ME1-03', '3ME2-01', '3ME3-04', '3ME4-05', '3ME4-06', '3ME4-07',
       '3ME4-21', '3ME4-22', '3ME4-23', '3ME4-24'].sort()
   );
 
+  const semesters = new Set(rtu.map((s: any) => s.semester));
+  assert.deepEqual(Array.from(semesters).sort((a: any, b: any) => a - b), [1, 2, 3, 4, 5, 6, 7, 8]);
+
   // Explicit user requirement: Technical Communication is out of scope.
   const forbidden = get<{ c: number }>(
-    "SELECT COUNT(*) AS c FROM subjects WHERE name LIKE '%Technical Communication%' OR code LIKE '%3ME1-02%'"
+    "SELECT COUNT(*) AS c FROM subjects WHERE name LIKE '%Technical Communication%' OR code LIKE '%3ME1-02%' OR code LIKE '%4ME1-02%'"
   );
   assert.equal(forbidden?.c, 0);
 

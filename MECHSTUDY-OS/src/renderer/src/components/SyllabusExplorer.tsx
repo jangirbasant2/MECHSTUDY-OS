@@ -38,6 +38,7 @@ export function SyllabusExplorer({
   const [error, setError] = React.useState<string | null>(null);
   const [expanded, setExpanded] = React.useState<Set<number>>(new Set());
   const [filter, setFilter] = React.useState<'all' | 'theory' | 'practical'>('all');
+  const [selectedSemester, setSelectedSemester] = React.useState<number | 'all'>('all');
   const [query, setQuery] = React.useState('');
   const [selected, setSelected] = React.useState<number | null>(null);
 
@@ -77,6 +78,9 @@ export function SyllabusExplorer({
   const filtered = React.useMemo(() => {
     if (!tree) return [];
     let list = tree;
+    if (examType === 'RTU' && selectedSemester !== 'all') {
+      list = list.filter(s => s.semester === selectedSemester);
+    }
     if (filter === 'theory') list = list.filter(s => !s.isPractical);
     if (filter === 'practical') list = list.filter(s => s.isPractical);
     const term = query.trim().toLowerCase();
@@ -117,6 +121,25 @@ export function SyllabusExplorer({
             }
           />
           {versionInfo}
+          {examType === 'RTU' && (
+            <div className="mt-3 flex items-center gap-1.5 overflow-x-auto pb-1 text-xs">
+              <span className="text-[11px] font-semibold text-[var(--color-muted)] mr-1">Semester:</span>
+              {(['all', 1, 2, 3, 4, 5, 6, 7, 8] as const).map(sem => (
+                <button
+                  key={sem}
+                  type="button"
+                  onClick={() => setSelectedSemester(sem)}
+                  className={`px-2.5 py-1 rounded-md text-xs font-semibold transition-all ${
+                    selectedSemester === sem
+                      ? 'bg-cyan-500 text-black shadow-sm'
+                      : 'bg-[var(--color-panel2)] text-[var(--color-muted)] hover:text-[var(--color-text)] hover:bg-[var(--color-panel)]'
+                  }`}
+                >
+                  {sem === 'all' ? 'All (Sem 1–8)' : `Sem ${sem}`}
+                </button>
+              ))}
+            </div>
+          )}
           <div className="mt-3 flex flex-wrap items-center gap-3">
             <div className="flex items-center gap-2">
               <span className="label">Filter</span>
@@ -172,6 +195,11 @@ export function SyllabusExplorer({
                     {subject.code && (
                       <span className="chip" style={{ fontSize: 10 }}>{subject.code}</span>
                     )}
+                    {subject.semester ? (
+                      <span className="chip" style={{ fontSize: 10, background: 'color-mix(in srgb, var(--color-accent) 15%, transparent)', color: 'var(--color-accent)' }}>
+                        Sem {subject.semester}
+                      </span>
+                    ) : null}
                     {subject.isPractical && (
                       <Badge color="var(--color-warn)">Practical</Badge>
                     )}

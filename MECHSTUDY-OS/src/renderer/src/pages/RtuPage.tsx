@@ -31,8 +31,8 @@ export function RtuPage() {
             <span>Source: {version.source_doc ?? '—'}</span>
             <span>Retrieved: {version.retrieved_at ?? '—'}</span>
             <span>{version.subject_count} subjects · {version.topic_count} topics</span>
-            <span className="text-[10px]" style={{ color: 'var(--color-faint)' }}>
-              Only III Semester is present in the source document.
+            <span className="text-[10px]" style={{ color: 'var(--color-accent)' }}>
+              Full 8-Semester Curriculum (Batch 2025–2029)
             </span>
           </div>
         )

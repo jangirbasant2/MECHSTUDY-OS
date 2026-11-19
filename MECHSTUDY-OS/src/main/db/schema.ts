@@ -778,5 +778,23 @@ CREATE INDEX IF NOT EXISTS idx_flashcards_subj ON flashcards(subject_name);
 
 ALTER TABLE user_profile ADD COLUMN username TEXT DEFAULT 'Mechanical Scholar';
 `
+  },
+  {
+    version: 14,
+    name: 'fts_syllabus_curriculum_rag',
+    sql: `
+CREATE VIRTUAL TABLE IF NOT EXISTS fts_syllabus USING fts5(
+  topic_id UNINDEXED,
+  subject_code,
+  subject_name,
+  semester UNINDEXED,
+  unit_number UNINDEXED,
+  unit_title,
+  topic_title,
+  topic_description,
+  exam_type UNINDEXED,
+  tokenize = 'porter unicode61'
+);
+`
   }
 ];

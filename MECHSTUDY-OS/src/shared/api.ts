@@ -200,6 +200,8 @@ export interface MechStudyApi {
     onProgress(cb: (p: PyqProgress) => void): Unsubscribe;
     onIngestProgress(cb: (p: PyqIngestProgress) => void): Unsubscribe;
     ingestPdf(filePath: string, targetExamHint?: 'RTU' | 'GATE' | 'AUTO', forceReingest?: boolean): Promise<IngestPyqResult>;
+    ingestDirectory(dirPath: string, targetExamHint?: 'RTU' | 'GATE' | 'AUTO', forceReingest?: boolean): Promise<{ totalFiles: number; successfulFiles: number; totalQuestions: number; errors: string[] }>;
+    coachExamQuestion(data: any): Promise<any>;
     getRtuList(subjectId?: number, part?: string): Promise<RtuPyq[]>;
     getGateList(subjectId?: number, section?: string): Promise<GatePyq[]>;
     updateRtu(id: number, patch: Partial<RtuPyq>): Promise<boolean>;
@@ -348,5 +350,8 @@ export interface MechStudyApi {
       outPath: string;
     }): Promise<CheatSheetResult>;
     pickSavePath(defaultName?: string): Promise<string | null>;
+  };
+  window: {
+    setFullScreen(flag: boolean): Promise<boolean>;
   };
 }

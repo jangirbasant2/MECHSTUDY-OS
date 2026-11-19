@@ -7,6 +7,51 @@ export interface RagResult {
   contextBlock: string;
 }
 
+export interface SyllabusEntityMatch {
+  topicId: number;
+  subjectCode: string;
+  subjectName: string;
+  semester: number;
+  unitNumber: number;
+  unitTitle: string;
+  topicTitle: string;
+  topicDescription: string;
+  examType: string;
+  rank: number;
+}
+
+export function searchSyllabusEntities(query: string, limit = 5): SyllabusEntityMatch[] {
+  const terms = extractSubstantiveTerms(query);
+  if (terms.length === 0) return [];
+
+  try {
+    const fq = terms.map(t => `"${t}"*`).join(' OR ');
+    const rows = all<any>(`
+      SELECT topic_id, subject_code, subject_name, semester, unit_number, unit_title, topic_title, topic_description, exam_type,
+             bm25(fts_syllabus) as rank
+      FROM fts_syllabus
+      WHERE fts_syllabus MATCH ?
+      ORDER BY rank
+      LIMIT ?
+    `, fq, limit);
+
+    return rows.map(r => ({
+      topicId: r.topic_id,
+      subjectCode: r.subject_code,
+      subjectName: r.subject_name,
+      semester: r.semester,
+      unitNumber: r.unit_number,
+      unitTitle: r.unit_title,
+      topicTitle: r.topic_title,
+      topicDescription: r.topic_description,
+      examType: r.exam_type,
+      rank: r.rank,
+    }));
+  } catch {
+    return [];
+  }
+}
+
 const QUERY_STOPWORDS = new Set([
   'make', 'create', 'build', 'generate', 'prepare', 'setup',
   'plan', 'planner', 'schedule', 'timetable', 'session', 'sessions',
@@ -188,12 +233,31 @@ export async function retrieveRagContext(
     }
   }
 
-  if (contextParts.length === 0) {
+  // 3. Search curriculum entities to ground response with official syllabus mapping
+  const syllabusMatches = searchSyllabusEntities(cleanQuery, 3);
+  let syllabusGroundingBlock = '';
+  if (syllabusMatches.length > 0) {
+    syllabusGroundingBlock = `\n[OFFICIAL SYLLABUS GROUNDING & CURRICULUM MATCHES]\n` +
+      syllabusMatches.map(m => {
+        const semStr = m.semester > 0 ? `Sem ${m.semester} · ` : '';
+        const unitStr = m.unitNumber > 0 ? `Unit ${m.unitNumber}: ${m.unitTitle}` : m.unitTitle;
+        return `- [${m.examType} · ${semStr}${m.subjectCode} ${m.subjectName}] ${unitStr} -> Topic: "${m.topicTitle}"`;
+      }).join('\n') + `\nAlways anchor your technical explanations to these official curriculum topics and unit objectives.`;
+  }
+
+  if (contextParts.length === 0 && !syllabusGroundingBlock) {
     return { citations: [], contextBlock: '' };
   }
 
-  const contextBlock = `\n[VERIFIED RETRIEVED STUDY MATERIALS & NOTES]\nUse the following extracted study materials to answer the student's question accurately. Attribute information to the respective document and page number where appropriate. If the context does not contain the answer, rely on your engineering knowledge but clarify that it is not explicitly from the notes.\n\n` +
-    contextParts.join('\n\n');
+  let contextBlock = '';
+  if (contextParts.length > 0) {
+    contextBlock += `\n[VERIFIED RETRIEVED STUDY MATERIALS & NOTES]\nUse the following extracted study materials to answer the student's question accurately. Attribute information to the respective document and page number where appropriate. If the context does not contain the answer, rely on your engineering knowledge but clarify that it is not explicitly from the notes.\n\n` +
+      contextParts.join('\n\n');
+  }
+
+  if (syllabusGroundingBlock) {
+    contextBlock = contextBlock ? (contextBlock + '\n\n' + syllabusGroundingBlock) : syllabusGroundingBlock;
+  }
 
   return { citations, contextBlock };
 }

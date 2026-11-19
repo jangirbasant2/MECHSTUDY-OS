@@ -47,6 +47,30 @@ function insertSubjects(versionId: number, subjects: SeedSubject[]): number {
   return count;
 }
 
+export function syncFtsSyllabus(): number {
+  try {
+    const tableExists = get<{ c: number }>("SELECT count(*) c FROM sqlite_master WHERE type='table' AND name='fts_syllabus'");
+    if (!tableExists || tableExists.c === 0) return 0;
+
+    const count = get<{ c: number }>('SELECT count(*) c FROM fts_syllabus');
+    if (count && count.c > 0) return count.c;
+
+    run(`
+      INSERT INTO fts_syllabus (topic_id, subject_code, subject_name, semester, unit_number, unit_title, topic_title, topic_description, exam_type)
+      SELECT t.id, s.code, s.name, COALESCE(s.semester, 0), u.number, u.title, t.title, COALESCE(t.description, ''), v.exam_type
+      FROM topics t
+      JOIN units u ON u.id = t.unit_id
+      JOIN subjects s ON s.id = u.subject_id
+      JOIN syllabus_versions v ON v.id = s.version_id
+    `);
+
+    return get<{ c: number }>('SELECT count(*) c FROM fts_syllabus')?.c ?? 0;
+  } catch (err) {
+    console.warn('[seed] syncFtsSyllabus warning:', err);
+    return 0;
+  }
+}
+
 export function seedSyllabus(): { rtu: number; gate: number; iit: number; created: boolean } {
   return tx(() => {
     let rtuCount = 0;
@@ -59,6 +83,15 @@ export function seedSyllabus(): { rtu: number; gate: number; iit: number; create
       const v = insertVersion(RTU_SYLLABUS);
       rtuCount = insertSubjects(v, RTU_SYLLABUS.subjects);
       anyCreated = true;
+    } else {
+      const existingCodes = new Set(
+        all<{ code: string }>('SELECT code FROM subjects WHERE version_id = ?', rtuExisting.id).map(r => r.code)
+      );
+      const missingSubjects = RTU_SYLLABUS.subjects.filter(s => !existingCodes.has(s.code));
+      if (missingSubjects.length > 0) {
+        rtuCount = insertSubjects(rtuExisting.id, missingSubjects);
+        anyCreated = true;
+      }
     }
 
     const gateExisting = get<{ id: number }>("SELECT id FROM syllabus_versions WHERE exam_type = 'GATE'");
@@ -74,6 +107,8 @@ export function seedSyllabus(): { rtu: number; gate: number; iit: number; create
       iitCount = insertSubjects(v, IIT_SYLLABUS.subjects);
       anyCreated = true;
     }
+
+    syncFtsSyllabus();
 
     return { rtu: rtuCount, gate: gateCount, iit: iitCount, created: anyCreated };
   });

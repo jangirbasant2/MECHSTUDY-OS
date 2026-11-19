@@ -718,3 +718,70 @@ export function getGateCbtPaper(mode: 'STRICT_CBT' | 'PRACTICE' = 'STRICT_CBT'):
     created_at: new Date().toISOString(),
   };
 }
+
+export async function ingestPyqDirectory(
+  dirPath: string,
+  targetExamHint: 'RTU' | 'GATE' | 'AUTO' = 'AUTO',
+  onProgress?: (progress: PyqIngestProgress & { currentFile?: string; completedFiles?: number; totalFiles?: number }) => void,
+  forceReingest = false
+): Promise<{ totalFiles: number; successfulFiles: number; totalQuestions: number; errors: string[] }> {
+  const { readdir } = await import('node:fs/promises');
+  const { join, basename: getBasename } = await import('node:path');
+
+  async function getPdfFiles(dir: string): Promise<string[]> {
+    const entries = await readdir(dir, { withFileTypes: true });
+    const files: string[] = [];
+    for (const entry of entries) {
+      const fullPath = join(dir, entry.name);
+      if (entry.isDirectory()) {
+        const subFiles = await getPdfFiles(fullPath);
+        files.push(...subFiles);
+      } else if (entry.isFile() && entry.name.toLowerCase().endsWith('.pdf')) {
+        files.push(fullPath);
+      }
+    }
+    return files;
+  }
+
+  const pdfFiles = await getPdfFiles(dirPath);
+  let totalQuestions = 0;
+  let successfulFiles = 0;
+  const errors: string[] = [];
+
+  for (let i = 0; i < pdfFiles.length; i++) {
+    const file = pdfFiles[i];
+    try {
+      const result = await ingestPyqPdf(
+        file,
+        targetExamHint,
+        (prog) => {
+          if (onProgress) {
+            onProgress({
+              ...prog,
+              currentFile: getBasename(file),
+              completedFiles: i,
+              totalFiles: pdfFiles.length,
+            });
+          }
+        },
+        forceReingest
+      );
+      if (result.questionsExtracted > 0 || result.errors.length === 0) {
+        successfulFiles++;
+        totalQuestions += result.questionsExtracted;
+      } else {
+        errors.push(`${getBasename(file)}: ${result.errors.join(', ')}`);
+      }
+    } catch (err: any) {
+      errors.push(`${getBasename(file)}: ${err.message}`);
+    }
+  }
+
+  return {
+    totalFiles: pdfFiles.length,
+    successfulFiles,
+    totalQuestions,
+    errors,
+  };
+}
+

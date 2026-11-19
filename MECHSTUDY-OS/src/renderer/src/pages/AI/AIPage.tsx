@@ -81,6 +81,7 @@ export function AIPage() {
   // Schedule preview
   const [todaySchedule, setTodaySchedule] = React.useState<any>(null);
   const [startingOllama, setStartingOllama] = React.useState(false);
+  const [inlineKey, setInlineKey] = React.useState('');
 
   // Study Materials & OCR state
   const [pickerOpen, setPickerOpen] = React.useState(false);
@@ -421,7 +422,7 @@ export function AIPage() {
                     color: engineStatus?.connected ? 'var(--color-accent2)' : 'var(--color-danger)',
                   }}
                 >
-                  {engineStatus?.connected ? 'Local Ollama Connected' : 'Ollama Offline'}
+                  {engineStatus?.connected ? `Google AI Connected (${engineStatus?.activeModel || 'gemini-3.5-flash-lite'})` : 'API Key Required'}
                 </span>
               </div>
               <p className="text-xs" style={{ color: 'var(--color-muted)' }}>
@@ -445,47 +446,57 @@ export function AIPage() {
           </div>
         </div>
 
-        {/* Engine Disconnected Notice with Application-level Start */}
+        {/* Google AI Studio API Key Setup Banner */}
         {engineStatus && !engineStatus.connected && (
           <div
-            className="mt-2.5 flex flex-wrap items-center justify-between gap-2 rounded-lg border px-3 py-2 text-xs"
+            className="mt-2.5 flex flex-wrap items-center justify-between gap-3 rounded-lg border px-3 py-2.5 text-xs"
             style={{
               borderColor: 'color-mix(in srgb, var(--color-warn) 40%, transparent)',
               background: 'color-mix(in srgb, var(--color-warn) 10%, transparent)',
               color: 'var(--color-text)',
             }}
           >
-            <div className="flex items-center gap-2 min-w-0 flex-1">
-              <AlertCircle size={15} style={{ color: 'var(--color-warn)', flexShrink: 0 }} />
-              {engineStatus.installed ? (
-                <span>
-                  <strong>Ollama is installed</strong>, but the local background server is offline. Click <strong>Start Ollama Server</strong> to launch it directly from MECHSTUDY-OS without opening a terminal.
-                </span>
-              ) : (
-                <span>
-                  <strong>Ollama is not installed.</strong> Please install it from{' '}
-                  <a href="https://ollama.com" target="_blank" rel="noreferrer" className="underline font-semibold text-accent">
-                    ollama.com
-                  </a>{' '}
-                  to run models completely locally and offline.
-                </span>
-              )}
+            <div className="flex items-center gap-2.5 min-w-0 flex-1">
+              <Sparkles size={16} className="text-amber-400 shrink-0" />
+              <div>
+                <div className="font-semibold text-xs">Google AI Studio API Key Required for AI Tutor</div>
+                <div className="text-[11px] opacity-90">
+                  MECHSTUDY AI connects directly to Google AI Studio (<code className="text-cyan-400 font-mono">@google/genai</code>) so you get high-speed tutoring with zero local GPU setup.
+                </div>
+              </div>
             </div>
 
-            <div className="flex items-center gap-1.5 shrink-0">
-              {engineStatus.installed && (
-                <button
-                  className="btn btn-sm btn-primary"
-                  onClick={() => void handleStartOllama()}
-                  disabled={startingOllama}
-                >
-                  {startingOllama ? <RefreshCw size={12} className="animate-spin" /> : <Play size={12} />}
-                  {startingOllama ? 'Starting Service…' : 'Start Ollama Server'}
-                </button>
-              )}
-              <button className="btn btn-sm" onClick={refreshEngine}>
-                <RefreshCw size={12} /> Check Connection
+            <div className="flex items-center gap-2 shrink-0">
+              <input
+                type="password"
+                placeholder="Paste AIza... key"
+                className="input text-xs w-48 bg-[var(--color-bg)] py-1"
+                value={inlineKey}
+                onChange={e => setInlineKey(e.target.value)}
+              />
+              <button
+                className="btn btn-sm btn-primary"
+                onClick={async () => {
+                  if (!inlineKey.trim()) {
+                    toast('Please enter a valid Google AI Studio API key', 'error');
+                    return;
+                  }
+                  await api.ai.updateSettings({ apiKey: inlineKey.trim() });
+                  toast('API Key saved! Reconnecting AI Tutor...', 'success');
+                  await refreshEngine();
+                }}
+              >
+                Save & Connect
               </button>
+              <a
+                href="https://aistudio.google.com/apikey"
+                target="_blank"
+                rel="noreferrer"
+                className="btn btn-sm btn-secondary flex items-center gap-1"
+              >
+                <span>Free Key</span>
+                <ExternalLink size={11} />
+              </a>
             </div>
           </div>
         )}
@@ -964,58 +975,95 @@ export function AIPage() {
             />
 
             <div className="grid gap-6 md:grid-cols-2">
-              {/* Ollama Server Config */}
+              {/* Google AI Studio & Provider Config */}
               <div className="card p-4 space-y-4">
-                <h3 className="text-xs font-bold uppercase tracking-wider text-[var(--color-faint)]">
-                  Local Inference Engine (Ollama)
-                </h3>
+                <div className="flex items-center justify-between">
+                  <h3 className="text-xs font-bold uppercase tracking-wider text-[var(--color-faint)]">
+                    AI Inference Provider
+                  </h3>
+                  <span className="badge badge-accent text-[10px]">Cloud-First</span>
+                </div>
 
                 <div>
-                  <label className="block text-xs font-medium mb-1">Ollama Server URL</label>
+                  <label className="block text-xs font-medium mb-1">Provider Engine</label>
+                  <select
+                    className="input w-full text-xs"
+                    value="google-ai-studio"
+                    disabled
+                  >
+                    <option value="google-ai-studio">Google AI Studio API (Recommended - Zero GPU Required)</option>
+                  </select>
+                </div>
+
+                <div>
+                  <div className="flex items-center justify-between mb-1">
+                    <label className="block text-xs font-medium">Google AI Studio API Key</label>
+                    <a
+                      href="https://aistudio.google.com/apikey"
+                      target="_blank"
+                      rel="noreferrer"
+                      className="text-[11px] text-cyan-400 hover:underline flex items-center gap-1"
+                    >
+                      <span>Get Free Key</span>
+                      <ExternalLink size={10} />
+                    </a>
+                  </div>
                   <div className="flex gap-2">
                     <input
-                      type="text"
-                      value={settings.ollamaHost}
-                      onChange={e => setSettings({ ...settings, ollamaHost: e.target.value })}
+                      type="password"
+                      value={settings.apiKey || ''}
+                      onChange={e => setSettings({ ...settings, apiKey: e.target.value })}
                       className="input flex-1 text-xs"
-                      placeholder="http://127.0.0.1:11434"
+                      placeholder="Paste AIzaSy... key"
                     />
-                    <button className="btn btn-secondary text-xs" onClick={refreshEngine}>
-                      Test Ping
+                    <button
+                      className="btn btn-secondary text-xs"
+                      onClick={async () => {
+                        if (!settings.apiKey) {
+                          toast('Please enter an API key', 'error');
+                          return;
+                        }
+                        const res = await api.ai.testKey(settings.apiKey, settings.selectedModel);
+                        if (res.ok) {
+                          toast('API Key verified successfully!', 'success');
+                          refreshEngine();
+                        } else {
+                          toast(`Verification failed: ${res.error}`, 'error');
+                        }
+                      }}
+                    >
+                      Test Key
                     </button>
                   </div>
                 </div>
 
                 <div>
-                  <label className="block text-xs font-medium mb-1">Primary LLM Model</label>
+                  <label className="block text-xs font-medium mb-1">Gemini Model Selector</label>
                   <select
                     value={settings.selectedModel}
                     onChange={e => setSettings({ ...settings, selectedModel: e.target.value })}
                     className="input w-full text-xs"
                   >
-                    {models.map(m => (
-                      <option key={m.name} value={m.name}>
-                        {m.name} {m.parameterSize ? `(${m.parameterSize})` : ''} - {(m.size / (1024 * 1024 * 1024)).toFixed(1)} GB
-                      </option>
-                    ))}
-                    {!models.some(m => m.name === settings.selectedModel) && (
-                      <option value={settings.selectedModel}>{settings.selectedModel} (custom)</option>
-                    )}
+                    <option value="gemini-3.5-flash-lite">gemini-3.5-flash-lite (Fastest / Lowest Latency - Default)</option>
+                    <option value="gemini-4-hydrogen">gemini-4-hydrogen (Balanced Engineering & Reasoning)</option>
+                    <option value="gemini-4-carbon">gemini-4-carbon (Deep Multi-Step Proofs & Derivations)</option>
                   </select>
                   <p className="text-[11px] text-[var(--color-faint)] mt-1">
-                    Recommended for RTX 3050 (4GB VRAM): <code>qwen3:4b</code> or <code>llama3.2:3b</code>.
+                    Zero GPU RAM required. Runs in the cloud with sub-second response times.
                   </p>
                 </div>
 
-                <div>
-                  <label className="block text-xs font-medium mb-1">Local Embedding Model</label>
+                <div className="flex items-center space-x-2 pt-2">
                   <input
-                    type="text"
-                    value={settings.embeddingModel}
-                    onChange={e => setSettings({ ...settings, embeddingModel: e.target.value })}
-                    className="input w-full text-xs"
-                    placeholder="nomic-embed-text:latest"
+                    type="checkbox"
+                    id="autoOcrSetting"
+                    checked={settings.autoOcr ?? true}
+                    onChange={e => setSettings({ ...settings, autoOcr: e.target.checked })}
+                    className="rounded border-[var(--color-border)] bg-[var(--color-bg)] text-cyan-500"
                   />
+                  <label htmlFor="autoOcrSetting" className="text-xs text-[var(--color-muted)] cursor-pointer">
+                    Auto-OCR scanned PDFs lacking text layer into SQLite FTS5 search
+                  </label>
                 </div>
               </div>
 

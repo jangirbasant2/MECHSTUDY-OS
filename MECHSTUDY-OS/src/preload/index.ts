@@ -227,6 +227,10 @@ const api: MechStudyApi = {
     onIngestProgress: (cb: any) => subscribe('pyq:ingest-progress', cb),
     ingestPdf: (filePath: string, targetExamHint?: any, forceReingest?: boolean) =>
       invoke('pyq:ingestPdf', { filePath, targetExamHint, forceReingest }),
+    ingestDirectory: (dirPath: string, targetExamHint?: any, forceReingest?: boolean) =>
+      invoke('pyq:ingestDirectory', { dirPath, targetExamHint, forceReingest }),
+    coachExamQuestion: (data: any) =>
+      invoke('pyq:coachExamQuestion', data),
     getRtuList: (subjectId?: number, part?: string) => invoke('pyq:getRtuList', { subjectId, part }),
     getGateList: (subjectId?: number, section?: string) => invoke('pyq:getGateList', { subjectId, section }),
     updateRtu: (id: number, patch: any) => invoke('pyq:updateRtu', { id, patch }),
@@ -347,6 +351,9 @@ const api: MechStudyApi = {
   cheatSheet: {
     compile: (params: any) => invoke('export:compileCheatSheet', params),
     pickSavePath: (defaultName?: string) => invoke('export:pickCheatSheetPath', { defaultName }),
+  },
+  window: {
+    setFullScreen: (flag: boolean) => invoke('window:setFullScreen', { flag }),
   },
 };
 

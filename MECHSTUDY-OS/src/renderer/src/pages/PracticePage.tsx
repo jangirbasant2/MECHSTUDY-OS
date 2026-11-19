@@ -48,6 +48,7 @@ export function PracticePage() {
   const toast = useApp(s => s.toast);
   const openTopic = useApp(s => s.openTopic);
   const activeExamMode = useApp(s => s.activeExamMode);
+  const pyqVersion = useApp(s => s.pyqVersion);
 
   const [tab, setTab] = React.useState<Tab>('practice');
   const [loading, setLoading] = React.useState(true);
@@ -99,7 +100,7 @@ export function PracticePage() {
   React.useEffect(() => {
     const id = window.setTimeout(() => { void load(); }, q ? 220 : 0);
     return () => window.clearTimeout(id);
-  }, [load, q]);
+  }, [load, q, pyqVersion]);
 
   const deleteQuestion = async () => {
     if (!confirmDelete) return;

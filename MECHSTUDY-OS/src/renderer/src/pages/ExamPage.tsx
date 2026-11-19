@@ -242,6 +242,7 @@ export function ExamPage() {
   const toast = useApp(s => s.toast);
   const openTopic = useApp(s => s.openTopic);
   const activeExamMode = useApp(s => s.activeExamMode);
+  const pyqVersion = useApp(s => s.pyqVersion);
 
   const [showCalculator, setShowCalculator] = React.useState(false);
   const activePresets = activeExamMode === 'IIT' ? IIT_PRESETS : GATE_PRESETS;
@@ -302,7 +303,7 @@ export function ExamPage() {
   React.useEffect(() => {
     loadConfigs();
     loadHistory();
-  }, [loadConfigs, loadHistory]);
+  }, [loadConfigs, loadHistory, pyqVersion]);
 
   // Timer tick for running exam
   React.useEffect(() => {

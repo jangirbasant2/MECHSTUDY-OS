@@ -1,10 +1,16 @@
 import React from 'react';
+import ReactMarkdown from 'react-markdown';
+import remarkMath from 'remark-math';
+import rehypeKatex from 'rehype-katex';
+import 'katex/dist/katex.min.css';
 import {
   Timer, Calculator, ShieldAlert, Award, CheckCircle2, AlertTriangle,
   RotateCcw, Sparkles, User, ChevronRight, HelpCircle, ArrowRight, BookOpen,
+  Zap, Lightbulb, Target, AlertCircle, X,
 } from 'lucide-react';
 import { api } from '../lib/api';
 import { useApp } from '../store';
+import { Modal } from './ui';
 import { evaluateToNumber } from '../../../shared/mathExpr';
 
 interface GateQuestion {
@@ -26,6 +32,7 @@ type QuestionStatus = 'not_visited' | 'not_answered' | 'answered' | 'marked_revi
 
 export function GateCbtEngine() {
   const toast = useApp(s => s.toast);
+  const setExamActive = useApp(s => s.setExamActive);
 
   const [mode, setMode] = React.useState<'STRICT_CBT' | 'PRACTICE'>('STRICT_CBT');
   const [running, setRunning] = React.useState(false);
@@ -45,6 +52,21 @@ export function GateCbtEngine() {
   const [examResult, setExamResult] = React.useState<any | null>(null);
   const [violationTerminated, setViolationTerminated] = React.useState(false);
 
+  // AI Exam Coach Walkthrough state
+  const [showAiCoach, setShowAiCoach] = React.useState(false);
+  const [aiCoachFilter, setAiCoachFilter] = React.useState<'ALL' | 'WRONG' | 'CORRECT' | 'UNATTEMPTED'>('ALL');
+  const [selectedCoachQuestion, setSelectedCoachQuestion] = React.useState<GateQuestion | null>(null);
+  const [coachingData, setCoachingData] = React.useState<any | null>(null);
+  const [coachingLoading, setCoachingLoading] = React.useState(false);
+
+  // Auto clean-up fullscreen & exam mode on unmount
+  React.useEffect(() => {
+    return () => {
+      setExamActive(false);
+      api.window.setFullScreen(false).catch(() => {});
+    };
+  }, [setExamActive]);
+
   // Focus lock / Anti-Cheat for Strict CBT Mode
   React.useEffect(() => {
     if (!running || mode !== 'STRICT_CBT' || examResult || violationTerminated) return;
@@ -52,6 +74,8 @@ export function GateCbtEngine() {
     const handleFocusLoss = () => {
       setViolationTerminated(true);
       setRunning(false);
+      setExamActive(false);
+      api.window.setFullScreen(false).catch(() => {});
       toast('Focus Violation: You switched tabs or minimized the exam window. The strict CBT exam has terminated.', 'error');
     };
 
@@ -109,6 +133,8 @@ export function GateCbtEngine() {
       setCurrentIndex(0);
       setSecondsRemaining(paperData.durationMinutes * 60 || 10800);
       setRunning(true);
+      setExamActive(true);
+      api.window.setFullScreen(true).catch(() => {});
       toast(`Started ${selectedMode === 'STRICT_CBT' ? 'Strict GATE CBT Mock' : 'Practice Mock Test'}`, 'success');
     } catch (e: any) {
       toast(`Could not start exam: ${e?.message}`, 'error');
@@ -188,6 +214,8 @@ export function GateCbtEngine() {
 
   const handleSubmit = (auto = false) => {
     setRunning(false);
+    setExamActive(false);
+    api.window.setFullScreen(false).catch(() => {});
     setShowSubmitModal(false);
 
     let score = 0;
@@ -313,6 +341,43 @@ export function GateCbtEngine() {
     const m = Math.floor((secs % 3600) / 60);
     const s = secs % 60;
     return `${h.toString().padStart(2, '0')}:${m.toString().padStart(2, '0')}:${s.toString().padStart(2, '0')}`;
+  };
+
+  const handleCoachQuestion = async (q: GateQuestion) => {
+    setSelectedCoachQuestion(q);
+    setCoachingData(null);
+    setCoachingLoading(true);
+
+    const userAns = answers[q.id];
+    let isCorrect = false;
+    if (q.type === 'NAT') {
+      const numVal = parseFloat(userAns);
+      isCorrect = Boolean(!isNaN(numVal) && (
+        (q.natRangeStart !== undefined && q.natRangeEnd !== undefined && numVal >= q.natRangeStart && numVal <= q.natRangeEnd) ||
+        (q.answerKey && Math.abs(numVal - parseFloat(q.answerKey)) < 0.01)
+      ));
+    } else {
+      isCorrect = Boolean(userAns && q.answerKey && userAns.trim().toUpperCase() === q.answerKey.trim().toUpperCase());
+    }
+
+    try {
+      const result = await api.pyq.coachExamQuestion({
+        questionNumber: q.number,
+        questionText: q.questionText,
+        type: q.type,
+        options: q.options,
+        correctAnswer: q.answerKey || (q.natRangeStart !== undefined ? `${q.natRangeStart} to ${q.natRangeEnd}` : ''),
+        userAnswer: userAns,
+        isCorrect,
+        solution: q.solution,
+        marks: q.marks,
+      });
+      setCoachingData(result);
+    } catch (e: any) {
+      toast(`AI Coaching request failed: ${e?.message}`, 'error');
+    } finally {
+      setCoachingLoading(false);
+    }
   };
 
   // Section list
@@ -539,24 +604,45 @@ export function GateCbtEngine() {
           </div>
 
           {/* Action Bar */}
-          <div className="flex justify-between items-center pt-2 border-t border-[var(--color-border)]">
-            <button
-              type="button"
-              className="btn btn-secondary btn-sm"
-              onClick={async () => {
-                const list = await api.pyq.getGateMistakes();
-                setMistakesList(list);
-                setShowMistakesModal(true);
-              }}
-            >
-              Review Mistakes
-            </button>
+          <div className="flex flex-wrap justify-between items-center gap-2 pt-2 border-t border-[var(--color-border)]">
+            <div className="flex items-center gap-2">
+              <button
+                type="button"
+                className="btn btn-secondary btn-sm"
+                onClick={async () => {
+                  const list = await api.pyq.getGateMistakes();
+                  setMistakesList(list);
+                  setShowMistakesModal(true);
+                }}
+              >
+                Review Mistakes
+              </button>
+              <button
+                type="button"
+                className="btn btn-primary btn-sm flex items-center gap-1.5 bg-gradient-to-r from-cyan-600 to-indigo-600 hover:from-cyan-500 hover:to-indigo-500 text-white font-bold shadow-md"
+                onClick={() => {
+                  setShowAiCoach(true);
+                  if (questions.length > 0) {
+                    const firstTarget = questions.find(q => {
+                      const ans = answers[q.id];
+                      return !ans || ans.trim().toUpperCase() !== (q.answerKey || '').trim().toUpperCase();
+                    }) || questions[0];
+                    handleCoachQuestion(firstTarget);
+                  }
+                }}
+              >
+                <Sparkles size={14} className="text-amber-300" />
+                <span>AI Exam Coach & Walkthrough</span>
+              </button>
+            </div>
             <button
               type="button"
               className="btn btn-primary btn-sm"
               onClick={() => {
                 setExamResult(null);
                 setRunning(false);
+                setExamActive(false);
+                api.window.setFullScreen(false).catch(() => {});
               }}
             >
               Take Another Mock Exam
@@ -1045,6 +1131,248 @@ export function GateCbtEngine() {
               >
                 Close Notebook
               </button>
+            </div>
+          </div>
+        </div>
+      )}
+
+      {/* AI Exam Coaching Walkthrough Modal */}
+      {showAiCoach && (
+        <div className="fixed inset-0 z-50 flex items-center justify-center bg-black/75 backdrop-blur-xs p-4">
+          <div
+            className="flex flex-col w-full max-w-5xl h-[88vh] rounded-2xl border shadow-2xl overflow-hidden"
+            style={{ background: 'var(--color-panel)', borderColor: 'var(--color-border)' }}
+          >
+            {/* Modal Header */}
+            <div className="flex items-center justify-between border-b px-5 py-3.5 bg-[var(--color-panel2)]" style={{ borderColor: 'var(--color-border)' }}>
+              <div className="flex items-center gap-2.5">
+                <div className="flex h-8 w-8 items-center justify-center rounded-lg bg-gradient-to-tr from-cyan-600 to-indigo-600 text-white">
+                  <Sparkles size={16} />
+                </div>
+                <div>
+                  <div className="text-sm font-bold text-[var(--color-text)] flex items-center gap-2">
+                    <span>AI Post-Exam Review & Active Coaching</span>
+                    <span className="badge badge-accent text-[10px]">Google AI Studio</span>
+                  </div>
+                  <div className="text-[11px] text-[var(--color-muted)]">
+                    Deep conceptual diagnosis for mistakes + speed shortcuts for correct solutions
+                  </div>
+                </div>
+              </div>
+              <button
+                type="button"
+                onClick={() => setShowAiCoach(false)}
+                className="p-1 rounded-lg text-[var(--color-muted)] hover:text-[var(--color-text)] hover:bg-[var(--color-panel3)]"
+              >
+                <X size={18} />
+              </button>
+            </div>
+
+            {/* Filter Pills */}
+            <div className="flex items-center gap-2 px-5 py-2.5 border-b bg-[var(--color-bg)]/50" style={{ borderColor: 'var(--color-border)' }}>
+              <span className="text-[11px] font-semibold text-[var(--color-muted)] mr-1">Filter Questions:</span>
+              {(['ALL', 'WRONG', 'CORRECT', 'UNATTEMPTED'] as const).map(f => (
+                <button
+                  key={f}
+                  type="button"
+                  onClick={() => setAiCoachFilter(f)}
+                  className={`px-3 py-1 rounded-lg text-xs font-semibold transition-all ${
+                    aiCoachFilter === f
+                      ? 'bg-cyan-600 text-white shadow-xs'
+                      : 'text-[var(--color-muted)] hover:text-[var(--color-text)] hover:bg-[var(--color-panel2)]'
+                  }`}
+                >
+                  {f === 'ALL' ? `All (${questions.length})` : f === 'WRONG' ? `❌ Wrong (${examResult?.wrongCount || 0})` : f === 'CORRECT' ? `✅ Correct (${examResult?.correctCount || 0})` : `⚪ Unattempted (${examResult?.unattemptedCount || 0})`}
+                </button>
+              ))}
+            </div>
+
+            {/* 2-Column Split: Questions Rail + Active Coach Panel */}
+            <div className="flex flex-1 min-h-0 overflow-hidden">
+              {/* Left Question Selector Rail */}
+              <div className="w-64 border-r overflow-y-auto p-3 space-y-2 bg-[var(--color-panel2)]/30 shrink-0" style={{ borderColor: 'var(--color-border)' }}>
+                {questions
+                  .filter(q => {
+                    const ans = answers[q.id];
+                    let isCorrect = false;
+                    if (q.type === 'NAT') {
+                      const numVal = parseFloat(ans);
+                      isCorrect = Boolean(!isNaN(numVal) && (
+                        (q.natRangeStart !== undefined && q.natRangeEnd !== undefined && numVal >= q.natRangeStart && numVal <= q.natRangeEnd) ||
+                        (q.answerKey && Math.abs(numVal - parseFloat(q.answerKey)) < 0.01)
+                      ));
+                    } else {
+                      isCorrect = Boolean(ans && q.answerKey && ans.trim().toUpperCase() === q.answerKey.trim().toUpperCase());
+                    }
+
+                    if (aiCoachFilter === 'WRONG') return Boolean(ans && !isCorrect);
+                    if (aiCoachFilter === 'CORRECT') return isCorrect;
+                    if (aiCoachFilter === 'UNATTEMPTED') return !ans;
+                    return true;
+                  })
+                  .map(q => {
+                    const ans = answers[q.id];
+                    let isCorrect = false;
+                    if (q.type === 'NAT') {
+                      const numVal = parseFloat(ans);
+                      isCorrect = Boolean(!isNaN(numVal) && (
+                        (q.natRangeStart !== undefined && q.natRangeEnd !== undefined && numVal >= q.natRangeStart && numVal <= q.natRangeEnd) ||
+                        (q.answerKey && Math.abs(numVal - parseFloat(q.answerKey)) < 0.01)
+                      ));
+                    } else {
+                      isCorrect = Boolean(ans && q.answerKey && ans.trim().toUpperCase() === q.answerKey.trim().toUpperCase());
+                    }
+                    const isSelected = selectedCoachQuestion?.id === q.id;
+
+                    return (
+                      <div
+                        key={q.id}
+                        onClick={() => handleCoachQuestion(q)}
+                        className={`p-2.5 rounded-xl border text-left cursor-pointer transition-all ${
+                          isSelected
+                            ? 'border-cyan-500 bg-cyan-500/10 shadow-xs'
+                            : 'border-[var(--color-border)] hover:border-cyan-500/40 hover:bg-[var(--color-panel2)]'
+                        }`}
+                      >
+                        <div className="flex items-center justify-between mb-1">
+                          <span className="text-xs font-bold text-[var(--color-text)]">Q{q.number}</span>
+                          <span className="text-[10px] font-semibold px-1.5 py-0.5 rounded-sm">
+                            {isCorrect ? (
+                              <span className="text-emerald-400">✅ +{q.marks}M</span>
+                            ) : ans ? (
+                              <span className="text-rose-400">❌ -{q.negativeMarks}M</span>
+                            ) : (
+                              <span className="text-[var(--color-muted)]">⚪ 0M</span>
+                            )}
+                          </span>
+                        </div>
+                        <div className="text-[11px] text-[var(--color-muted)] truncate">{q.questionText}</div>
+                      </div>
+                    );
+                  })}
+              </div>
+
+              {/* Right Coaching Breakdown Panel */}
+              <div className="flex-1 overflow-y-auto p-5 space-y-5 bg-[var(--color-bg)]">
+                {selectedCoachQuestion ? (
+                  <>
+                    {/* Question Banner */}
+                    <div className="rounded-xl border p-4 bg-[var(--color-panel)]" style={{ borderColor: 'var(--color-border)' }}>
+                      <div className="flex items-center justify-between mb-2">
+                        <span className="text-xs font-bold text-cyan-400">
+                          Question #{selectedCoachQuestion.number} · {selectedCoachQuestion.section} · {selectedCoachQuestion.type} ({selectedCoachQuestion.marks} Mark{selectedCoachQuestion.marks > 1 ? 's' : ''})
+                        </span>
+                        <div className="flex items-center gap-3 text-xs">
+                          <div>
+                            <span className="text-[var(--color-muted)]">Your Answer: </span>
+                            <span className="font-bold text-[var(--color-text)]">{answers[selectedCoachQuestion.id] || 'Not Attempted'}</span>
+                          </div>
+                          <div>
+                            <span className="text-[var(--color-muted)]">Correct Key: </span>
+                            <span className="font-bold text-emerald-400">{selectedCoachQuestion.answerKey || (selectedCoachQuestion.natRangeStart !== undefined ? `${selectedCoachQuestion.natRangeStart} to ${selectedCoachQuestion.natRangeEnd}` : 'N/A')}</span>
+                          </div>
+                        </div>
+                      </div>
+                      <p className="text-xs text-[var(--color-text)] leading-relaxed font-medium">
+                        {selectedCoachQuestion.questionText}
+                      </p>
+                    </div>
+
+                    {coachingLoading ? (
+                      <div className="flex flex-col items-center justify-center py-16 space-y-3">
+                        <RotateCcw size={28} className="animate-spin text-cyan-400" />
+                        <div className="text-xs font-semibold text-[var(--color-text)]">
+                          AI Coach analyzing question, option traps, and speed shortcuts…
+                        </div>
+                        <div className="text-[11px] text-[var(--color-muted)]">
+                          Grounded on official GATE Mechanical syllabus & derivations
+                        </div>
+                      </div>
+                    ) : coachingData ? (
+                      <div className="space-y-4">
+                        {/* 1. Diagnosis */}
+                        <div className="rounded-xl border border-blue-500/30 bg-blue-500/5 p-4 space-y-1.5">
+                          <div className="flex items-center gap-2 text-xs font-bold text-blue-400 uppercase tracking-wider">
+                            <Target size={15} />
+                            <span>Concept Diagnosis & Focus</span>
+                          </div>
+                          <p className="text-xs text-[var(--color-text)] leading-relaxed">
+                            {coachingData.diagnosis}
+                          </p>
+                        </div>
+
+                        {/* 2. Step-by-Step Rigorous Solution */}
+                        <div className="rounded-xl border border-indigo-500/30 bg-[var(--color-panel)] p-4 space-y-2">
+                          <div className="flex items-center gap-2 text-xs font-bold text-indigo-400 uppercase tracking-wider">
+                            <BookOpen size={15} />
+                            <span>Rigorous Mathematical Solution</span>
+                          </div>
+                          <div className="prose prose-invert prose-xs max-w-none text-xs leading-relaxed">
+                            <ReactMarkdown remarkPlugins={[remarkMath]} rehypePlugins={[rehypeKatex]}>
+                              {coachingData.stepByStepSolution}
+                            </ReactMarkdown>
+                          </div>
+                        </div>
+
+                        {/* 3. Speed Trick & Shortcut */}
+                        <div className="rounded-xl border border-emerald-500/30 bg-emerald-500/5 p-4 space-y-1.5">
+                          <div className="flex items-center gap-2 text-xs font-bold text-emerald-400 uppercase tracking-wider">
+                            <Zap size={15} />
+                            <span>⚡ 45-Second Speed Trick / Exam Shortcut</span>
+                          </div>
+                          <div className="prose prose-invert prose-xs max-w-none text-xs text-emerald-200 leading-relaxed">
+                            <ReactMarkdown remarkPlugins={[remarkMath]} rehypePlugins={[rehypeKatex]}>
+                              {coachingData.shortcutOrSpeedTrick}
+                            </ReactMarkdown>
+                          </div>
+                        </div>
+
+                        {/* 4. Option Traps Breakdown */}
+                        {coachingData.optionsBreakdown && coachingData.optionsBreakdown.length > 0 && (
+                          <div className="rounded-xl border p-4 space-y-2 bg-[var(--color-panel)]" style={{ borderColor: 'var(--color-border)' }}>
+                            <div className="flex items-center gap-2 text-xs font-bold text-amber-400 uppercase tracking-wider">
+                              <AlertCircle size={15} />
+                              <span>Examiner Distractor Traps</span>
+                            </div>
+                            <div className="grid gap-2">
+                              {coachingData.optionsBreakdown.map((opt: any, i: number) => (
+                                <div key={i} className={`p-2.5 rounded-lg border text-xs ${opt.isTrap ? 'border-amber-500/30 bg-amber-500/5' : 'border-[var(--color-border)] bg-[var(--color-panel2)]'}`}>
+                                  <div className="flex items-center gap-2 mb-1">
+                                    <span className="font-bold text-[var(--color-text)]">Option {opt.option}:</span>
+                                    {opt.isTrap && <span className="text-[10px] bg-amber-500/20 text-amber-300 font-semibold px-1.5 py-0.5 rounded-sm">Examiner Trap</span>}
+                                  </div>
+                                  <p className="text-[11px] text-[var(--color-muted)] leading-relaxed">{opt.analysis}</p>
+                                </div>
+                              ))}
+                            </div>
+                          </div>
+                        )}
+
+                        {/* 5. Key Takeaway */}
+                        {coachingData.keyTakeaway && (
+                          <div className="rounded-xl border border-amber-500/30 bg-amber-500/10 p-3.5 flex items-start gap-2.5 text-xs text-amber-300">
+                            <Lightbulb size={16} className="text-amber-400 shrink-0 mt-0.5" />
+                            <div>
+                              <span className="font-bold">Golden Memory Hook: </span>
+                              <span>{coachingData.keyTakeaway}</span>
+                            </div>
+                          </div>
+                        )}
+                      </div>
+                    ) : (
+                      <div className="flex flex-col items-center justify-center py-16 text-[var(--color-muted)]">
+                        <Sparkles size={24} className="mb-2 text-cyan-400" />
+                        <div className="text-xs">Click a question on the left to receive custom AI coaching.</div>
+                      </div>
+                    )}
+                  </>
+                ) : (
+                  <div className="flex flex-col items-center justify-center h-full text-[var(--color-muted)]">
+                    <Sparkles size={32} className="mb-2 text-cyan-400" />
+                    <div className="text-xs font-semibold">Select any question on the left to start coaching</div>
+                  </div>
+                )}
+              </div>
             </div>
           </div>
         </div>

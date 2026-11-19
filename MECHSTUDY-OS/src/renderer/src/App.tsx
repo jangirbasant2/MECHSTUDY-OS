@@ -55,8 +55,9 @@ export function App() {
   const setTimer = useApp(s => s.setTimer);
 
   const inReader = page === 'reader';
-  // Focus mode only ever applies to the reader page.
-  const chromeHidden = inReader && readerFocus;
+  const examActive = useApp(s => s.examActive);
+  // Focus mode applies to reader focus or distraction-free exam sessions.
+  const chromeHidden = (inReader && readerFocus) || examActive;
   const showSidebar = sidebarVisible && !chromeHidden;
   const showTopbar = topbarVisible && !chromeHidden;
 
@@ -187,7 +188,7 @@ export function App() {
 
       {/* ---- layout recovery controls (always reachable) ---- */}
 
-      {!showSidebar && (
+      {!showSidebar && !chromeHidden && (
         <button
           className="layout-rail no-select"
           onClick={() => setSidebarVisible(true)}
@@ -238,40 +239,42 @@ export function App() {
       <CommandPalette />
       <QuickNoteDialog />
 
-      <div className="pointer-events-none fixed bottom-4 right-4 z-[70] flex w-[340px] flex-col gap-2">
-        {toasts.map(t => (
-          <div
-            key={t.id}
-            className="pointer-events-auto slide-up flex items-start gap-2 rounded-lg border px-3 py-2 shadow-lg"
-            style={{
-              background: 'var(--color-panel)',
-              borderColor: t.kind === 'error'
-                ? 'color-mix(in srgb, var(--color-danger) 55%, transparent)'
-                : t.kind === 'success'
-                  ? 'color-mix(in srgb, var(--color-accent2) 55%, transparent)'
-                  : 'var(--color-border)',
-            }}
-            role="status"
-          >
-            <span
-              className="mt-1 h-1.5 w-1.5 shrink-0 rounded-full"
+      {!examActive && (
+        <div className="pointer-events-none fixed bottom-4 right-4 z-[70] flex w-[340px] flex-col gap-2">
+          {toasts.map(t => (
+            <div
+              key={t.id}
+              className="pointer-events-auto slide-up flex items-start gap-2 rounded-lg border px-3 py-2 shadow-lg"
               style={{
-                background: t.kind === 'error' ? 'var(--color-danger)'
-                  : t.kind === 'success' ? 'var(--color-accent2)' : 'var(--color-accent)',
+                background: 'var(--color-panel)',
+                borderColor: t.kind === 'error'
+                  ? 'color-mix(in srgb, var(--color-danger) 55%, transparent)'
+                  : t.kind === 'success'
+                    ? 'color-mix(in srgb, var(--color-accent2) 55%, transparent)'
+                    : 'var(--color-border)',
               }}
-            />
-            <span className="flex-1 text-[12px] leading-snug">{t.message}</span>
-            <button
-              className="text-[11px]"
-              style={{ color: 'var(--color-faint)' }}
-              onClick={() => dismissToast(t.id)}
-              aria-label="Dismiss notification"
+              role="status"
             >
-              ✕
-            </button>
-          </div>
-        ))}
-      </div>
+              <span
+                className="mt-1 h-1.5 w-1.5 shrink-0 rounded-full"
+                style={{
+                  background: t.kind === 'error' ? 'var(--color-danger)'
+                    : t.kind === 'success' ? 'var(--color-accent2)' : 'var(--color-accent)',
+                }}
+              />
+              <span className="flex-1 text-[12px] leading-snug">{t.message}</span>
+              <button
+                className="text-[11px]"
+                style={{ color: 'var(--color-faint)' }}
+                onClick={() => dismissToast(t.id)}
+                aria-label="Dismiss notification"
+              >
+                ✕
+              </button>
+            </div>
+          ))}
+        </div>
+      )}
     </div>
   );
 }

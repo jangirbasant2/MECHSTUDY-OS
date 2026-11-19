@@ -16,9 +16,11 @@ interface PyqUploaderModalProps {
 
 export function PyqUploaderModal({ onClose, onSuccess }: PyqUploaderModalProps) {
   const toast = useApp(s => s.toast);
+  const invalidatePyqs = useApp(s => s.invalidatePyqs);
 
   const [filePath, setFilePath] = useState<string>('');
   const [fileName, setFileName] = useState<string>('');
+  const [isFolder, setIsFolder] = useState(false);
   const [hint, setHint] = useState<'AUTO' | 'RTU' | 'GATE'>('AUTO');
   const [forceReingest, setForceReingest] = useState(false);
   const [processing, setProcessing] = useState(false);
@@ -50,10 +52,26 @@ export function PyqUploaderModal({ onClose, onSuccess }: PyqUploaderModalProps) 
         setFilePath(selected);
         const name = selected.split(/[\/\\]/).pop() || selected;
         setFileName(name);
+        setIsFolder(false);
         setError(null);
       }
     } catch (e: any) {
       toast(`File selection error: ${e?.message}`, 'error');
+    }
+  };
+
+  const handlePickFolder = async () => {
+    try {
+      const selected = await api.pyq.pickFolder();
+      if (selected) {
+        setFilePath(selected);
+        const name = selected.split(/[\/\\]/).pop() || selected;
+        setFileName(`📁 ${name} (Directory)`);
+        setIsFolder(true);
+        setError(null);
+      }
+    } catch (e: any) {
+      toast(`Folder selection error: ${e?.message}`, 'error');
     }
   };
 
@@ -69,11 +87,26 @@ export function PyqUploaderModal({ onClose, onSuccess }: PyqUploaderModalProps) 
     });
 
     try {
-      const res = await api.pyq.ingestPdf(filePath, hint, forceReingest);
-      setResult(res);
-      const cacheNote = res.cached ? ' (from local cache)' : '';
-      toast(`Successfully loaded ${res.questionsExtracted} questions into ${res.examTrack} bank${cacheNote}!`, 'success');
-      onSuccess(res);
+      if (isFolder) {
+        const dirRes = await api.pyq.ingestDirectory(filePath, hint, forceReingest);
+        invalidatePyqs();
+        toast(`Bulk scan completed: ${dirRes.totalQuestions} questions extracted across ${dirRes.successfulFiles}/${dirRes.totalFiles} PDFs!`, 'success');
+        onSuccess({
+          examTrack: hint === 'AUTO' ? 'GATE' : hint,
+          subjectName: fileName,
+          year: new Date().getFullYear(),
+          questionsExtracted: dirRes.totalQuestions,
+          errors: dirRes.errors,
+          cached: false,
+        });
+      } else {
+        const res = await api.pyq.ingestPdf(filePath, hint, forceReingest);
+        setResult(res);
+        invalidatePyqs();
+        const cacheNote = res.cached ? ' (from local cache)' : '';
+        toast(`Successfully loaded ${res.questionsExtracted} questions into ${res.examTrack} bank${cacheNote}!`, 'success');
+        onSuccess(res);
+      }
     } catch (e: any) {
       setError(e?.message || 'Failed to ingest PYQ document.');
       toast(`Ingestion failed: ${e?.message}`, 'error');
@@ -115,7 +148,7 @@ export function PyqUploaderModal({ onClose, onSuccess }: PyqUploaderModalProps) 
                     <div className="text-xs font-semibold text-[var(--color-text)] truncate max-w-[320px] mx-auto">
                       {fileName}
                     </div>
-                    <div className="text-[10px] text-cyan-400 mt-1 font-medium">Click to choose a different PDF</div>
+                    <div className="text-[10px] text-cyan-400 mt-1 font-medium">Click to choose a different PDF or directory</div>
                   </div>
                 ) : (
                   <div>
@@ -127,6 +160,17 @@ export function PyqUploaderModal({ onClose, onSuccess }: PyqUploaderModalProps) 
                     </div>
                   </div>
                 )}
+              </div>
+
+              <div className="flex justify-center -mt-2">
+                <button
+                  type="button"
+                  onClick={!processing ? handlePickFolder : undefined}
+                  className="inline-flex items-center gap-1.5 text-xs text-cyan-400 hover:text-cyan-300 font-medium py-1 px-3 rounded-lg hover:bg-cyan-500/10 border border-transparent hover:border-cyan-500/30 transition-all"
+                >
+                  <FolderOpen size={14} />
+                  <span>Or select a whole folder of question papers</span>
+                </button>
               </div>
 
               {/* Exam Track Hint Selector */}

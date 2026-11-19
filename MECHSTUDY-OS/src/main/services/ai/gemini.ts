@@ -657,4 +657,91 @@ Respond with ONLY valid JSON:
   }
 }
 
+export interface ExamQuestionCoachingRequest {
+  questionNumber: number | string;
+  questionText: string;
+  type?: string;
+  options?: string[];
+  correctAnswer: string;
+  userAnswer?: string;
+  isCorrect: boolean;
+  solution?: string;
+  marks?: number;
+}
+
+export interface ExamQuestionCoachingResult {
+  diagnosis: string;
+  stepByStepSolution: string;
+  shortcutOrSpeedTrick: string;
+  optionsBreakdown: Array<{ option: string; analysis: string; isTrap?: boolean }>;
+  keyTakeaway: string;
+}
+
+export async function coachExamQuestionWithGemini(
+  data: ExamQuestionCoachingRequest
+): Promise<ExamQuestionCoachingResult> {
+  const key = getEffectiveApiKey();
+  if (!key) {
+    throw new Error('Google AI Studio API Key is required for exam coaching.');
+  }
+
+  const selectedModel = getAiSettings().selectedModel || 'gemini-3.5-flash-lite';
+  const ai = new GoogleGenAI({ apiKey: key });
+
+  const optionsText = data.options && data.options.length
+    ? `Options:\n${data.options.map((opt, i) => `${String.fromCharCode(65 + i)}) ${opt}`).join('\n')}`
+    : '';
+
+  const prompt = `You are an elite GATE & Mechanical Engineering Professor and Exam Coach.
+Analyze the following exam question and provide deep active-learning coaching for a student:
+
+Question #${data.questionNumber} (${data.type || 'MCQ'}, Marks: ${data.marks || 1}):
+${data.questionText}
+
+${optionsText}
+
+Official Correct Answer: ${data.correctAnswer}
+Student's Submitted Answer: ${data.userAnswer || 'Unattempted'}
+Outcome: ${data.isCorrect ? 'CORRECT (Focus on speed, shortcuts & exam tricks)' : 'WRONG/MISSED (Diagnose misconception, option traps & step-by-step fix)'}
+${data.solution ? `Reference Solution:\n${data.solution}` : ''}
+
+Instructions:
+1. "diagnosis": Concise diagnosis. If wrong, pinpoint the exact trap/misconception. If right, explain why this concept is critical in GATE and celebrate efficiency.
+2. "stepByStepSolution": Clean markdown with KaTeX math ($...$ inline, $$...$$ block) showing the first-principles derivation.
+3. "shortcutOrSpeedTrick": Crucial GATE shortcut (e.g. dimensional check, limits/boundary test, symmetry, or quick ratio) to solve in <45s.
+4. "optionsBreakdown": Array of objects for each option explaining why it is correct or incorrect, and why examiners chose that distractor as a trap.
+5. "keyTakeaway": Single high-yield sentence rule to remember.
+
+Return strictly valid JSON matching this schema:
+{
+  "diagnosis": "...",
+  "stepByStepSolution": "...",
+  "shortcutOrSpeedTrick": "...",
+  "optionsBreakdown": [
+    { "option": "A", "analysis": "...", "isTrap": false }
+  ],
+  "keyTakeaway": "..."
+}`;
+
+  const response = await ai.models.generateContent({
+    model: selectedModel,
+    contents: [{ role: 'user', parts: [{ text: prompt }] }],
+    config: {
+      temperature: 0.2,
+      maxOutputTokens: 2048,
+      responseMimeType: 'application/json',
+    },
+  });
+
+  const rawJson = response.text?.trim() || '{}';
+  try {
+    return JSON.parse(rawJson);
+  } catch {
+    const match = rawJson.match(/\{[\s\S]*\}/);
+    if (match) return JSON.parse(match[0]);
+    throw new Error('Failed to parse coaching response from AI.');
+  }
+}
+
+
 
