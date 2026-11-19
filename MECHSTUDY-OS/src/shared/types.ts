@@ -745,4 +745,105 @@ export interface ReaderSettings {
   aiPanelWidth: number;
 }
 
+export interface UserProfile {
+  id: number;
+  total_xp: number;
+  rtu_xp: number;
+  gate_xp: number;
+  level: number;
+  streak_days: number;
+  last_active_date: string | null;
+  created_at: string;
+  updated_at: string;
+}
+
+export interface UserTrophy {
+  id: number;
+  code: string;
+  title: string;
+  description: string;
+  category: 'general' | 'rtu' | 'gate' | 'mastery' | 'streak';
+  icon: string;
+  unlocked_at: string;
+}
+
+export interface RtuPyq {
+  id: number;
+  subject_id: number | null;
+  subject_code: string | null;
+  subject_name: string;
+  unit_number: number | null;
+  topic_id: number | null;
+  year: number;
+  exam_term: string;
+  part: 'Part A' | 'Part B' | 'Part C' | string;
+  question_number: string | null;
+  question_text: string;
+  marks: number;
+  solution_text: string | null;
+  diagram_description: string | null;
+  raw_json?: string | null;
+  created_at: string;
+}
+
+export interface GatePyq {
+  id: number;
+  subject_id: number | null;
+  subject_code: string | null;
+  subject_name: string;
+  topic_id: number | null;
+  section: 'GA' | 'EM' | 'ME' | string;
+  year: number;
+  shift: number;
+  question_number: number;
+  type: 'MCQ' | 'MSQ' | 'NAT';
+  question_text: string;
+  options_json: string | null;
+  answer_key: string | null;
+  nat_range_start: number | null;
+  nat_range_end: number | null;
+  marks: number;
+  negative_marks: number;
+  solution_text: string | null;
+  created_at: string;
+}
+
+export interface TopicQuizQuestion {
+  id?: number;
+  topicId: number;
+  examTrack: 'RTU' | 'GATE';
+  questionText: string;
+  options: string[];
+  correctAnswer: string;
+  explanation: string;
+}
+
+export interface TopicQuizResult {
+  correct: boolean;
+  explanation: string;
+  xpAwarded: number;
+  newLevel?: number;
+  unlockedTrophies?: UserTrophy[];
+}
+
+export interface ExamPaperRecord {
+  id: number;
+  exam_type: string;
+  title: string;
+  subject_id: number | null;
+  config_json?: string | null;
+  questions_json: string;
+  duration_minutes: number;
+  total_marks: number;
+  created_at: string;
+}
+
+export interface IngestPyqResult {
+  examTrack: 'RTU' | 'GATE';
+  subjectName: string;
+  year: number;
+  questionsExtracted: number;
+  errors: string[];
+}
+
 

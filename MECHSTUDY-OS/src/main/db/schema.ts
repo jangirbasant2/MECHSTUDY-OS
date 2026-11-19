@@ -585,5 +585,123 @@ CREATE TABLE IF NOT EXISTS ai_temporary_screenshots (
 CREATE INDEX IF NOT EXISTS idx_temp_screenshots_conv ON ai_temporary_screenshots(conversation_id);
 CREATE INDEX IF NOT EXISTS idx_temp_screenshots_remaining ON ai_temporary_screenshots(messages_remaining);
 `
+  },
+  {
+    version: 11,
+    name: 'gamification_and_pyq_banks_and_exam_modes',
+    sql: `
+CREATE TABLE IF NOT EXISTS user_profile (
+  id INTEGER PRIMARY KEY CHECK (id = 1),
+  total_xp INTEGER NOT NULL DEFAULT 0,
+  rtu_xp INTEGER NOT NULL DEFAULT 0,
+  gate_xp INTEGER NOT NULL DEFAULT 0,
+  level INTEGER NOT NULL DEFAULT 1,
+  streak_days INTEGER NOT NULL DEFAULT 0,
+  last_active_date TEXT,
+  created_at TEXT NOT NULL DEFAULT (datetime('now')),
+  updated_at TEXT NOT NULL DEFAULT (datetime('now'))
+);
+
+INSERT OR IGNORE INTO user_profile (id, total_xp, rtu_xp, gate_xp, level, streak_days)
+VALUES (1, 0, 0, 0, 1, 0);
+
+CREATE TABLE IF NOT EXISTS user_trophies (
+  id INTEGER PRIMARY KEY AUTOINCREMENT,
+  code TEXT NOT NULL UNIQUE,
+  title TEXT NOT NULL,
+  description TEXT NOT NULL,
+  category TEXT NOT NULL DEFAULT 'general',
+  icon TEXT NOT NULL,
+  unlocked_at TEXT NOT NULL DEFAULT (datetime('now'))
+);
+
+CREATE TABLE IF NOT EXISTS rtu_pyqs (
+  id INTEGER PRIMARY KEY AUTOINCREMENT,
+  subject_id INTEGER REFERENCES subjects(id) ON DELETE SET NULL,
+  subject_code TEXT,
+  subject_name TEXT NOT NULL,
+  unit_number INTEGER,
+  topic_id INTEGER REFERENCES topics(id) ON DELETE SET NULL,
+  year INTEGER NOT NULL,
+  exam_term TEXT NOT NULL DEFAULT 'Main',
+  part TEXT NOT NULL DEFAULT 'Part A',
+  question_number TEXT,
+  question_text TEXT NOT NULL,
+  marks REAL NOT NULL DEFAULT 2,
+  solution_text TEXT,
+  diagram_description TEXT,
+  raw_json TEXT,
+  created_at TEXT NOT NULL DEFAULT (datetime('now'))
+);
+CREATE INDEX IF NOT EXISTS idx_rtu_pyqs_subj ON rtu_pyqs(subject_id);
+CREATE INDEX IF NOT EXISTS idx_rtu_pyqs_year ON rtu_pyqs(year);
+CREATE INDEX IF NOT EXISTS idx_rtu_pyqs_part ON rtu_pyqs(part);
+
+CREATE TABLE IF NOT EXISTS gate_pyqs (
+  id INTEGER PRIMARY KEY AUTOINCREMENT,
+  subject_id INTEGER REFERENCES subjects(id) ON DELETE SET NULL,
+  subject_code TEXT,
+  subject_name TEXT NOT NULL,
+  topic_id INTEGER REFERENCES topics(id) ON DELETE SET NULL,
+  section TEXT NOT NULL DEFAULT 'ME',
+  year INTEGER NOT NULL,
+  shift INTEGER NOT NULL DEFAULT 1,
+  question_number INTEGER NOT NULL,
+  type TEXT NOT NULL DEFAULT 'MCQ',
+  question_text TEXT NOT NULL,
+  options_json TEXT,
+  answer_key TEXT,
+  nat_range_start REAL,
+  nat_range_end REAL,
+  marks REAL NOT NULL DEFAULT 1,
+  negative_marks REAL NOT NULL DEFAULT 0.33,
+  solution_text TEXT,
+  created_at TEXT NOT NULL DEFAULT (datetime('now'))
+);
+CREATE INDEX IF NOT EXISTS idx_gate_pyqs_subj ON gate_pyqs(subject_id);
+CREATE INDEX IF NOT EXISTS idx_gate_pyqs_year ON gate_pyqs(year);
+CREATE INDEX IF NOT EXISTS idx_gate_pyqs_sec ON gate_pyqs(section);
+
+CREATE TABLE IF NOT EXISTS exam_papers (
+  id INTEGER PRIMARY KEY AUTOINCREMENT,
+  exam_type TEXT NOT NULL,
+  title TEXT NOT NULL,
+  subject_id INTEGER,
+  config_json TEXT,
+  questions_json TEXT NOT NULL,
+  duration_minutes INTEGER NOT NULL,
+  total_marks REAL NOT NULL,
+  created_at TEXT NOT NULL DEFAULT (datetime('now'))
+);
+
+CREATE TABLE IF NOT EXISTS exam_attempts (
+  id INTEGER PRIMARY KEY AUTOINCREMENT,
+  paper_id INTEGER REFERENCES exam_papers(id) ON DELETE CASCADE,
+  exam_type TEXT NOT NULL,
+  started_at TEXT NOT NULL,
+  submitted_at TEXT,
+  time_spent_seconds INTEGER NOT NULL DEFAULT 0,
+  score REAL,
+  max_score REAL,
+  responses_json TEXT,
+  is_terminated INTEGER NOT NULL DEFAULT 0,
+  created_at TEXT NOT NULL DEFAULT (datetime('now'))
+);
+
+CREATE TABLE IF NOT EXISTS topic_quizzes (
+  id INTEGER PRIMARY KEY AUTOINCREMENT,
+  topic_id INTEGER NOT NULL REFERENCES topics(id) ON DELETE CASCADE,
+  exam_track TEXT NOT NULL DEFAULT 'RTU',
+  question_text TEXT NOT NULL,
+  options_json TEXT NOT NULL,
+  correct_answer TEXT NOT NULL,
+  user_answer TEXT,
+  is_correct INTEGER NOT NULL DEFAULT 0,
+  explanation TEXT,
+  xp_awarded INTEGER NOT NULL DEFAULT 0,
+  created_at TEXT NOT NULL DEFAULT (datetime('now'))
+);
+CREATE INDEX IF NOT EXISTS idx_topic_quizzes_topic ON topic_quizzes(topic_id);
+`
   }
 ];

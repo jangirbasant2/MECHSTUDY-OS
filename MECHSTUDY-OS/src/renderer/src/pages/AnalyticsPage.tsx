@@ -71,16 +71,18 @@ export function AnalyticsPage() {
 
   React.useEffect(() => { void load(); }, [load]);
 
-  if (loading) return <Loading label="Crunching your study data…" />;
-  if (error) return <ErrorState message={error} onRetry={() => void load()} />;
-  if (!summary) return <Loading label="Loading analytics…" />;
+  // Compute all derived values and memos unconditionally to avoid React Error #310
+  const dailyMap = React.useMemo(() => {
+    return new Map((summary?.daily ?? []).map(d => [d.day, d.secs]));
+  }, [summary?.daily]);
 
-  const dailyMap = new Map(summary.daily.map(d => [d.day, d.secs]));
-  const series = Array.from({ length: 14 }, (_, i) => {
-    const d = new Date(Date.now() - (13 - i) * 86400000);
-    const key = localDay(d);
-    return { day: key, label: shortDay(key), minutes: Math.round((dailyMap.get(key) ?? 0) / 60) };
-  });
+  const series = React.useMemo(() => {
+    return Array.from({ length: 14 }, (_, i) => {
+      const d = new Date(Date.now() - (13 - i) * 86400000);
+      const key = localDay(d);
+      return { day: key, label: shortDay(key), minutes: Math.round((dailyMap.get(key) ?? 0) / 60) };
+    });
+  }, [dailyMap]);
 
   const heatmapDays = React.useMemo(() => {
     const days: Array<{ date: string; label: string; minutes: number; level: number }> = [];
@@ -109,21 +111,44 @@ export function AnalyticsPage() {
     return days;
   }, [dailyMap]);
 
-  const totalTracked = summary.byTarget.reduce((s, t) => s + t.secs, 0);
-  const progressTotal = summary.progress.reduce((s, p) => s + p.c, 0);
-  const completed = summary.progress.find(p => p.status === 'completed')?.c ?? 0;
-  const accuracy = summary.practice.attempted
-    ? pct(summary.practice.correct, summary.practice.attempted)
-    : null;
-  const taskRate = summary.tasks.planned ? pct(summary.tasks.done, summary.tasks.planned) : null;
+  const totalTracked = React.useMemo(() => {
+    return summary?.byTarget.reduce((s, t) => s + t.secs, 0) ?? 0;
+  }, [summary?.byTarget]);
+
+  const progressTotal = React.useMemo(() => {
+    return summary?.progress.reduce((s, p) => s + p.c, 0) ?? 0;
+  }, [summary?.progress]);
+
+  const completed = React.useMemo(() => {
+    return summary?.progress.find(p => p.status === 'completed')?.c ?? 0;
+  }, [summary?.progress]);
+
+  const accuracy = React.useMemo(() => {
+    if (!summary?.practice.attempted) return null;
+    return pct(summary.practice.correct, summary.practice.attempted);
+  }, [summary?.practice]);
+
+  const taskRate = React.useMemo(() => {
+    if (!summary?.tasks.planned) return null;
+    return pct(summary.tasks.done, summary.tasks.planned);
+  }, [summary?.tasks]);
 
   const hasSessions = totalTracked > 0;
-  const subjectSeries = summary.bySubject
-    .filter(s => s.secs > 0)
-    .slice(0, 8)
-    .map(s => ({ name: s.subject_name, minutes: Math.round(s.secs / 60), secs: s.secs }));
+  const subjectSeries = React.useMemo(() => {
+    return (summary?.bySubject ?? [])
+      .filter(s => s.secs > 0)
+      .slice(0, 8)
+      .map(s => ({ name: s.subject_name, minutes: Math.round(s.secs / 60), secs: s.secs }));
+  }, [summary?.bySubject]);
 
-  const practised = topics.filter(t => t.attempted > 0);
+  const practised = React.useMemo(() => {
+    return topics.filter(t => t.attempted > 0);
+  }, [topics]);
+
+  // Early returns are ONLY after all hooks have been called
+  if (loading) return <Loading label="Crunching your study data…" />;
+  if (error) return <ErrorState message={error} onRetry={() => void load()} />;
+  if (!summary) return <Loading label="Loading analytics…" />;
 
   return (
     <div className="scroll-y h-full">

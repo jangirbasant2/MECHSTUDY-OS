@@ -36,6 +36,7 @@ const SYLLABUS: NavItem[] = [
 ];
 
 const PLAN: NavItem[] = [
+  { id: 'profile', label: 'Profile & Trophies', icon: Award, hint: 'XP, Levels & Badges' },
   { id: 'planner', label: 'Study Planner', icon: CalendarDays },
   { id: 'revision', label: 'Revision Center', icon: Repeat2 },
   { id: 'analytics', label: 'Analytics', icon: BarChart3 },
@@ -57,8 +58,9 @@ export function Sidebar() {
 
   const activeSyllabus = React.useMemo(() => {
     return SYLLABUS.filter(item => {
-      if (activeExamMode === 'GATE' && item.id === 'iit') return false;
-      if (activeExamMode === 'IIT' && item.id === 'gate') return false;
+      if (activeExamMode === 'RTU') return item.id !== 'gate' && item.id !== 'iit';
+      if (activeExamMode === 'GATE') return item.id !== 'rtu' && item.id !== 'iit';
+      if (activeExamMode === 'IIT') return item.id !== 'gate' && item.id !== 'rtu';
       return true;
     });
   }, [activeExamMode]);

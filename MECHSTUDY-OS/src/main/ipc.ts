@@ -75,6 +75,13 @@ import {
   getReaderSettings, updateReaderSettings
 } from './services/readerSettings';
 import { PYQ_FOLDER } from './data/pyqPapers';
+import {
+  getUserProfile, getUserTrophies, awardXp, recordMasteryQuizResult
+} from './services/gamification';
+import { generateMasteryQuizWithGemini } from './services/ai/gemini';
+import {
+  ingestPyqPdf, getRtuPyqList, getGatePyqList, createRtuExamPaper, getGateCbtPaper
+} from './services/pyqIngest';
 
 /* ------------------------------------------------------------------ */
 
@@ -714,4 +721,26 @@ export function registerIpc(): void {
     closeDb();
     return initDb();
   });
+
+  /* ---------------- Gamification & XP ---------------- */
+  handle('gamification:getProfile', () => getUserProfile());
+  handle('gamification:getTrophies', () => getUserTrophies());
+  handle('gamification:awardXp', ({ amount, track }) => awardXp(Number(amount), track));
+  handle('gamification:verifyMastery', ({ topicId, examTrack, questionText, options, correctAnswer, userAnswer, explanation }) =>
+    recordMasteryQuizResult(Number(topicId), examTrack, questionText, options, correctAnswer, userAnswer, explanation)
+  );
+
+  /* ---------------- Topic Mastery Verification Quiz ---------------- */
+  handle('quiz:generateMastery', ({ topicTitle, subjectName, examTrack }) =>
+    generateMasteryQuizWithGemini(topicTitle, subjectName, examTrack)
+  );
+
+  /* ---------------- Intelligent Bulk PYQ Ingestion & Papers ---------------- */
+  handle('pyq:ingestPdf', ({ filePath, targetExamHint }) => ingestPyqPdf(filePath, targetExamHint));
+  handle('pyq:getRtuList', ({ subjectId, part }) => getRtuPyqList(subjectId ? Number(subjectId) : undefined, part));
+  handle('pyq:getGateList', ({ subjectId, section }) => getGatePyqList(subjectId ? Number(subjectId) : undefined, section));
+  handle('pyq:generateRtuPaper', ({ subjectId, mode, selectedUnits }) =>
+    createRtuExamPaper(Number(subjectId), mode, selectedUnits)
+  );
+  handle('pyq:getGateCbtPaper', ({ mode }) => getGateCbtPaper(mode));
 }

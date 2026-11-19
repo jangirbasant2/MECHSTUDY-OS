@@ -238,3 +238,257 @@ export async function geminiOcrPage(
 
   return response.text?.trim() || '';
 }
+
+/**
+ * Intelligent Bulk PYQ Extraction & Classification using Google AI Studio (Gemini).
+ */
+export async function extractPyqsWithGemini(
+  content: string | { imageBuffer: Buffer; mimeType?: string },
+  examTrackHint?: 'RTU' | 'GATE' | 'AUTO',
+  apiKey?: string,
+  model?: string
+): Promise<any> {
+  const key = getEffectiveApiKey(apiKey);
+  if (!key) {
+    throw new Error('Google AI Studio API Key is required for intelligent PYQ ingestion.');
+  }
+
+  const selectedModel = model || getAiSettings().selectedModel || 'gemini-3.5-flash-lite';
+  const ai = new GoogleGenAI({ apiKey: key });
+
+  const prompt = `You are an expert academic paper classifier and digitizer for MECHSTUDY OS.
+Your task is to analyze this previous year question paper (PYQ) document and parse all questions into structured JSON.
+
+CRITICAL INSTRUCTIONS:
+1. Detect Exam Track:
+   - "RTU" for Rajasthan Technical University Kota B.Tech exams (features Part A, Part B, Part C, Semester terms, Main/Back).
+   - "GATE" for Graduate Aptitude Test in Engineering (features General Aptitude, Engineering Mathematics, Mechanical Engineering, 1-mark & 2-mark MCQs/MSQs/NATs).
+   ${examTrackHint && examTrackHint !== 'AUTO' ? `Note: User provided preferred hint: "${examTrackHint}".` : ''}
+
+2. Detect Subject, Year, Paper Code:
+   - Identify Subject Name (e.g. "Mechanics of Solids", "Engineering Thermodynamics", "Fluid Mechanics", "Theory of Machines", etc.)
+   - Identify Exam Year (e.g. 2024, 2023, 2022, etc.).
+
+3. Extract each question faithfully:
+   - Use standard LaTeX math in $...$ for inline expressions (e.g. $\\sigma = \\frac{My}{I}$) and $$...$$ for display equations.
+   - For GATE: parse 'type' as 'MCQ' (single choice), 'MSQ' (multiple correct), or 'NAT' (numerical answer type). For NAT, extract answer number or numerical range [min, max].
+   - For RTU: parse 'part' as 'Part A' (2-mark short questions), 'Part B' (analytical/numerical), or 'Part C' (long derivation/comprehensive problem).
+   - Extract options where available and answer key/solution if present in document.
+
+Return ONLY a valid JSON object matching this schema:
+{
+  "examTrack": "RTU" | "GATE",
+  "subjectName": "string",
+  "subjectCode": "string",
+  "year": 2023,
+  "examTerm": "string",
+  "questions": [
+    {
+      "number": "string or number",
+      "part": "Part A" | "Part B" | "Part C",
+      "section": "GA" | "EM" | "ME",
+      "type": "MCQ" | "MSQ" | "NAT" | "THEORY" | "NUMERICAL",
+      "unitNumber": 1,
+      "questionText": "string formatted with LaTeX",
+      "options": ["Option A", "Option B", "Option C", "Option D"],
+      "answerKey": "string or option index or NAT value",
+      "natRange": [10.5, 11.2],
+      "marks": 2,
+      "negativeMarks": 0.66,
+      "solution": "step-by-step solution if available"
+    }
+  ]
+}`;
+
+  const parts: any[] = [{ text: prompt }];
+
+  if (typeof content === 'string') {
+    parts.push({ text: `DOCUMENT CONTENT:\n${content.slice(0, 50000)}` });
+  } else {
+    parts.push({
+      inlineData: {
+        mimeType: content.mimeType || 'image/png',
+        data: content.imageBuffer.toString('base64'),
+      },
+    });
+  }
+
+  const response = await ai.models.generateContent({
+    model: selectedModel,
+    contents: [{ role: 'user', parts }],
+    config: {
+      temperature: 0.1,
+      maxOutputTokens: 8192,
+      responseMimeType: 'application/json',
+    },
+  });
+
+  const rawJson = response.text?.trim() || '{}';
+  try {
+    return JSON.parse(rawJson);
+  } catch {
+    const match = rawJson.match(/\{[\s\S]*\}/);
+    if (match) return JSON.parse(match[0]);
+    throw new Error('Failed to parse structured JSON from AI PYQ extraction response.');
+  }
+}
+
+/**
+ * Generate 1 rigorous theory/conceptual quiz question for Topic Mastery Gate.
+ */
+export async function generateMasteryQuizWithGemini(
+  topicTitle: string,
+  subjectName: string,
+  examTrack: 'RTU' | 'GATE' = 'RTU',
+  apiKey?: string,
+  model?: string
+): Promise<{
+  questionText: string;
+  options: string[];
+  correctAnswer: string;
+  explanation: string;
+}> {
+  const key = getEffectiveApiKey(apiKey);
+  if (!key) {
+    throw new Error('Google AI Studio API Key is required to verify topic mastery.');
+  }
+
+  const selectedModel = model || getAiSettings().selectedModel || 'gemini-3.5-flash-lite';
+  const ai = new GoogleGenAI({ apiKey: key });
+
+  const prompt = `You are a strict academic examiner for MECHSTUDY OS.
+A student is attempting to mark the following curriculum topic as "Completed":
+- Topic: "${topicTitle}"
+- Subject: "${subjectName}"
+- Exam Track: "${examTrack}"
+
+Generate exactly ONE rigorous, high-quality conceptual/theory verification question testing the core fundamental concept of this topic.
+Rules:
+1. The question must test deep conceptual understanding, physical insight, or mathematical foundation, not trivial recall.
+2. Provide exactly 4 distinct, plausible options (A, B, C, D).
+3. Clearly specify the exact correct option string.
+4. Provide a thorough, pedagogically sound explanation with LaTeX equations where appropriate.
+
+Return ONLY a valid JSON object:
+{
+  "questionText": "Question with $LaTeX$ math",
+  "options": [
+    "Option text A",
+    "Option text B",
+    "Option text C",
+    "Option text D"
+  ],
+  "correctAnswer": "The exact matching text of the correct option",
+  "explanation": "Clear derivation/concept explanation why this is correct and why other options are wrong."
+}`;
+
+  const response = await ai.models.generateContent({
+    model: selectedModel,
+    contents: [{ role: 'user', parts: [{ text: prompt }] }],
+    config: {
+      temperature: 0.3,
+      maxOutputTokens: 1500,
+      responseMimeType: 'application/json',
+    },
+  });
+
+  const text = response.text?.trim() || '{}';
+  try {
+    return JSON.parse(text);
+  } catch {
+    const match = text.match(/\{[\s\S]*\}/);
+    if (match) return JSON.parse(match[0]);
+    throw new Error('Failed to parse topic mastery quiz response.');
+  }
+}
+
+/**
+ * Generate RTU Mid-Term or End-Sem Predicted Question Paper with Gemini.
+ */
+export async function generateRtuPaperWithGemini(
+  subjectName: string,
+  mode: 'END_SEM' | 'MT1' | 'MT2',
+  selectedUnits: Array<{ unitNumber: number; title: string; topics?: string[] }>,
+  existingPyqSnippets: string[] = [],
+  apiKey?: string,
+  model?: string
+): Promise<any> {
+  const key = getEffectiveApiKey(apiKey);
+  if (!key) {
+    throw new Error('Google AI Studio API Key is required for RTU Paper Generation.');
+  }
+
+  const selectedModel = model || getAiSettings().selectedModel || 'gemini-3.5-flash-lite';
+  const ai = new GoogleGenAI({ apiKey: key });
+
+  const prompt = `You are the Chief Controller of Examinations for Rajasthan Technical University (RTU) Kota.
+Generate an official-format RTU Question Paper for:
+- Subject: "${subjectName}"
+- Exam Sub-Mode: ${mode === 'END_SEM' ? 'RTU End-Semester Predicted Paper' : mode === 'MT1' ? 'RTU Mid-Term 1 (MT-1) Hybrid Paper' : 'RTU Mid-Term 2 (MT-2) Hybrid Paper'}
+- Selected Units: ${JSON.stringify(selectedUnits)}
+
+FORMAT SPECIFICATIONS:
+${
+  mode === 'END_SEM'
+    ? `RTU End-Semester Pattern (Total 80/100 Marks):
+- Part A: 10 Short conceptual/formula questions (2 marks each = 20 Marks). Compulsory, 2 from each unit.
+- Part B: 7 Analytical / Numerical problems (8 marks each, answer any 5 = 40 Marks).
+- Part C: 5 Comprehensive derivations / design problems with internal choices (15 marks each, answer any 2 = 30 Marks).`
+    : `RTU Mid-Term Exam Pattern (Total 30 Marks, 90 Minutes):
+- Part A: 4 Short questions covering selected units (2 marks each = 8 Marks).
+- Part B: 3 Numerical / Analytical problems (4 marks each, answer 2 = 8 Marks).
+- Part C: 2 In-depth derivations / design questions (7 marks each, answer 2 = 14 Marks).`
+}
+
+${existingPyqSnippets.length > 0 ? `REFERENCE RECURRING RTU PYQS TO INCORPORATE / ADAPT:\n${existingPyqSnippets.slice(0, 10).join('\n---\n')}` : ''}
+
+Use standard LaTeX ($...$ and $$...$$) for all engineering formulas and equations.
+Return ONLY valid JSON matching this structure:
+{
+  "title": "${subjectName} - ${mode === 'END_SEM' ? 'Predicted End-Semester Paper' : mode === 'MT1' ? 'Mid-Term 1 Exam' : 'Mid-Term 2 Exam'}",
+  "totalMarks": ${mode === 'END_SEM' ? 100 : 30},
+  "durationMinutes": ${mode === 'END_SEM' ? 180 : 90},
+  "sections": [
+    {
+      "name": "Part A",
+      "description": "Short answer questions (2 Marks each)",
+      "questions": [
+        { "number": "1(a)", "text": "Question text", "marks": 2, "unit": 1, "solution": "Model answer / key steps" }
+      ]
+    },
+    {
+      "name": "Part B",
+      "description": "Analytical / Numerical problems",
+      "questions": [
+        { "number": "2", "text": "Question text", "marks": ${mode === 'END_SEM' ? 8 : 4}, "unit": 1, "solution": "Step by step numerical solution" }
+      ]
+    },
+    {
+      "name": "Part C",
+      "description": "Long derivations / Comprehensive problems",
+      "questions": [
+        { "number": "3", "text": "Derivation text", "marks": ${mode === 'END_SEM' ? 15 : 7}, "unit": 2, "solution": "Full derivation / schematic explanation" }
+      ]
+    }
+  ]
+}`;
+
+  const response = await ai.models.generateContent({
+    model: selectedModel,
+    contents: [{ role: 'user', parts: [{ text: prompt }] }],
+    config: {
+      temperature: 0.2,
+      maxOutputTokens: 8192,
+      responseMimeType: 'application/json',
+    },
+  });
+
+  const text = response.text?.trim() || '{}';
+  try {
+    return JSON.parse(text);
+  } catch {
+    const match = text.match(/\{[\s\S]*\}/);
+    if (match) return JSON.parse(match[0]);
+    throw new Error('Failed to parse generated RTU paper response.');
+  }
+}

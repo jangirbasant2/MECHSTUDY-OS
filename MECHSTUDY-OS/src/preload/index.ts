@@ -224,6 +224,12 @@ const api: MechStudyApi = {
     provenance: (id) => invoke('pyq:provenance', { id }),
     solutions: () => invoke('pyq:solutions'),
     onProgress: (cb) => subscribe('pyq:progress', cb),
+    ingestPdf: (filePath: string, targetExamHint?: any) => invoke('pyq:ingestPdf', { filePath, targetExamHint }),
+    getRtuList: (subjectId?: number, part?: string) => invoke('pyq:getRtuList', { subjectId, part }),
+    getGateList: (subjectId?: number, section?: string) => invoke('pyq:getGateList', { subjectId, section }),
+    generateRtuPaper: (subjectId: number, mode: any, selectedUnits?: number[]) =>
+      invoke('pyq:generateRtuPaper', { subjectId, mode, selectedUnits }),
+    getGateCbtPaper: (mode?: any) => invoke('pyq:getGateCbtPaper', { mode }),
   },
 
   db: {
@@ -289,6 +295,15 @@ const api: MechStudyApi = {
   reader: {
     getSettings: () => invoke('reader:getSettings'),
     updateSettings: (patch: any) => invoke('reader:updateSettings', { patch }),
+  },
+  gamification: {
+    getProfile: () => invoke('gamification:getProfile'),
+    getTrophies: () => invoke('gamification:getTrophies'),
+    awardXp: (amount: number, track?: any) => invoke('gamification:awardXp', { amount, track }),
+    verifyMastery: (params: any) => invoke('gamification:verifyMastery', params),
+  },
+  quiz: {
+    generateMastery: (params: any) => invoke('quiz:generateMastery', params),
   },
 };
 

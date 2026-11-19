@@ -1,7 +1,7 @@
 import React from 'react';
 import {
   Plus, Check, X, Trash2, CircleHelp, BookOpen, AlertTriangle, Target, Pencil,
-  ChevronRight, Lightbulb, RotateCcw, Filter, Award,
+  ChevronRight, Lightbulb, RotateCcw, Filter, Award, Upload,
 } from 'lucide-react';
 import { api } from '../lib/api';
 import { useApp } from '../store';
@@ -9,6 +9,7 @@ import {
   Badge, ConfirmDialog, EmptyState, ErrorState, Loading, Modal, ProgressBar,
   SectionHeader, Spinner, Stat, Tabs,
 } from '../components/ui';
+import { PyqUploaderModal } from '../components/PyqUploaderModal';
 import { dateLabel, pct, truncate } from '../lib/format';
 import { ANSWER_STATUS_LABEL, gradeAnswer } from '../lib/grade';
 import type { MistakeRow, QuestionRow, SubjectRow, TreeSubject } from '../../../shared/types';
@@ -46,6 +47,7 @@ export function PracticePage() {
   const setPage = useApp(s => s.setPage);
   const toast = useApp(s => s.toast);
   const openTopic = useApp(s => s.openTopic);
+  const activeExamMode = useApp(s => s.activeExamMode);
 
   const [tab, setTab] = React.useState<Tab>('practice');
   const [loading, setLoading] = React.useState(true);
@@ -65,10 +67,12 @@ export function PracticePage() {
   const [editor, setEditor] = React.useState<{ open: boolean; question: QuestionRow | null }>({ open: false, question: null });
   const [confirmDelete, setConfirmDelete] = React.useState<QuestionRow | null>(null);
   const [mistakeFor, setMistakeFor] = React.useState<QuestionRow | null>(null);
+  const [pyqModalOpen, setPyqModalOpen] = React.useState(false);
 
   const load = React.useCallback(async () => {
     setError(null);
     try {
+      const examTrack = activeExamMode === 'GATE' ? 'GATE' : 'RTU';
       const [qs, ms, st, subs, tr] = await Promise.all([
         api.practice.list({
           subjectId: subjectFilter === '' ? undefined : Number(subjectFilter),
@@ -77,8 +81,8 @@ export function PracticePage() {
         }),
         api.mistakes.list(),
         api.practice.stats(),
-        api.syllabus.subjects('RTU'),
-        api.syllabus.tree('RTU'),
+        api.syllabus.subjects(examTrack),
+        api.syllabus.tree(examTrack),
       ]);
       setQuestions(qs);
       setMistakes(ms);
@@ -90,7 +94,7 @@ export function PracticePage() {
     } finally {
       setLoading(false);
     }
-  }, [subjectFilter, typeFilter, q]);
+  }, [subjectFilter, typeFilter, q, activeExamMode]);
 
   React.useEffect(() => {
     const id = window.setTimeout(() => { void load(); }, q ? 220 : 0);
@@ -131,6 +135,14 @@ export function PracticePage() {
           description="Your question bank. Previous-year GATE papers are imported from your own PDF folder (Import → Previous-year papers); questions you write yourself live here too. Every answer says where it came from."
           action={
             <div className="flex items-center gap-2">
+              <button
+                className="btn btn-sm btn-secondary flex items-center gap-1.5"
+                onClick={() => setPyqModalOpen(true)}
+                title="1-Click bulk ingest full previous year question paper PDFs with AI auto-tagging"
+              >
+                <Upload size={13} className="text-cyan-400" />
+                <span>Bulk Ingest PYQ PDF</span>
+              </button>
               <button className="btn btn-sm" onClick={() => setPage('exam')}>
                 <Award size={13} /> Timed Exam Mode
               </button>
@@ -550,6 +562,16 @@ export function PracticePage() {
         onCancel={() => setConfirmDelete(null)}
         onConfirm={() => void deleteQuestion()}
       />
+
+      {pyqModalOpen && (
+        <PyqUploaderModal
+          onClose={() => setPyqModalOpen(false)}
+          onSuccess={() => {
+            setPyqModalOpen(false);
+            void load();
+          }}
+        />
+      )}
     </div>
   );
 }

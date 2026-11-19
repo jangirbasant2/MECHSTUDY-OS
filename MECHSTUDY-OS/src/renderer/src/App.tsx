@@ -26,6 +26,7 @@ import { AnalyticsPage } from './pages/AnalyticsPage';
 import { ImportPage } from './pages/ImportPage';
 import { SettingsPage } from './pages/SettingsPage';
 import { AIPage } from './pages/AI/AIPage';
+import { ProfilePage } from './pages/ProfilePage';
 
 export function App() {
   const page = useApp(s => s.page);
@@ -169,6 +170,7 @@ export function App() {
       case 'import': return <ImportPage />;
       case 'settings': return <SettingsPage />;
       case 'ai': return <AIPage />;
+      case 'profile': return <ProfilePage />;
       default: return <HomePage />;
     }
   };

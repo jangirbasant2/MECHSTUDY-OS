@@ -8,6 +8,7 @@ import { useApp } from '../store';
 import type { TreeSubject, TreeUnit, TreeTopic, TopicDetail, MappingRow } from '../../../shared/types';
 import { Badge, EmptyState, ErrorState, Loading, ProgressBar, SectionHeader, Spinner, Tabs } from './ui';
 import { pct, statusLabel, statusColor, dateLabel, relativeDays } from '../lib/format';
+import { MasteryModal } from './MasteryModal';
 
 const STATUS_OPTIONS_RTU = [
   { value: 'not_started', label: 'Not started' },
@@ -316,6 +317,7 @@ function TopicPanel({
   const [busy, setBusy] = React.useState(false);
   const [notesDraft, setNotesDraft] = React.useState('');
   const [notesSaved, setNotesSaved] = React.useState(true);
+  const [masteryModalOpen, setMasteryModalOpen] = React.useState(false);
 
   const openDocument = useApp(s => s.openDocument);
   const toast = useApp(s => s.toast);
@@ -425,14 +427,23 @@ function TopicPanel({
       <div className="scroll-y flex-1 space-y-4 px-4 py-3">
         {/* status */}
         <div>
-          <div className="label mb-1.5">Status</div>
+          <div className="label mb-1.5 flex items-center justify-between">
+            <span>Status</span>
+            <span className="text-[10px] text-[var(--color-faint)]">Theory Quiz Required for "Completed"</span>
+          </div>
           <div className="flex flex-wrap gap-1.5">
             {statusOptions.map(o => {
               const active = (progress?.status ?? 'not_started') === o.value;
               return (
                 <button
                   key={o.value}
-                  onClick={() => void update({ status: o.value })}
+                  onClick={() => {
+                    if ((o.value === 'completed' || o.value === 'mastered') && (progress?.status !== 'completed' && progress?.status !== 'mastered')) {
+                      setMasteryModalOpen(true);
+                      return;
+                    }
+                    void update({ status: o.value });
+                  }}
                   disabled={busy}
                   className="rounded-md px-2 py-1 text-[11px] font-medium"
                   style={{
@@ -682,6 +693,21 @@ function TopicPanel({
         <AlertTriangle size={11} />
         Source: {topic.version_name}
       </div>
+
+      {masteryModalOpen && (
+        <MasteryModal
+          topicId={topicId}
+          topicTitle={topic.title}
+          subjectName={topic.subject_name || 'Engineering'}
+          examTrack={examType === 'GATE' ? 'GATE' : 'RTU'}
+          onClose={() => setMasteryModalOpen(false)}
+          onSuccess={() => {
+            setMasteryModalOpen(false);
+            void load();
+            onChanged();
+          }}
+        />
+      )}
     </aside>
   );
 }

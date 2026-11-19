@@ -47,7 +47,7 @@ export function FormulasPage() {
   const [searchQuery, setSearchQuery] = React.useState<string>('');
   const [copiedId, setCopiedId] = React.useState<string | null>(null);
 
-  // Reset selected subject filter when switching between GATE and IIT modes
+  // Reset selected subject filter when switching exam modes
   React.useEffect(() => {
     setSelectedSubject('All Subjects');
   }, [activeExamMode]);
@@ -115,13 +115,19 @@ export function FormulasPage() {
               <Sigma size={20} />
             </div>
             <h1 className="text-xl font-bold tracking-tight" style={{ color: 'var(--color-text)' }}>
-              {activeExamMode === 'IIT' ? 'IIT JEE Advanced Formula Vault' : 'GATE Mechanical Formula Vault'}
+              {activeExamMode === 'RTU'
+                ? 'RTU Engineering Formula Vault'
+                : activeExamMode === 'IIT'
+                ? 'IIT JEE Advanced Formula Vault'
+                : 'GATE Mechanical Formula Vault'}
             </h1>
           </div>
           <p className="mt-1 text-xs" style={{ color: 'var(--color-muted)' }}>
-            {activeExamMode === 'IIT'
-              ? 'Curated mathematical and physical formulas for IIT JEE Advanced (Physics, Chemistry, Mathematics) with instant KaTeX math rendering'
-              : 'Curated mathematical cheat-sheets for RTU Kota & GATE Mechanical with instant KaTeX math rendering'}
+            {activeExamMode === 'RTU'
+              ? 'Curated mathematical and derivation cheat-sheets for RTU Kota B.Tech III Semester core subjects with KaTeX math rendering'
+              : activeExamMode === 'IIT'
+              ? 'Curated mathematical and physical formulas for IIT JEE Advanced (PCM) with instant KaTeX math rendering'
+              : 'Curated high-yield mathematical cheat-sheets for GATE Mechanical Engineering with instant KaTeX math rendering'}
           </p>
         </div>
 

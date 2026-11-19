@@ -13,6 +13,7 @@ import type {
   AiStreamChunk, AiSettings, AiMemory, SendMessageRequest,
   AttachedDocumentSummary, DocumentProcessingProgress, DocumentTopicAnalysis,
   TemporaryScreenshotRecord, ReminderSettings, ReminderNotificationPayload, ReaderSettings,
+  UserProfile, UserTrophy, TopicQuizResult, RtuPyq, GatePyq, ExamPaperRecord, IngestPyqResult,
 } from './types';
 
 export type Unsubscribe = () => void;
@@ -195,6 +196,11 @@ export interface MechStudyApi {
     provenance(id: number): Promise<PyqProvenance | null>;
     solutions(): Promise<PyqSolutionOutcome>;
     onProgress(cb: (p: PyqProgress) => void): Unsubscribe;
+    ingestPdf(filePath: string, targetExamHint?: 'RTU' | 'GATE' | 'AUTO'): Promise<IngestPyqResult>;
+    getRtuList(subjectId?: number, part?: string): Promise<RtuPyq[]>;
+    getGateList(subjectId?: number, section?: string): Promise<GatePyq[]>;
+    generateRtuPaper(subjectId: number, mode: 'END_SEM' | 'MT1' | 'MT2', selectedUnits?: number[]): Promise<ExamPaperRecord>;
+    getGateCbtPaper(mode?: 'STRICT_CBT' | 'PRACTICE'): Promise<ExamPaperRecord>;
   };
   exam: {
     configs(): Promise<ExamConfig[]>;
@@ -253,5 +259,31 @@ export interface MechStudyApi {
   reader: {
     getSettings(): Promise<ReaderSettings>;
     updateSettings(patch: Partial<ReaderSettings>): Promise<boolean>;
+  };
+  gamification: {
+    getProfile(): Promise<UserProfile>;
+    getTrophies(): Promise<UserTrophy[]>;
+    awardXp(amount: number, track?: 'RTU' | 'GATE' | 'BOTH'): Promise<{ profile: UserProfile; unlockedTrophies: UserTrophy[] }>;
+    verifyMastery(params: {
+      topicId: number;
+      examTrack: 'RTU' | 'GATE';
+      questionText: string;
+      options: string[];
+      correctAnswer: string;
+      userAnswer: string;
+      explanation: string;
+    }): Promise<TopicQuizResult>;
+  };
+  quiz: {
+    generateMastery(params: {
+      topicTitle: string;
+      subjectName: string;
+      examTrack: 'RTU' | 'GATE';
+    }): Promise<{
+      questionText: string;
+      options: string[];
+      correctAnswer: string;
+      explanation: string;
+    }>;
   };
 }

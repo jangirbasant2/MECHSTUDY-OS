@@ -2,7 +2,7 @@ import React from 'react';
 import {
   Search, StickyNote, Sun, Moon, Settings, Play, Pause, Square, Timer,
   PanelLeftClose, PanelTopClose, GraduationCap, Sparkles, Bot, Eye, EyeOff,
-  CheckCircle2, AlertCircle, Loader2, ChevronDown, FileText, Cpu,
+  CheckCircle2, AlertCircle, Loader2, ChevronDown, ChevronRight, FileText, Cpu, Award,
 } from 'lucide-react';
 import { useApp } from '../store';
 import { pageTitle } from './Sidebar';
@@ -175,7 +175,7 @@ export function Topbar() {
         </div>
       </div>
 
-      {/* Top Middle: Global GATE <-> IIT Mode Switch */}
+      {/* Top Middle: Global RTU <-> GATE Mode Switch */}
       <div className="absolute left-1/2 -translate-x-1/2 flex items-center" data-testid="top-exam-switch">
         <div
           className="flex items-center rounded-lg border p-0.5 shadow-xs transition-all"
@@ -184,8 +184,25 @@ export function Topbar() {
             borderColor: 'var(--color-border)',
           }}
           role="group"
-          aria-label="GATE vs IIT Exam Mode Switch"
+          aria-label="RTU vs GATE Exam Mode Switch"
         >
+          <button
+            onClick={() => {
+              setActiveExamMode('RTU');
+              toast('Switched mode to RTU Kota B.Tech III Semester', 'info');
+            }}
+            className={`flex items-center gap-1.5 rounded-md px-3.5 py-1 text-xs font-semibold transition-all ${
+              activeExamMode === 'RTU'
+                ? 'bg-blue-600 text-white shadow-xs'
+                : 'text-[var(--color-muted)] hover:text-[var(--color-text)]'
+            }`}
+            title="Switch study workspace to RTU Kota (B.Tech III Semester Mechanical: 10 subjects, 34 units)"
+            aria-pressed={activeExamMode === 'RTU'}
+          >
+            <GraduationCap size={14} />
+            <span>RTU</span>
+          </button>
+
           <button
             onClick={() => {
               setActiveExamMode('GATE');
@@ -201,23 +218,6 @@ export function Topbar() {
           >
             <Sparkles size={13} />
             <span>GATE</span>
-          </button>
-
-          <button
-            onClick={() => {
-              setActiveExamMode('IIT');
-              toast('Switched mode to IIT JEE Advanced (Physics, Chemistry, Mathematics)', 'info');
-            }}
-            className={`flex items-center gap-1.5 rounded-md px-3.5 py-1 text-xs font-semibold transition-all ${
-              activeExamMode === 'IIT'
-                ? 'bg-orange-600 text-white shadow-xs'
-                : 'text-[var(--color-muted)] hover:text-[var(--color-text)]'
-            }`}
-            title="Switch study workspace to IIT JEE Advanced (Physics, Chemistry, Mathematics / Multi-Type Marking)"
-            aria-pressed={activeExamMode === 'IIT'}
-          >
-            <GraduationCap size={14} />
-            <span>IIT</span>
           </button>
         </div>
       </div>
@@ -398,6 +398,24 @@ export function Topbar() {
                     'Test & Save Configuration'
                   )}
                 </button>
+
+                {/* Profile & Trophies Link */}
+                <div className="pt-2 border-t" style={{ borderColor: 'var(--color-border)' }}>
+                  <button
+                    type="button"
+                    className="w-full flex items-center justify-between text-xs py-1.5 px-2 rounded-lg transition-colors text-[var(--color-muted)] hover:text-[var(--color-text)] hover:bg-[var(--color-panel2)]"
+                    onClick={() => {
+                      setPage('profile');
+                      setAiMenuOpen(false);
+                    }}
+                  >
+                    <span className="flex items-center gap-1.5">
+                      <Award size={14} className="text-amber-400" />
+                      <span className="font-medium">Profile &amp; Trophies</span>
+                    </span>
+                    <ChevronRight size={13} />
+                  </button>
+                </div>
               </div>
             </div>
           )}

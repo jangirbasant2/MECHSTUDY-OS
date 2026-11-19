@@ -2,7 +2,7 @@ import { create } from 'zustand';
 
 export type PageId =
   | 'home' | 'library' | 'rtu' | 'gate' | 'iit' | 'planner' | 'reader' | 'notes'
-  | 'revision' | 'practice' | 'exam' | 'formulas' | 'search' | 'analytics' | 'import' | 'settings' | 'ai';
+  | 'revision' | 'practice' | 'exam' | 'formulas' | 'search' | 'analytics' | 'import' | 'settings' | 'ai' | 'profile';
 
 export interface Toast {
   id: number;
@@ -40,7 +40,7 @@ interface AppState {
   readerDocId: number | null;
   readerPage: number | null;
   paletteOpen: boolean;
-  activeExamMode: 'GATE' | 'IIT';
+  activeExamMode: 'RTU' | 'GATE' | 'IIT';
   pendingTopicId: number | null;
   quickNote: { open: boolean; documentId?: number; page?: number } | null;
   timer: TimerState;
@@ -48,7 +48,7 @@ interface AppState {
 
   boot(): void;
   setPage(page: PageId): void;
-  setActiveExamMode(mode: 'GATE' | 'IIT'): void;
+  setActiveExamMode(mode: 'RTU' | 'GATE' | 'IIT'): void;
   openDocument(id: number, page?: number): void;
   openTopic(topicId: number, examType: 'GATE' | 'IIT' | 'RTU'): void;
   clearPendingTopic(): void;
@@ -132,7 +132,7 @@ export const useApp = create<AppState>((set, get) => ({
   readerDocId: read<number | null>(LS.readerDoc, null),
   readerPage: null,
   paletteOpen: false,
-  activeExamMode: read<'GATE' | 'IIT'>(LS.activeExamMode, 'GATE'),
+  activeExamMode: read<'RTU' | 'GATE' | 'IIT'>(LS.activeExamMode, 'RTU'),
   pendingTopicId: null,
   quickNote: null,
   timer: read<TimerState>(LS.timer, defaultTimer),
@@ -154,7 +154,14 @@ export const useApp = create<AppState>((set, get) => ({
 
   setPage(page) {
     write(LS.page, page);
-    const examModePatch = page === 'gate' ? { activeExamMode: 'GATE' as const } : page === 'iit' ? { activeExamMode: 'IIT' as const } : {};
+    const examModePatch = page === 'gate'
+      ? { activeExamMode: 'GATE' as const }
+      : page === 'rtu'
+      ? { activeExamMode: 'RTU' as const }
+      : page === 'iit'
+      ? { activeExamMode: 'IIT' as const }
+      : {};
+
     if (examModePatch.activeExamMode) {
       write(LS.activeExamMode, examModePatch.activeExamMode);
       applyExamModeTheme(examModePatch.activeExamMode);
@@ -176,8 +183,9 @@ export const useApp = create<AppState>((set, get) => ({
     applyExamModeTheme(mode);
     set(state => {
       let nextPage = state.page;
-      if (state.page === 'gate' && mode === 'IIT') nextPage = 'iit';
-      else if (state.page === 'iit' && mode === 'GATE') nextPage = 'gate';
+      if (mode === 'RTU' && (state.page === 'gate' || state.page === 'iit')) nextPage = 'rtu';
+      else if (mode === 'GATE' && (state.page === 'rtu' || state.page === 'iit')) nextPage = 'gate';
+      else if (mode === 'IIT' && (state.page === 'rtu' || state.page === 'gate')) nextPage = 'iit';
       if (nextPage !== state.page) write(LS.page, nextPage);
 
       return {
@@ -311,7 +319,7 @@ export function applyTheme(theme: 'dark' | 'light' | 'system'): void {
   document.documentElement.style.colorScheme = resolved;
 }
 
-export function applyExamModeTheme(mode: 'GATE' | 'IIT'): void {
+export function applyExamModeTheme(mode: 'RTU' | 'GATE' | 'IIT'): void {
   document.documentElement.setAttribute('data-exam-mode', mode);
 }
 

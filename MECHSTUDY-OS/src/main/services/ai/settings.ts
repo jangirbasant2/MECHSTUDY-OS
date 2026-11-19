@@ -1,3 +1,4 @@
+import { safeStorage } from 'electron';
 import { getSetting, setSetting } from '../../db';
 import type { AiSettings } from '../../../shared/types';
 
@@ -28,13 +29,43 @@ export const DEFAULT_AI_SETTINGS: AiSettings = {
   maxDailyStudyHours: 6,
   autoRag: true,
   ragTopK: 4,
-  ollamaHost: 'http://127.0.0.1:11434',
-  embeddingModel: 'nomic-embed-text:latest',
 };
 
+function secureDecrypt(val: string): string {
+  if (!val) return '';
+  if (val.startsWith('enc:')) {
+    try {
+      if (safeStorage && safeStorage.isEncryptionAvailable()) {
+        const hex = val.slice(4);
+        return safeStorage.decryptString(Buffer.from(hex, 'hex'));
+      }
+    } catch {
+      // Fallback
+    }
+  }
+  return val;
+}
+
+function secureEncrypt(key: string): string {
+  if (!key) return '';
+  try {
+    if (safeStorage && safeStorage.isEncryptionAvailable()) {
+      const encrypted = safeStorage.encryptString(key);
+      return 'enc:' + encrypted.toString('hex');
+    }
+  } catch {
+    // If running in headless/mock or safeStorage unavailable
+  }
+  return key;
+}
+
 export function getAiSettings(): AiSettings {
+  const rawKey = getSetting('ai.apiKey', '');
+  const decryptedKey = secureDecrypt(rawKey);
+  const resolvedKey = decryptedKey || process.env.GEMINI_API_KEY || process.env.GOOGLE_API_KEY || DEFAULT_AI_SETTINGS.apiKey;
+
   return {
-    apiKey: getSetting('ai.apiKey', (process.env.GEMINI_API_KEY || process.env.GOOGLE_API_KEY || DEFAULT_AI_SETTINGS.apiKey)),
+    apiKey: resolvedKey,
     selectedModel: getSetting('ai.selectedModel', DEFAULT_AI_SETTINGS.selectedModel),
     autoOcr: getSetting('ai.autoOcr', 'true') === 'true',
     temperature: parseFloat(getSetting('ai.temperature', String(DEFAULT_AI_SETTINGS.temperature))),
@@ -47,13 +78,15 @@ export function getAiSettings(): AiSettings {
     maxDailyStudyHours: parseInt(getSetting('ai.maxDailyStudyHours', String(DEFAULT_AI_SETTINGS.maxDailyStudyHours)), 10) || 6,
     autoRag: getSetting('ai.autoRag', 'true') === 'true',
     ragTopK: parseInt(getSetting('ai.ragTopK', String(DEFAULT_AI_SETTINGS.ragTopK)), 10) || 4,
-    ollamaHost: getSetting('ai.ollamaHost', DEFAULT_AI_SETTINGS.ollamaHost || ''),
-    embeddingModel: getSetting('ai.embeddingModel', DEFAULT_AI_SETTINGS.embeddingModel || ''),
   };
 }
 
 export function updateAiSettings(patch: Partial<AiSettings>): void {
-  if (patch.apiKey !== undefined) setSetting('ai.apiKey', patch.apiKey.trim());
+  if (patch.apiKey !== undefined) {
+    const trimmed = patch.apiKey.trim();
+    const stored = trimmed ? secureEncrypt(trimmed) : '';
+    setSetting('ai.apiKey', stored);
+  }
   if (patch.selectedModel !== undefined) setSetting('ai.selectedModel', patch.selectedModel.trim());
   if (patch.autoOcr !== undefined) setSetting('ai.autoOcr', patch.autoOcr ? 'true' : 'false');
   if (patch.temperature !== undefined) setSetting('ai.temperature', String(patch.temperature));
@@ -66,6 +99,4 @@ export function updateAiSettings(patch: Partial<AiSettings>): void {
   if (patch.maxDailyStudyHours !== undefined) setSetting('ai.maxDailyStudyHours', String(patch.maxDailyStudyHours));
   if (patch.autoRag !== undefined) setSetting('ai.autoRag', patch.autoRag ? 'true' : 'false');
   if (patch.ragTopK !== undefined) setSetting('ai.ragTopK', String(patch.ragTopK));
-  if (patch.ollamaHost !== undefined) setSetting('ai.ollamaHost', patch.ollamaHost.trim().replace(/\/+$/, ''));
-  if (patch.embeddingModel !== undefined) setSetting('ai.embeddingModel', patch.embeddingModel.trim());
 }

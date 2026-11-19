@@ -14,6 +14,8 @@ import {
 import { clock, dateLabel, pct, seconds } from '../lib/format';
 import type { ExamConfig, ExamQuestion, ExamResponse, ExamResult, ExamSessionSummary } from '../../../shared/types';
 import { evaluateToNumber } from '../../../shared/mathExpr';
+import { RtuExamEngine } from '../components/RtuExamEngine';
+import { GateCbtEngine } from '../components/GateCbtEngine';
 
 function Card({ className = '', children, ...props }: React.HTMLAttributes<HTMLDivElement>) {
   return <div className={`card p-4 ${className}`} {...props}>{children}</div>;
@@ -528,18 +530,25 @@ export function ExamPage() {
 
         {/* Configs Tab */}
         {tab === 'configs' && (
-          <div className="space-y-4">
-            {/* Quick Start Presets */}
+          <div className="space-y-6">
+            {/* Mode-Specific Official Exam Engines */}
+            {activeExamMode === 'RTU' ? (
+              <RtuExamEngine />
+            ) : (
+              <GateCbtEngine />
+            )}
+
+            {/* Quick Start Presets & Custom Configs */}
             <div className="rounded-xl border p-4 mb-4" style={{ background: 'var(--color-panel)', borderColor: 'var(--color-border)' }}>
               <div className="flex items-center justify-between mb-3">
                 <div className="flex items-center gap-2">
                   <Sparkles size={16} className="text-[var(--color-accent)]" />
                   <h3 className="text-xs font-bold uppercase tracking-wider text-[var(--color-text)]">
-                    Exam Presets & Speed Drills
+                    Additional Exam Presets &amp; Speed Drills
                   </h3>
                 </div>
                 <span className="text-[11px] text-[var(--color-muted)]">
-                  1-Click Setup for {activeExamMode === 'IIT' ? 'IIT JEE Advanced (PCM)' : 'GATE Mechanical'}
+                  {activeExamMode === 'RTU' ? 'Custom Topic Sprints' : 'GATE Mechanical Timed Tests'}
                 </span>
               </div>
 
