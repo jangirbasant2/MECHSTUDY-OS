@@ -27,8 +27,9 @@ const AI_NAV: NavItem[] = [
 ];
 
 const SYLLABUS: NavItem[] = [
-  { id: 'rtu', label: 'RTU Syllabus', icon: GraduationCap },
   { id: 'gate', label: 'GATE Mechanical', icon: Sparkles },
+  { id: 'iit', label: 'IIT JEE Advanced', icon: GraduationCap },
+  { id: 'rtu', label: 'RTU Syllabus', icon: GraduationCap },
   { id: 'formulas', label: 'Formula Vault', icon: Sigma, hint: 'KaTeX Formula Sheet' },
   { id: 'practice', label: 'Practice & Questions', icon: CircleHelp },
   { id: 'exam', label: 'Exam Mode', icon: Award, hint: 'Timed Mock Tests' },
@@ -52,6 +53,15 @@ export function Sidebar() {
   const collapsed = useApp(s => s.sidebarCollapsed);
   const toggle = useApp(s => s.toggleSidebar);
   const openDocument = useApp(s => s.openDocument);
+  const activeExamMode = useApp(s => s.activeExamMode);
+
+  const activeSyllabus = React.useMemo(() => {
+    return SYLLABUS.filter(item => {
+      if (activeExamMode === 'GATE' && item.id === 'iit') return false;
+      if (activeExamMode === 'IIT' && item.id === 'gate') return false;
+      return true;
+    });
+  }, [activeExamMode]);
 
   const [starred, setStarred] = React.useState<DocumentRow[]>([]);
 
@@ -134,7 +144,7 @@ export function Sidebar() {
 
         <GroupLabel collapsed={collapsed}>Syllabus</GroupLabel>
         <nav aria-label="Syllabus" className="space-y-0.5">
-          {SYLLABUS.map(renderItem)}
+          {activeSyllabus.map(renderItem)}
         </nav>
 
         <GroupLabel collapsed={collapsed}>Plan</GroupLabel>

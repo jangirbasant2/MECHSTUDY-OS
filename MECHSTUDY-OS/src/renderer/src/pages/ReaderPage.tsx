@@ -5,7 +5,7 @@ import {
   Download, MousePointer2, Trash2, PanelRightClose, PanelRightOpen,
   ArrowLeft, AlertTriangle, Check, Type, Eraser, PanelLeft, PanelLeftOpen,
   PanelTopClose, GripHorizontal, PenLine, Scaling, Save,
-  Crop, Hand, Minus, Lightbulb, Camera, Sparkles, Brain,
+  Crop, Hand, Minus, Lightbulb, Camera, Sparkles, Brain, Cpu, Loader2,
 } from 'lucide-react';
 import { ReaderAiPanel } from './reader/ReaderAiPanel';
 import { api } from '../lib/api';
@@ -169,6 +169,8 @@ export function ReaderPage() {
   const [exporting, setExporting] = React.useState(false);
   const [exportResult, setExportResult] = React.useState<ExportResult | null>(null);
   const [deleteAnn, setDeleteAnn] = React.useState<AnnotationRow | null>(null);
+  const [isOcrRunning, setIsOcrRunning] = React.useState(false);
+  const [ocrProgress, setOcrProgress] = React.useState<{ page: number; total: number } | null>(null);
 
   const canvasRef = React.useRef<HTMLCanvasElement>(null);
   const textRef = React.useRef<HTMLDivElement>(null);
@@ -837,6 +839,22 @@ export function ReaderPage() {
       setFindResults([]);
     } finally {
       setFinding(false);
+    }
+  };
+
+  const handleRunGeminiOcr = async () => {
+    if (!docId) return;
+    setIsOcrRunning(true);
+    toast('Starting Google AI Studio OCR for scanned handwritten pages...', 'info');
+    try {
+      const res = await api.ocr.geminiDocument(docId);
+      toast(`Gemini OCR complete: indexed ${res.processed} scanned pages into FTS5 index.`, 'success');
+      if (findQ.trim().length >= 2) void runFind();
+    } catch (err: any) {
+      toast(`Gemini OCR failed: ${err?.message || 'Error'}`, 'error');
+    } finally {
+      setIsOcrRunning(false);
+      setOcrProgress(null);
     }
   };
 
@@ -2127,6 +2145,26 @@ export function ReaderPage() {
                   <div className="mt-2 text-[10.5px] leading-snug" style={{ color: 'var(--color-faint)' }}>
                     Only pages with an extracted text layer or OCR text can be searched. Scanned pages return nothing until you OCR them.
                   </div>
+
+                  <button
+                    type="button"
+                    className="btn btn-sm btn-ghost w-full mt-2 flex items-center justify-center gap-1.5 text-xs text-cyan-400 border border-cyan-800/40 hover:bg-cyan-950/30"
+                    onClick={handleRunGeminiOcr}
+                    disabled={isOcrRunning}
+                    title="Extract text & LaTeX math from scanned pages using Google AI Studio into FTS5 index"
+                  >
+                    {isOcrRunning ? (
+                      <>
+                        <Loader2 size={13} className="animate-spin" />
+                        <span>OCR Running via Gemini...</span>
+                      </>
+                    ) : (
+                      <>
+                        <Cpu size={13} />
+                        <span>OCR Scanned Pages via Gemini</span>
+                      </>
+                    )}
+                  </button>
 
                   {findResults && (
                     <div className="mt-3">

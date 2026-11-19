@@ -5,7 +5,7 @@ import { resolve } from 'node:path';
 
 export default defineConfig({
   main: {
-    plugins: [externalizeDepsPlugin()],
+    plugins: [externalizeDepsPlugin({ exclude: ['pdf-lib', '@google/genai'] })],
     build: {
       rollupOptions: { input: { index: resolve('src/main/index.ts') } }
     }

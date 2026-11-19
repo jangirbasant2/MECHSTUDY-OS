@@ -55,9 +55,9 @@ export interface MechStudyApi {
   };
   syllabus: {
     versions(): Promise<SyllabusVersion[]>;
-    subjects(examType: 'RTU' | 'GATE'): Promise<SubjectRow[]>;
-    tree(examType: 'RTU' | 'GATE'): Promise<TreeSubject[]>;
-    progress(examType: 'RTU' | 'GATE'): Promise<ProgressSummary>;
+    subjects(examType: 'RTU' | 'GATE' | 'IIT'): Promise<SubjectRow[]>;
+    tree(examType: 'RTU' | 'GATE' | 'IIT'): Promise<TreeSubject[]>;
+    progress(examType: 'RTU' | 'GATE' | 'IIT'): Promise<ProgressSummary>;
     topicDetail(topicId: number): Promise<TopicDetail | null>;
     linkDocument(topicId: number, documentId: number, page?: number, note?: string): Promise<boolean>;
     unlinkDocument(topicId: number, documentId: number): Promise<boolean>;
@@ -136,6 +136,10 @@ export interface MechStudyApi {
     jobForDocument(documentId: number): Promise<OcrJob | null>;
     queue(limit?: number): Promise<any[]>;
     onProgress(cb: (p: OcrProgress) => void): Unsubscribe;
+    detectScannedPages(documentId: number): Promise<number[]>;
+    geminiPage(documentId: number, page: number): Promise<{ success: boolean; text: string; error?: string }>;
+    geminiDocument(documentId: number): Promise<{ processed: number; errors: number }>;
+    onGeminiProgress(cb: (p: any) => void): Unsubscribe;
   };
   pdf: {
     inspect(path: string): Promise<{ pageCount: number; hasTextLayer: boolean; textChars: number; error?: string }>;
@@ -206,6 +210,7 @@ export interface MechStudyApi {
   };
   ai: {
     status(): Promise<AiEngineStatus>;
+    testKey(apiKey: string, model?: string): Promise<{ ok: boolean; model?: string; error?: string }>;
     startOllama(): Promise<{ started: boolean; error?: string; message: string }>;
     listModels(): Promise<AiModelInfo[]>;
     conversations(mode?: string): Promise<AiConversationSummary[]>;

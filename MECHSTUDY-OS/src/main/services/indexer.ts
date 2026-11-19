@@ -88,11 +88,29 @@ export async function indexAllTextLayers(
   return { documents: docs.length, pages, failures };
 }
 
-/** Search stored page text (text layer only) inside one document. */
+/** Search stored page text (both text layer and scanned OCR text) inside one document. */
 export function searchInDocument(documentId: number, query: string, limit = 200) {
   const q = query.trim();
   if (!q) return [];
   const like = `%${q}%`;
+
+  // Query SQLite FTS5 for fast full-text stemming and token matching
+  try {
+    const terms = q.toLowerCase().replace(/["'*()^:{}[\]]/g, ' ').split(/\s+/).filter(t => t.length > 1);
+    if (terms.length) {
+      const fq = terms.map(t => `"${t}"*`).join(' AND ');
+      const ftsHits = all<{ page: number; text: string }>(
+        `SELECT f.page, f.text FROM fts_pages f
+         WHERE f.document_id = ? AND fts_pages MATCH ?
+         ORDER BY f.page LIMIT ?`,
+        documentId, fq, limit
+      );
+      if (ftsHits && ftsHits.length > 0) return ftsHits;
+    }
+  } catch {
+    // Fall back to LIKE if FTS query is malformed
+  }
+
   return all(
     `SELECT page, text FROM document_pages
      WHERE document_id = ? AND text LIKE ?

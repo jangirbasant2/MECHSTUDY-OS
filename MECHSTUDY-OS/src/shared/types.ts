@@ -666,11 +666,11 @@ export interface AiStreamChunk {
 }
 
 export interface AiSettings {
-  ollamaHost: string;
-  selectedModel: string;
-  embeddingModel: string;
+  apiKey: string;       // Google AI Studio API key
+  selectedModel: string;// 'gemini-3.5-flash-lite' | 'gemini-4-hydrogen' | 'gemini-4-carbon'
+  autoOcr: boolean;     // Automatically run OCR on scanned pages lacking text layer
   temperature: number;
-  contextLength: number;
+  contextLength?: number;
   maxTokens: number;
   systemPrompt: string;
   collegeStart: string; // e.g. "10:00"
@@ -679,6 +679,8 @@ export interface AiSettings {
   maxDailyStudyHours: number; // e.g. 6
   autoRag: boolean;
   ragTopK: number;
+  ollamaHost?: string;  // Legacy fallback
+  embeddingModel?: string;
 }
 
 export interface AiMemory {

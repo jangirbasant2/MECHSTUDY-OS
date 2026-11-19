@@ -5,6 +5,8 @@ import { app } from 'electron';
 import { all, get, run } from '../db';
 import { indexPageText } from './search';
 import { renderPageToPng } from './ocrRender';
+import { geminiOcrPage, getEffectiveApiKey } from './ai/gemini';
+import { getAiSettings } from './ai/settings';
 
 /**
  * OCR pipeline.
@@ -353,4 +355,107 @@ export function ocrQueueSuggestions(limit = 50) {
     WHERE d.available = 1 AND COALESCE(d.has_text_layer, 0) = 0
     ORDER BY (ocr_pages > 0) DESC, d.last_opened_at DESC NULLS LAST, d.page_count ASC
     LIMIT ?`, limit);
+}
+
+/* ========================================================================= */
+/* Google AI Studio (Gemini) Scanned PDF OCR & FTS5 Indexing Pipeline        */
+/* ========================================================================= */
+
+/**
+ * Detect scanned/image-only pages lacking a usable native text layer.
+ */
+export function detectScannedPages(documentId: number): number[] {
+  const doc = get<{ page_count: number }>('SELECT page_count FROM documents WHERE id = ?', documentId);
+  if (!doc || !doc.page_count) return [];
+
+  const existingPages = all<{ page: number; text: string | null; source: string }>(
+    'SELECT page, text, source FROM document_pages WHERE document_id = ?',
+    documentId
+  );
+  const pageMap = new Map<number, { text: string | null; source: string }>();
+  for (const ep of existingPages) {
+    pageMap.set(ep.page, ep);
+  }
+
+  const scannedPages: number[] = [];
+  for (let p = 1; p <= doc.page_count; p++) {
+    const entry = pageMap.get(p);
+    // If not present, or if source is text_layer with less than 30 characters (blank/image)
+    if (!entry) {
+      scannedPages.push(p);
+    } else if (entry.source !== 'ocr') {
+      const charCount = (entry.text || '').trim().length;
+      if (charCount < 30) {
+        scannedPages.push(p);
+      }
+    }
+  }
+
+  return scannedPages;
+}
+
+/**
+ * OCR a single PDF page with Google AI Studio API and store extracted text & LaTeX in FTS5.
+ */
+export async function runGeminiOcrForPage(
+  documentId: number,
+  page: number
+): Promise<{ success: boolean; text: string; error?: string }> {
+  try {
+    const apiKey = getEffectiveApiKey();
+    if (!apiKey) {
+      throw new Error('Google AI Studio API key is not configured.');
+    }
+
+    const dataUrl = await renderPageToPng(documentId, page);
+    const base64Index = dataUrl.indexOf(',');
+    const b64 = base64Index >= 0 ? dataUrl.slice(base64Index + 1) : dataUrl;
+    const buffer = Buffer.from(b64, 'base64');
+
+    const extractedText = await geminiOcrPage(buffer, 'image/png', apiKey);
+
+    // Store in SQLite document_pages and FTS5 fts_pages
+    indexPageText(documentId, page, extractedText, 'ocr', 95);
+
+    return { success: true, text: extractedText };
+  } catch (err: any) {
+    return { success: false, text: '', error: err?.message || String(err) };
+  }
+}
+
+/**
+ * Process all detected scanned pages in a document in background with Google AI Studio OCR.
+ */
+export async function runGeminiScannedOcrForDocument(
+  documentId: number,
+  onProgress?: (p: { page: number; total: number; done: boolean; error?: string }) => void
+): Promise<{ processed: number; errors: number }> {
+  const pages = detectScannedPages(documentId);
+  let processed = 0;
+  let errors = 0;
+
+  for (let i = 0; i < pages.length; i++) {
+    const pageNum = pages[i];
+    if (onProgress) {
+      onProgress({ page: pageNum, total: pages.length, done: false });
+    }
+
+    const res = await runGeminiOcrForPage(documentId, pageNum);
+    if (res.success) {
+      processed++;
+    } else {
+      errors++;
+    }
+
+    if (onProgress) {
+      onProgress({
+        page: pageNum,
+        total: pages.length,
+        done: i === pages.length - 1,
+        error: res.error,
+      });
+    }
+  }
+
+  return { processed, errors };
 }

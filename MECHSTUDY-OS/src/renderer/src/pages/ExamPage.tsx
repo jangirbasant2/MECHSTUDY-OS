@@ -3,7 +3,7 @@ import {
   Plus, Play, Trash2, Award, Target,
   ChevronRight, ChevronLeft, Settings,
   CheckCircle, XCircle, HelpCircle, AlertCircle,
-  FileText, Timer, Star, Zap, Sparkles,
+  FileText, Timer, Star, Zap, Sparkles, Calculator,
 } from 'lucide-react';
 import { api } from '../lib/api';
 import { useApp } from '../store';
@@ -13,6 +13,7 @@ import {
 } from '../components/ui';
 import { clock, dateLabel, pct, seconds } from '../lib/format';
 import type { ExamConfig, ExamQuestion, ExamResponse, ExamResult, ExamSessionSummary } from '../../../shared/types';
+import { evaluateToNumber } from '../../../shared/mathExpr';
 
 function Card({ className = '', children, ...props }: React.HTMLAttributes<HTMLDivElement>) {
   return <div className={`card p-4 ${className}`} {...props}>{children}</div>;
@@ -85,48 +86,147 @@ interface ExamPreset {
   color: string;
 }
 
-const EXAM_PRESETS: ExamPreset[] = [
+const GATE_PRESETS: ExamPreset[] = [
   {
     title: 'GATE ME Full-Length Mock',
     badge: 'GATE Standard',
-    description: '65 questions, 180 min, 100 marks standard GATE pattern with 1/3 negative marking',
+    description: '65 questions, 180 min, 100 marks standard GATE pattern (-1/3 & -2/3 MCQ, 0 NAT/MSQ, Virtual Calc enabled)',
     durationSeconds: 10800,
     limit: 65,
-    type: '',
-    scheme: { marks: { mcq: 1, msq: 1, numerical: 1 }, mcqNegativeFraction: 1 / 3, negativeNumerical: false },
-    color: '#8b5cf6',
-  },
-  {
-    title: 'GATE Sectional Speed Drill',
-    badge: 'Speed Test',
-    description: '25 high-yield questions, 45 min test of numerical speed and concept clarity',
-    durationSeconds: 2700,
-    limit: 25,
     type: '',
     scheme: { marks: { mcq: 1, msq: 1, numerical: 1 }, mcqNegativeFraction: 1 / 3, negativeNumerical: false },
     color: '#06b6d4',
   },
   {
-    title: 'RTU Mid-Term Assessment Drill',
-    badge: 'RTU Semester',
-    description: '20 questions, 60 min unit-focused review for university semester prep',
-    durationSeconds: 3600,
-    limit: 20,
+    title: 'GATE Sectional Speed Drill',
+    badge: 'Speed Test',
+    description: '25 high-yield mechanical questions, 45 min test of numerical speed and concept clarity',
+    durationSeconds: 2700,
+    limit: 25,
     type: '',
-    scheme: { marks: { mcq: 2, msq: 2, numerical: 2 }, mcqNegativeFraction: 0, negativeNumerical: false },
-    color: '#10b981',
+    scheme: { marks: { mcq: 1, msq: 1, numerical: 1 }, mcqNegativeFraction: 1 / 3, negativeNumerical: false },
+    color: '#3b82f6',
   },
   {
     title: 'Rapid Numerical / NAT Sprint',
     badge: 'NAT Drill',
-    description: '10 Numerical Answer Type (NAT) problems, 20 min calculator discipline',
-    durationSeconds: 1200,
-    limit: 10,
+    description: '15 Numerical Answer Type (NAT) problems, 30 min calculator discipline',
+    durationSeconds: 1800,
+    limit: 15,
     type: 'numerical',
     scheme: { marks: { mcq: 1, msq: 1, numerical: 2 }, mcqNegativeFraction: 0, negativeNumerical: false },
     color: '#f59e0b',
   },
 ];
+
+const IIT_PRESETS: ExamPreset[] = [
+  {
+    title: 'IIT JEE Advanced Full Paper',
+    badge: 'IIT Standard',
+    description: '54 questions across Physics, Chemistry, Math, 180 min (Single Correct +3/-1, Multi-Correct +4/-2, Numerical +4/0, Calculator Disabled)',
+    durationSeconds: 10800,
+    limit: 54,
+    type: '',
+    scheme: { marks: { mcq: 3, msq: 4, numerical: 4 }, mcqNegativeFraction: 1 / 3, negativeNumerical: false },
+    color: '#f97316',
+  },
+  {
+    title: 'IIT PCM Sectional Sprint',
+    badge: 'PCM Speed Test',
+    description: '36 questions (PCM), 120 min multi-concept problem solving with strict negative marking',
+    durationSeconds: 7200,
+    limit: 36,
+    type: '',
+    scheme: { marks: { mcq: 3, msq: 4, numerical: 4 }, mcqNegativeFraction: 1 / 3, negativeNumerical: false },
+    color: '#8b5cf6',
+  },
+  {
+    title: 'IIT Multi-Correct & Numerical Drill',
+    badge: 'Advanced Drill',
+    description: '18 high-rigor multiple-correct and integer problems, 60 min deep test',
+    durationSeconds: 3600,
+    limit: 18,
+    type: '',
+    scheme: { marks: { mcq: 3, msq: 4, numerical: 4 }, mcqNegativeFraction: 0.5, negativeNumerical: false },
+    color: '#10b981',
+  },
+];
+
+function VirtualCalculator({ onClose }: { onClose: () => void }) {
+  const [expr, setExpr] = React.useState('');
+  const [result, setResult] = React.useState('');
+
+  const append = (s: string) => setExpr(prev => prev + s);
+  const clear = () => { setExpr(''); setResult(''); };
+  const backspace = () => setExpr(prev => prev.slice(0, -1));
+
+  const compute = () => {
+    if (!expr.trim()) return;
+    const num = evaluateToNumber(expr);
+    if (num !== null && Number.isFinite(num)) {
+      setResult(String(Math.round(num * 1e6) / 1e6));
+    } else {
+      setResult('Error');
+    }
+  };
+
+  return (
+    <div
+      className="fixed bottom-12 right-12 z-50 w-72 rounded-xl border p-3 shadow-2xl backdrop-blur-md"
+      style={{ background: 'var(--color-panel)', borderColor: 'var(--color-border)' }}
+      data-testid="virtual-calculator"
+    >
+      <div className="flex items-center justify-between pb-2 border-b" style={{ borderColor: 'var(--color-border)' }}>
+        <span className="text-xs font-semibold flex items-center gap-1.5 text-cyan-400">
+          <Calculator size={14} /> GATE Virtual Calculator
+        </span>
+        <button onClick={onClose} className="text-xs text-[var(--color-muted)] hover:text-white">✕</button>
+      </div>
+
+      <div className="my-2 rounded bg-[var(--color-bg)] p-2 text-right">
+        <div className="h-4 truncate text-[11px] font-mono text-[var(--color-muted)]">{expr || '0'}</div>
+        <div className="h-6 truncate text-base font-mono font-bold text-white">{result || '0'}</div>
+      </div>
+
+      <div className="grid grid-cols-4 gap-1 text-xs">
+        <button onClick={clear} className="btn btn-sm btn-ghost text-rose-400 font-bold">C</button>
+        <button onClick={backspace} className="btn btn-sm btn-ghost text-amber-400">DEL</button>
+        <button onClick={() => append('^')} className="btn btn-sm btn-ghost font-mono">^</button>
+        <button onClick={() => append('/')} className="btn btn-sm btn-ghost text-cyan-400 font-bold">/</button>
+
+        <button onClick={() => append('sin(')} className="btn btn-sm btn-ghost text-[10px]">sin</button>
+        <button onClick={() => append('cos(')} className="btn btn-sm btn-ghost text-[10px]">cos</button>
+        <button onClick={() => append('tan(')} className="btn btn-sm btn-ghost text-[10px]">tan</button>
+        <button onClick={() => append('*')} className="btn btn-sm btn-ghost text-cyan-400 font-bold">*</button>
+
+        <button onClick={() => append('sqrt(')} className="btn btn-sm btn-ghost text-[10px]">√</button>
+        <button onClick={() => append('ln(')} className="btn btn-sm btn-ghost text-[10px]">ln</button>
+        <button onClick={() => append('(')} className="btn btn-sm btn-ghost">(</button>
+        <button onClick={() => append(')')} className="btn btn-sm btn-ghost">)</button>
+
+        <button onClick={() => append('7')} className="btn btn-sm btn-ghost font-bold">7</button>
+        <button onClick={() => append('8')} className="btn btn-sm btn-ghost font-bold">8</button>
+        <button onClick={() => append('9')} className="btn btn-sm btn-ghost font-bold">9</button>
+        <button onClick={() => append('-')} className="btn btn-sm btn-ghost text-cyan-400 font-bold">-</button>
+
+        <button onClick={() => append('4')} className="btn btn-sm btn-ghost font-bold">4</button>
+        <button onClick={() => append('5')} className="btn btn-sm btn-ghost font-bold">5</button>
+        <button onClick={() => append('6')} className="btn btn-sm btn-ghost font-bold">6</button>
+        <button onClick={() => append('+')} className="btn btn-sm btn-ghost text-cyan-400 font-bold">+</button>
+
+        <button onClick={() => append('1')} className="btn btn-sm btn-ghost font-bold">1</button>
+        <button onClick={() => append('2')} className="btn btn-sm btn-ghost font-bold">2</button>
+        <button onClick={() => append('3')} className="btn btn-sm btn-ghost font-bold">3</button>
+        <button onClick={() => append('pi')} className="btn btn-sm btn-ghost text-[10px]">π</button>
+
+        <button onClick={() => append('0')} className="btn btn-sm btn-ghost font-bold">0</button>
+        <button onClick={() => append('.')} className="btn btn-sm btn-ghost font-bold">.</button>
+        <button onClick={() => append('e')} className="btn btn-sm btn-ghost font-mono">e</button>
+        <button onClick={compute} className="btn btn-sm btn-primary font-bold bg-cyan-600 text-white">=</button>
+      </div>
+    </div>
+  );
+}
 
 function parseOptions(json: string | null): string[] {
   if (!json) return [];
@@ -139,6 +239,10 @@ function parseOptions(json: string | null): string[] {
 export function ExamPage() {
   const toast = useApp(s => s.toast);
   const openTopic = useApp(s => s.openTopic);
+  const activeExamMode = useApp(s => s.activeExamMode);
+
+  const [showCalculator, setShowCalculator] = React.useState(false);
+  const activePresets = activeExamMode === 'IIT' ? IIT_PRESETS : GATE_PRESETS;
 
   const [tab, setTab] = React.useState<ExamTab>('configs');
   const [loading, setLoading] = React.useState(true);
@@ -435,12 +539,12 @@ export function ExamPage() {
                   </h3>
                 </div>
                 <span className="text-[11px] text-[var(--color-muted)]">
-                  1-Click Setup for GATE & RTU Kota
+                  1-Click Setup for {activeExamMode === 'IIT' ? 'IIT JEE Advanced (PCM)' : 'GATE Mechanical'}
                 </span>
               </div>
 
-              <div className="grid gap-3 sm:grid-cols-2 lg:grid-cols-4">
-                {EXAM_PRESETS.map(preset => (
+              <div className="grid gap-3 sm:grid-cols-2 lg:grid-cols-3">
+                {activePresets.map(preset => (
                   <div
                     key={preset.title}
                     className="flex flex-col justify-between rounded-lg border p-3 transition-all hover:border-[var(--color-accent)]"
@@ -552,7 +656,25 @@ export function ExamPage() {
                     <div className="text-2xl font-mono font-bold tabular-nums">{formatTime(runningExam.timeRemaining)}</div>
                   </div>
                 </div>
-                <div className="flex items-center gap-4 text-sm">
+                <div className="flex items-center gap-3 text-sm">
+                  {activeExamMode === 'GATE' ? (
+                    <button
+                      type="button"
+                      className="btn btn-sm btn-ghost flex items-center gap-1.5 text-xs font-medium text-cyan-400 border border-cyan-800/40 hover:bg-cyan-950/30"
+                      onClick={() => setShowCalculator(!showCalculator)}
+                      title="Toggle GATE Scientific Calculator"
+                    >
+                      <Calculator size={13} />
+                      <span>{showCalculator ? 'Hide Calc' : 'Virtual Calc'}</span>
+                    </button>
+                  ) : (
+                    <span
+                      className="text-[10px] text-[var(--color-faint)] italic px-2 py-1 rounded border border-[var(--color-border)]"
+                      title="Calculators are strictly prohibited in IIT JEE Advanced examinations."
+                    >
+                      No Calc (IIT Mode)
+                    </span>
+                  )}
                   <span className="text-[var(--color-faint)]">
                     {runningExam.currentIndex + 1} / {runningExam.questions.length}
                   </span>
@@ -617,6 +739,11 @@ export function ExamPage() {
                 />
               ))}
             </div>
+
+            {/* Virtual Scientific Calculator for GATE Mode */}
+            {showCalculator && activeExamMode === 'GATE' && (
+              <VirtualCalculator onClose={() => setShowCalculator(false)} />
+            )}
           </div>
         )}
 

@@ -1,6 +1,7 @@
 import { all, get, run, tx } from '../db';
 import { RTU_SYLLABUS } from '../data/rtuSyllabus';
 import { GATE_SYLLABUS } from '../data/gateSyllabus';
+import { IIT_SYLLABUS } from '../data/iitSyllabus';
 import type { SeedSubject } from '../data/rtuSyllabus';
 
 function insertVersion(v: any): number {
@@ -11,7 +12,7 @@ function insertVersion(v: any): number {
       (name, exam_type, university, academic_year, semester, source_doc, source_url, retrieved_at, verification, is_provisional, notes)
      VALUES (?,?,?,?,?,?,?,?,?,?,?)`,
     v.name, v.exam_type, v.university, v.academic_year, v.semester,
-    v.source_doc, v.source_url, v.retrieved_at, v.verification, v.is_provisional, v.notes
+    v.source_doc, v.source_url, v.retrieved_at, v.verification, v.is_provisional ? 1 : 0, v.notes
   ).lastInsertRowid;
 }
 
@@ -46,28 +47,43 @@ function insertSubjects(versionId: number, subjects: SeedSubject[]): number {
   return count;
 }
 
-export function seedSyllabus(): { rtu: number; gate: number; created: boolean } {
-  const existing = get<{ c: number }>("SELECT COUNT(*) c FROM syllabus_versions WHERE exam_type = 'RTU'");
-  if (existing && existing.c > 0) {
-    const t = get<{ c: number }>('SELECT COUNT(*) c FROM topics');
-    return { rtu: t?.c ?? 0, gate: 0, created: false };
-  }
-
+export function seedSyllabus(): { rtu: number; gate: number; iit: number; created: boolean } {
   return tx(() => {
-    const rtuVersion = insertVersion(RTU_SYLLABUS);
-    const rtuTopics = insertSubjects(rtuVersion, RTU_SYLLABUS.subjects);
+    let rtuCount = 0;
+    let gateCount = 0;
+    let iitCount = 0;
+    let anyCreated = false;
 
-    const gateVersion = insertVersion(GATE_SYLLABUS);
-    const gateTopics = insertSubjects(gateVersion, GATE_SYLLABUS.subjects);
+    const rtuExisting = get<{ id: number }>("SELECT id FROM syllabus_versions WHERE exam_type = 'RTU'");
+    if (!rtuExisting) {
+      const v = insertVersion(RTU_SYLLABUS);
+      rtuCount = insertSubjects(v, RTU_SYLLABUS.subjects);
+      anyCreated = true;
+    }
 
-    return { rtu: rtuTopics, gate: gateTopics, created: true };
+    const gateExisting = get<{ id: number }>("SELECT id FROM syllabus_versions WHERE exam_type = 'GATE'");
+    if (!gateExisting) {
+      const v = insertVersion(GATE_SYLLABUS);
+      gateCount = insertSubjects(v, GATE_SYLLABUS.subjects);
+      anyCreated = true;
+    }
+
+    const iitExisting = get<{ id: number }>("SELECT id FROM syllabus_versions WHERE exam_type = 'IIT'");
+    if (!iitExisting) {
+      const v = insertVersion(IIT_SYLLABUS);
+      iitCount = insertSubjects(v, IIT_SYLLABUS.subjects);
+      anyCreated = true;
+    }
+
+    return { rtu: rtuCount, gate: gateCount, iit: iitCount, created: anyCreated };
   });
 }
 
-export function syllabusVersionIds(): { rtu?: number; gate?: number } {
+export function syllabusVersionIds(): { rtu?: number; gate?: number; iit?: number } {
   return {
     rtu: get<{ id: number }>("SELECT id FROM syllabus_versions WHERE exam_type='RTU' ORDER BY id LIMIT 1")?.id,
     gate: get<{ id: number }>("SELECT id FROM syllabus_versions WHERE exam_type='GATE' ORDER BY id LIMIT 1")?.id,
+    iit: get<{ id: number }>("SELECT id FROM syllabus_versions WHERE exam_type='IIT' ORDER BY id LIMIT 1")?.id,
   };
 }
 

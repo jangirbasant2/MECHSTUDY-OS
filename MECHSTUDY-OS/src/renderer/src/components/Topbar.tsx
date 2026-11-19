@@ -1,9 +1,10 @@
 import React from 'react';
 import {
   Search, StickyNote, Sun, Moon, Settings, Play, Pause, Square, Timer,
-  PanelLeftClose, PanelTopClose, GraduationCap, Sparkles,
+  PanelLeftClose, PanelTopClose, GraduationCap, Sparkles, Bot, Eye, EyeOff,
+  CheckCircle2, AlertCircle, Loader2, ChevronDown, FileText, Cpu,
 } from 'lucide-react';
-import { useApp, type PageId } from '../store';
+import { useApp } from '../store';
 import { pageTitle } from './Sidebar';
 import { clock } from '../lib/format';
 import { api } from '../lib/api';
@@ -23,6 +24,51 @@ export function Topbar() {
   const toggleTopbarVisible = useApp(s => s.toggleTopbarVisible);
   const activeExamMode = useApp(s => s.activeExamMode);
   const setActiveExamMode = useApp(s => s.setActiveExamMode);
+
+  // Google AI Studio Header Menu state
+  const [aiMenuOpen, setAiMenuOpen] = React.useState(false);
+  const [apiKey, setApiKey] = React.useState('');
+  const [showKey, setShowKey] = React.useState(false);
+  const [selectedModel, setSelectedModel] = React.useState('gemini-3.5-flash-lite');
+  const [autoOcr, setAutoOcr] = React.useState(true);
+  const [keyStatus, setKeyStatus] = React.useState<'checking' | 'connected' | 'error' | 'none'>('none');
+  const [statusMessage, setStatusMessage] = React.useState<string>('');
+  const [isTesting, setIsTesting] = React.useState(false);
+
+  const menuRef = React.useRef<HTMLDivElement>(null);
+
+  // Load existing AI settings on mount
+  React.useEffect(() => {
+    api.ai.settings()
+      .then((cfg) => {
+        if (cfg.apiKey) {
+          setApiKey(cfg.apiKey);
+          setKeyStatus('connected');
+          setStatusMessage('API Key Configured');
+        } else {
+          setKeyStatus('none');
+          setStatusMessage('No API Key');
+        }
+        if (cfg.selectedModel) setSelectedModel(cfg.selectedModel);
+        if (cfg.autoOcr !== undefined) setAutoOcr(cfg.autoOcr);
+      })
+      .catch(() => {});
+  }, []);
+
+  // Close AI dropdown when clicking outside
+  React.useEffect(() => {
+    const handleClickOutside = (e: MouseEvent) => {
+      if (menuRef.current && !menuRef.current.contains(e.target as Node)) {
+        setAiMenuOpen(false);
+      }
+    };
+    if (aiMenuOpen) {
+      document.addEventListener('mousedown', handleClickOutside);
+    }
+    return () => {
+      document.removeEventListener('mousedown', handleClickOutside);
+    };
+  }, [aiMenuOpen]);
 
   const onToggleTheme = () => {
     setTheme(theme === 'dark' ? 'light' : 'dark');
@@ -44,13 +90,65 @@ export function Topbar() {
     resetTimer();
   };
 
-  const quickNav: { id: PageId; label: string }[] = [
-    { id: 'home', label: 'Home' },
-    { id: 'library', label: 'Library' },
-    { id: 'rtu', label: 'RTU' },
-    { id: 'gate', label: 'GATE' },
-    { id: 'planner', label: 'Planner' },
-  ];
+  const handleTestAndSaveKey = async () => {
+    if (!apiKey.trim()) {
+      setKeyStatus('none');
+      setStatusMessage('Please enter an API Key.');
+      toast('Please enter a Google AI Studio API key.', 'error');
+      return;
+    }
+
+    setIsTesting(true);
+    setKeyStatus('checking');
+    setStatusMessage('Testing connection...');
+
+    try {
+      const res = await api.ai.testKey(apiKey.trim(), selectedModel);
+      if (res.ok) {
+        setKeyStatus('connected');
+        setStatusMessage('Connected to Gemini');
+        await api.ai.updateSettings({
+          apiKey: apiKey.trim(),
+          selectedModel,
+          autoOcr,
+        });
+        toast('Google AI Studio connected successfully!', 'success');
+      } else {
+        setKeyStatus('error');
+        setStatusMessage(res.error || 'Connection failed');
+        toast(`API Test Failed: ${res.error || 'Invalid API key'}`, 'error');
+      }
+    } catch (err: any) {
+      setKeyStatus('error');
+      const msg = err?.message || 'Connection failed';
+      setStatusMessage(msg);
+      toast(`API Connection error: ${msg}`, 'error');
+    } finally {
+      setIsTesting(false);
+    }
+  };
+
+  const handleModelChange = async (e: React.ChangeEvent<HTMLSelectElement>) => {
+    const nextModel = e.target.value;
+    setSelectedModel(nextModel);
+    try {
+      await api.ai.updateSettings({ selectedModel: nextModel });
+      toast(`Active model set to ${nextModel}`, 'info');
+    } catch {
+      // Non-fatal
+    }
+  };
+
+  const handleAutoOcrToggle = async () => {
+    const next = !autoOcr;
+    setAutoOcr(next);
+    try {
+      await api.ai.updateSettings({ autoOcr: next });
+      toast(next ? 'Automatic Scanned-PDF OCR enabled' : 'Automatic Scanned-PDF OCR disabled', 'info');
+    } catch {
+      // Non-fatal
+    }
+  };
 
   return (
     <header
@@ -77,7 +175,7 @@ export function Topbar() {
         </div>
       </div>
 
-      {/* Top Middle: RTU <-> GATE Switch */}
+      {/* Top Middle: Global GATE <-> IIT Mode Switch */}
       <div className="absolute left-1/2 -translate-x-1/2 flex items-center" data-testid="top-exam-switch">
         <div
           className="flex items-center rounded-lg border p-0.5 shadow-xs transition-all"
@@ -86,47 +184,47 @@ export function Topbar() {
             borderColor: 'var(--color-border)',
           }}
           role="group"
-          aria-label="RTU vs GATE Exam Mode Switch"
+          aria-label="GATE vs IIT Exam Mode Switch"
         >
           <button
             onClick={() => {
-              setActiveExamMode('RTU');
-              toast('Switched focus to RTU Kota Syllabus', 'info');
-            }}
-            className={`flex items-center gap-1.5 rounded-md px-3 py-1 text-xs font-semibold transition-all ${
-              activeExamMode === 'RTU'
-                ? 'bg-[var(--color-accent)] text-white shadow-xs'
-                : 'text-[var(--color-muted)] hover:text-[var(--color-text)]'
-            }`}
-            title="Switch study focus to RTU Kota (B.Tech Syllabus & Semester Exams)"
-            aria-pressed={activeExamMode === 'RTU'}
-          >
-            <GraduationCap size={14} />
-            <span>RTU</span>
-          </button>
-
-          <button
-            onClick={() => {
               setActiveExamMode('GATE');
-              toast('Switched focus to GATE Mechanical', 'info');
+              toast('Switched mode to GATE Mechanical Engineering', 'info');
             }}
-            className={`flex items-center gap-1.5 rounded-md px-3 py-1 text-xs font-semibold transition-all ${
+            className={`flex items-center gap-1.5 rounded-md px-3.5 py-1 text-xs font-semibold transition-all ${
               activeExamMode === 'GATE'
-                ? 'bg-emerald-600 text-white shadow-xs'
+                ? 'bg-cyan-600 text-white shadow-xs'
                 : 'text-[var(--color-muted)] hover:text-[var(--color-text)]'
             }`}
-            title="Switch study focus to GATE Mechanical Engineering"
+            title="Switch study workspace to GATE Mechanical Engineering (65 Qs / 180 min / Virtual Calculator)"
             aria-pressed={activeExamMode === 'GATE'}
           >
             <Sparkles size={13} />
             <span>GATE</span>
+          </button>
+
+          <button
+            onClick={() => {
+              setActiveExamMode('IIT');
+              toast('Switched mode to IIT JEE Advanced (Physics, Chemistry, Mathematics)', 'info');
+            }}
+            className={`flex items-center gap-1.5 rounded-md px-3.5 py-1 text-xs font-semibold transition-all ${
+              activeExamMode === 'IIT'
+                ? 'bg-orange-600 text-white shadow-xs'
+                : 'text-[var(--color-muted)] hover:text-[var(--color-text)]'
+            }`}
+            title="Switch study workspace to IIT JEE Advanced (Physics, Chemistry, Mathematics / Multi-Type Marking)"
+            aria-pressed={activeExamMode === 'IIT'}
+          >
+            <GraduationCap size={14} />
+            <span>IIT</span>
           </button>
         </div>
       </div>
 
       <div className="ml-auto flex items-center gap-1.5">
         <button
-          className="btn btn-ghost h-8 w-[190px] justify-start gap-2 text-xs xl:w-[240px]"
+          className="btn btn-ghost h-8 w-[170px] justify-start gap-2 text-xs xl:w-[220px]"
           onClick={() => setPaletteOpen(true)}
           title="Search everything (Ctrl+K)"
           aria-label="Open command palette"
@@ -141,6 +239,169 @@ export function Topbar() {
             Ctrl K
           </kbd>
         </button>
+
+        {/* Header Dropdown Menu: Google AI Studio API Configuration */}
+        <div className="relative" ref={menuRef}>
+          <button
+            className="flex h-8 items-center gap-1.5 rounded-lg border px-2.5 text-xs font-medium transition-all"
+            style={{
+              background: aiMenuOpen ? 'var(--color-panel3)' : 'var(--color-panel2)',
+              borderColor: 'var(--color-border)',
+              color: 'var(--color-text)',
+            }}
+            onClick={() => setAiMenuOpen(!aiMenuOpen)}
+            title="Google AI Studio & Gemini Configuration"
+            aria-expanded={aiMenuOpen}
+          >
+            <Bot size={14} className={keyStatus === 'connected' ? 'text-emerald-400' : 'text-cyan-400'} />
+            <span className="hidden sm:inline">AI Studio</span>
+            <span
+              className={`h-2 w-2 rounded-full ${
+                keyStatus === 'connected'
+                  ? 'bg-emerald-500'
+                  : keyStatus === 'checking'
+                  ? 'bg-amber-400 animate-pulse'
+                  : keyStatus === 'error'
+                  ? 'bg-rose-500'
+                  : 'bg-neutral-500'
+              }`}
+              title={statusMessage || 'API status'}
+            />
+            <ChevronDown size={12} className="opacity-60" />
+          </button>
+
+          {aiMenuOpen && (
+            <div
+              className="absolute right-0 top-full mt-2 z-50 w-[300px] min-w-[280px] rounded-xl border p-4 shadow-2xl transition-all"
+              style={{
+                background: 'var(--color-panel)',
+                borderColor: 'var(--color-border)',
+              }}
+              data-testid="ai-studio-dropdown"
+            >
+              <div className="flex items-center justify-between pb-3 border-b" style={{ borderColor: 'var(--color-border)' }}>
+                <div className="flex items-center gap-2">
+                  <Cpu size={16} className="text-cyan-400" />
+                  <span className="text-xs font-semibold text-[var(--color-text)]">Google AI Studio</span>
+                </div>
+                <div className="flex items-center gap-1.5 text-[11px]">
+                  {keyStatus === 'connected' ? (
+                    <span className="flex items-center gap-1 font-medium text-emerald-400">
+                      <CheckCircle2 size={12} /> Connected
+                    </span>
+                  ) : keyStatus === 'error' ? (
+                    <span className="flex items-center gap-1 font-medium text-rose-400">
+                      <AlertCircle size={12} /> Invalid Key
+                    </span>
+                  ) : keyStatus === 'checking' ? (
+                    <span className="flex items-center gap-1 font-medium text-amber-400">
+                      <Loader2 size={12} className="animate-spin" /> Testing...
+                    </span>
+                  ) : (
+                    <span className="text-[var(--color-muted)]">No Key</span>
+                  )}
+                </div>
+              </div>
+
+              <div className="mt-3 space-y-3">
+                {/* API Key Input */}
+                <div>
+                  <label className="block text-[11px] font-medium text-[var(--color-muted)] mb-1">
+                    Google AI Studio API Key
+                  </label>
+                  <div className="relative flex items-center">
+                    <input
+                      type={showKey ? 'text' : 'password'}
+                      className="input w-full pr-8 text-xs font-mono"
+                      placeholder="AIzaSy..."
+                      value={apiKey}
+                      onChange={(e) => setApiKey(e.target.value)}
+                    />
+                    <button
+                      type="button"
+                      className="absolute right-2 text-[var(--color-muted)] hover:text-[var(--color-text)]"
+                      onClick={() => setShowKey(!showKey)}
+                      title={showKey ? 'Hide API Key' : 'Show API Key'}
+                    >
+                      {showKey ? <EyeOff size={14} /> : <Eye size={14} />}
+                    </button>
+                  </div>
+                  {statusMessage && (
+                    <p
+                      className={`mt-1 truncate text-[10px] ${
+                        keyStatus === 'connected'
+                          ? 'text-emerald-400'
+                          : keyStatus === 'error'
+                          ? 'text-rose-400'
+                          : 'text-[var(--color-faint)]'
+                      }`}
+                    >
+                      {statusMessage}
+                    </p>
+                  )}
+                </div>
+
+                {/* Gemini Model Selector */}
+                <div>
+                  <label className="block text-[11px] font-medium text-[var(--color-muted)] mb-1">
+                    Active Gemini Model
+                  </label>
+                  <select
+                    className="input w-full text-xs font-mono"
+                    value={selectedModel}
+                    onChange={handleModelChange}
+                  >
+                    <option value="gemini-3.5-flash-lite">gemini-3.5-flash-lite (Fast &amp; Responsive)</option>
+                    <option value="gemini-4-hydrogen">gemini-4-hydrogen (Advanced Reasoning)</option>
+                    <option value="gemini-4-carbon">gemini-4-carbon (Deep Problem Solving)</option>
+                  </select>
+                </div>
+
+                {/* Auto Scanned-PDF OCR Toggle */}
+                <div
+                  className="flex items-center justify-between rounded-lg p-2 border"
+                  style={{ background: 'var(--color-panel2)', borderColor: 'var(--color-border)' }}
+                >
+                  <div className="min-w-0 pr-2">
+                    <div className="text-[11px] font-semibold text-[var(--color-text)]">Auto Scanned-PDF OCR</div>
+                    <div className="text-[10px] text-[var(--color-faint)] truncate">Index handwritten notes into FTS5</div>
+                  </div>
+                  <button
+                    type="button"
+                    onClick={handleAutoOcrToggle}
+                    className={`relative inline-flex h-5 w-9 shrink-0 cursor-pointer rounded-full border-2 border-transparent transition-colors duration-200 ease-in-out ${
+                      autoOcr ? 'bg-cyan-600' : 'bg-neutral-600'
+                    }`}
+                    role="switch"
+                    aria-checked={autoOcr}
+                  >
+                    <span
+                      className={`pointer-events-none inline-block h-4 w-4 transform rounded-full bg-white shadow-sm ring-0 transition duration-200 ease-in-out ${
+                        autoOcr ? 'translate-x-4' : 'translate-x-0'
+                      }`}
+                    />
+                  </button>
+                </div>
+
+                {/* Test & Save Button */}
+                <button
+                  type="button"
+                  className="btn btn-primary w-full text-xs py-1.5 font-medium flex items-center justify-center gap-1.5"
+                  onClick={handleTestAndSaveKey}
+                  disabled={isTesting}
+                >
+                  {isTesting ? (
+                    <>
+                      <Loader2 size={13} className="animate-spin" /> Verifying Connection...
+                    </>
+                  ) : (
+                    'Test & Save Configuration'
+                  )}
+                </button>
+              </div>
+            </div>
+          )}
+        </div>
 
         {timer.running || timer.sessionId ? (
           <div

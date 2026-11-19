@@ -1,7 +1,7 @@
 import { create } from 'zustand';
 
 export type PageId =
-  | 'home' | 'library' | 'rtu' | 'gate' | 'planner' | 'reader' | 'notes'
+  | 'home' | 'library' | 'rtu' | 'gate' | 'iit' | 'planner' | 'reader' | 'notes'
   | 'revision' | 'practice' | 'exam' | 'formulas' | 'search' | 'analytics' | 'import' | 'settings' | 'ai';
 
 export interface Toast {
@@ -40,7 +40,7 @@ interface AppState {
   readerDocId: number | null;
   readerPage: number | null;
   paletteOpen: boolean;
-  activeExamMode: 'RTU' | 'GATE';
+  activeExamMode: 'GATE' | 'IIT';
   pendingTopicId: number | null;
   quickNote: { open: boolean; documentId?: number; page?: number } | null;
   timer: TimerState;
@@ -48,9 +48,9 @@ interface AppState {
 
   boot(): void;
   setPage(page: PageId): void;
-  setActiveExamMode(mode: 'RTU' | 'GATE'): void;
+  setActiveExamMode(mode: 'GATE' | 'IIT'): void;
   openDocument(id: number, page?: number): void;
-  openTopic(topicId: number, examType: 'RTU' | 'GATE'): void;
+  openTopic(topicId: number, examType: 'GATE' | 'IIT' | 'RTU'): void;
   clearPendingTopic(): void;
 
   toggleSidebar(): void;
@@ -96,7 +96,7 @@ const defaultTimer: TimerState = {
   mode: 'stopwatch',
   targetSeconds: null,
   label: '',
-  examTarget: 'RTU',
+  examTarget: 'GATE',
   subjectId: null,
 };
 
@@ -132,7 +132,7 @@ export const useApp = create<AppState>((set, get) => ({
   readerDocId: read<number | null>(LS.readerDoc, null),
   readerPage: null,
   paletteOpen: false,
-  activeExamMode: read<'RTU' | 'GATE'>(LS.activeExamMode, 'RTU'),
+  activeExamMode: read<'GATE' | 'IIT'>(LS.activeExamMode, 'GATE'),
   pendingTopicId: null,
   quickNote: null,
   timer: read<TimerState>(LS.timer, defaultTimer),
@@ -140,6 +140,7 @@ export const useApp = create<AppState>((set, get) => ({
 
   boot() {
     applyTheme(get().theme);
+    applyExamModeTheme(get().activeExamMode);
     // Defensive: a stale layout preference must never start the app with no
     // way to navigate. Focus mode is not persisted at all, but if a future
     // bug ever persisted it, this keeps the app usable.
@@ -153,9 +154,10 @@ export const useApp = create<AppState>((set, get) => ({
 
   setPage(page) {
     write(LS.page, page);
-    const examModePatch = page === 'rtu' ? { activeExamMode: 'RTU' as const } : page === 'gate' ? { activeExamMode: 'GATE' as const } : {};
+    const examModePatch = page === 'gate' ? { activeExamMode: 'GATE' as const } : page === 'iit' ? { activeExamMode: 'IIT' as const } : {};
     if (examModePatch.activeExamMode) {
       write(LS.activeExamMode, examModePatch.activeExamMode);
+      applyExamModeTheme(examModePatch.activeExamMode);
     }
     // Leaving the reader always restores the application chrome. This is the
     // root fix for "sidebar disappeared after the PDF view" — focus mode can
@@ -171,10 +173,11 @@ export const useApp = create<AppState>((set, get) => ({
 
   setActiveExamMode(mode) {
     write(LS.activeExamMode, mode);
+    applyExamModeTheme(mode);
     set(state => {
       let nextPage = state.page;
-      if (state.page === 'gate' && mode === 'RTU') nextPage = 'rtu';
-      else if (state.page === 'rtu' && mode === 'GATE') nextPage = 'gate';
+      if (state.page === 'gate' && mode === 'IIT') nextPage = 'iit';
+      else if (state.page === 'iit' && mode === 'GATE') nextPage = 'gate';
       if (nextPage !== state.page) write(LS.page, nextPage);
 
       return {
@@ -192,7 +195,7 @@ export const useApp = create<AppState>((set, get) => ({
   },
 
   openTopic(topicId, examType) {
-    const target: PageId = examType === 'GATE' ? 'gate' : 'rtu';
+    const target: PageId = examType === 'IIT' ? 'iit' : examType === 'GATE' ? 'gate' : 'rtu';
     write(LS.page, target);
     set({ pendingTopicId: topicId, page: target, paletteOpen: false, readerFocus: false });
   },
@@ -307,3 +310,9 @@ export function applyTheme(theme: 'dark' | 'light' | 'system'): void {
   document.documentElement.setAttribute('data-theme', resolved);
   document.documentElement.style.colorScheme = resolved;
 }
+
+export function applyExamModeTheme(mode: 'GATE' | 'IIT'): void {
+  document.documentElement.setAttribute('data-exam-mode', mode);
+}
+
+export const useAppStore = useApp;

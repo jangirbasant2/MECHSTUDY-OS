@@ -26,6 +26,16 @@
   color-scheme: dark;
 }
 
+[data-exam-mode="GATE"] {
+  --color-accent: #0284c7;
+  --color-accent2: #10b981;
+}
+
+[data-exam-mode="IIT"] {
+  --color-accent: #f97316;
+  --color-accent2: #8b5cf6;
+}
+
 [data-theme="light"] {
   color-scheme: light;
   --color-bg: #f5f6f8;
@@ -42,6 +52,16 @@
   --color-warn: #b45309;
   --color-danger: #dc2626;
   --color-hover: #eef1f5;
+}
+
+[data-theme="light"][data-exam-mode="GATE"] {
+  --color-accent: #0369a1;
+  --color-accent2: #047857;
+}
+
+[data-theme="light"][data-exam-mode="IIT"] {
+  --color-accent: #ea580c;
+  --color-accent2: #7c3aed;
 }
 
 * {

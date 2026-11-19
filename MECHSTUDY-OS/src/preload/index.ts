@@ -161,6 +161,10 @@ const api: MechStudyApi = {
     jobForDocument: (documentId) => invoke('ocr:jobForDocument', { documentId }),
     queue: (limit) => invoke('ocr:queue', { limit }),
     onProgress: (cb) => subscribe('ocr:progress', cb),
+    detectScannedPages: (documentId: number) => invoke('ocr:detectScannedPages', { documentId }),
+    geminiPage: (documentId: number, page: number) => invoke('ocr:geminiPage', { documentId, page }),
+    geminiDocument: (documentId: number) => invoke('ocr:geminiDocument', { documentId }),
+    onGeminiProgress: (cb: (data: any) => void) => subscribe('ocr:geminiProgress', cb),
   },
 
   pdf: {
@@ -239,6 +243,7 @@ const api: MechStudyApi = {
   },
   ai: {
     status: () => invoke('ai:status'),
+    testKey: (apiKey: string, model?: string) => invoke('ai:testKey', { apiKey, model }),
     startOllama: () => invoke('ai:startOllama'),
     listModels: () => invoke('ai:listModels'),
     conversations: (mode) => invoke('ai:conversations', { mode }),

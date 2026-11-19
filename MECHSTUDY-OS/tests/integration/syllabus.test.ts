@@ -20,15 +20,23 @@ after(() => {
   dropTempDatabase(tmp);
 });
 
-test('seeds the RTU and GATE syllabi once', () => {
+test('seeds the RTU, GATE, and IIT syllabi once', () => {
   const again = seedSyllabus();
   assert.equal(again.created, false, 'seeding must be idempotent');
 
   const versions = all<{ exam_type: string; verification: string }>(
     'SELECT exam_type, verification FROM syllabus_versions ORDER BY id'
   );
-  assert.deepEqual(versions.map(v => v.exam_type), ['RTU', 'GATE']);
+  assert.deepEqual(versions.map(v => v.exam_type), ['RTU', 'GATE', 'IIT']);
   assert.ok(versions.every(v => v.verification === 'VERIFIED'));
+});
+
+test('IIT syllabus holds Physics, Chemistry, and Mathematics subjects', () => {
+  const iit = subjectStats().filter((s: any) => s.exam_type === 'IIT');
+  assert.ok(iit.length >= 3, 'IIT must contain physics, chemistry, and mathematics subjects');
+  assert.ok(iit.some((s: any) => s.code.includes('PHY')));
+  assert.ok(iit.some((s: any) => s.code.includes('CHM') || s.code.includes('CHE')));
+  assert.ok(iit.some((s: any) => s.code.includes('MTH') || s.code.includes('MATH')));
 });
 
 test('RTU syllabus holds exactly the ten in-scope subjects', () => {

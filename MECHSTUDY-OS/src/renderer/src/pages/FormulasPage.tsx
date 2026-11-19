@@ -6,7 +6,13 @@ import {
 import katex from 'katex';
 import 'katex/dist/katex.min.css';
 import { useApp } from '../store';
-import { FORMULA_SUBJECTS, MECHANICAL_FORMULAS, type FormulaItem } from '../data/formulasData';
+import {
+  FORMULA_SUBJECTS,
+  IIT_FORMULA_SUBJECTS,
+  MECHANICAL_FORMULAS,
+  IIT_FORMULAS,
+  type FormulaItem,
+} from '../data/formulasData';
 import { EmptyState } from '../components/ui';
 
 function KaTeXFormula({ latex, displayMode = true }: { latex: string; displayMode?: boolean }) {
@@ -32,14 +38,23 @@ function KaTeXFormula({ latex, displayMode = true }: { latex: string; displayMod
 export function FormulasPage() {
   const toast = useApp(s => s.toast);
   const setPage = useApp(s => s.setPage);
+  const activeExamMode = useApp(s => s.activeExamMode);
+
+  const activeSubjects = activeExamMode === 'IIT' ? IIT_FORMULA_SUBJECTS : FORMULA_SUBJECTS;
+  const activeDataset = activeExamMode === 'IIT' ? IIT_FORMULAS : MECHANICAL_FORMULAS;
 
   const [selectedSubject, setSelectedSubject] = React.useState<string>('All Subjects');
   const [searchQuery, setSearchQuery] = React.useState<string>('');
   const [copiedId, setCopiedId] = React.useState<string | null>(null);
 
+  // Reset selected subject filter when switching between GATE and IIT modes
+  React.useEffect(() => {
+    setSelectedSubject('All Subjects');
+  }, [activeExamMode]);
+
   const filteredFormulas = React.useMemo(() => {
     const q = searchQuery.trim().toLowerCase();
-    return MECHANICAL_FORMULAS.filter(item => {
+    return activeDataset.filter(item => {
       const matchSub = selectedSubject === 'All Subjects' || item.subject === selectedSubject;
       if (!matchSub) return false;
       if (!q) return true;
@@ -51,7 +66,7 @@ export function FormulasPage() {
         item.variables.some(v => v.name.toLowerCase().includes(q) || v.symbol.toLowerCase().includes(q))
       );
     });
-  }, [selectedSubject, searchQuery]);
+  }, [activeDataset, selectedSubject, searchQuery]);
 
   const handleCopyLatex = async (formula: FormulaItem) => {
     try {
@@ -100,11 +115,13 @@ export function FormulasPage() {
               <Sigma size={20} />
             </div>
             <h1 className="text-xl font-bold tracking-tight" style={{ color: 'var(--color-text)' }}>
-              Formula Vault
+              {activeExamMode === 'IIT' ? 'IIT JEE Advanced Formula Vault' : 'GATE Mechanical Formula Vault'}
             </h1>
           </div>
           <p className="mt-1 text-xs" style={{ color: 'var(--color-muted)' }}>
-            Curated mathematical cheat-sheets for RTU Kota & GATE Mechanical with instant KaTeX math rendering
+            {activeExamMode === 'IIT'
+              ? 'Curated mathematical and physical formulas for IIT JEE Advanced (Physics, Chemistry, Mathematics) with instant KaTeX math rendering'
+              : 'Curated mathematical cheat-sheets for RTU Kota & GATE Mechanical with instant KaTeX math rendering'}
           </p>
         </div>
 
@@ -130,7 +147,7 @@ export function FormulasPage() {
 
       {/* Subject Filter Tabs */}
       <div className="mb-4 flex flex-wrap gap-1.5">
-        {FORMULA_SUBJECTS.map(subj => {
+        {activeSubjects.map(subj => {
           const active = selectedSubject === subj;
           return (
             <button

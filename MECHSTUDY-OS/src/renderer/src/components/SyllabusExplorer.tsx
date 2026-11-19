@@ -28,7 +28,7 @@ const STATUS_OPTIONS_GATE = [
 export function SyllabusExplorer({
   examType, title, description, versionInfo,
 }: {
-  examType: 'RTU' | 'GATE';
+  examType: 'RTU' | 'GATE' | 'IIT';
   title: string;
   description: string;
   versionInfo?: React.ReactNode;
@@ -307,7 +307,7 @@ function TopicRow({
 function TopicPanel({
   topicId, examType, onClose, onChanged,
 }: {
-  topicId: number; examType: 'RTU' | 'GATE';
+  topicId: number; examType: 'RTU' | 'GATE' | 'IIT';
   onClose: () => void; onChanged: () => void;
 }) {
   const [detail, setDetail] = React.useState<TopicDetail | null>(null);

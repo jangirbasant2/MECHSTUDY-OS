@@ -36,6 +36,7 @@ import {
 } from './services/backup';
 import {
   ocrStatus, createJob, runJob, cancelJob, pauseJob, listJobs, jobForDocument, ocrQueueSuggestions,
+  detectScannedPages, runGeminiOcrForPage, runGeminiScannedOcrForDocument,
 } from './services/ocr';
 import { runIntegrityCheck, writeIntegrityReport, applySafeRepairs } from './services/integrity';
 import {
@@ -52,7 +53,7 @@ import {
   startExam, submitExam, getExamSession, listExamSessions, deleteExamSession,
   getExamTimeRemaining,
 } from './services/exam';
-import { pingOllama, listOllamaModels, startOllamaDaemon } from './services/ai/ollama';
+import { testGeminiApiKey, getEffectiveApiKey } from './services/ai/gemini';
 import {
   listConversations, createConversation, getConversation, updateConversation,
   deleteConversation, clearConversation,
@@ -578,9 +579,40 @@ export function registerIpc(): void {
     send(event, data);
   });
 
-  handle('ai:status', () => pingOllama());
-  handle('ai:startOllama', () => startOllamaDaemon());
-  handle('ai:listModels', () => listOllamaModels());
+  handle('ai:status', async () => {
+    const settings = getAiSettings();
+    const apiKey = getEffectiveApiKey();
+    const hasKey = Boolean(apiKey);
+    return {
+      connected: hasKey,
+      keyConfigured: hasKey,
+      model: settings.selectedModel,
+      provider: 'google-ai-studio',
+    };
+  });
+  handle('ai:testKey', async ({ apiKey, model }) => {
+    return testGeminiApiKey(apiKey, model);
+  });
+  handle('ai:startOllama', () => ({
+    started: true,
+    message: 'Google AI Studio active',
+  }));
+  handle('ai:listModels', () => [
+    'gemini-3.5-flash-lite',
+    'gemini-4-hydrogen',
+    'gemini-4-carbon',
+  ]);
+  handle('ocr:detectScannedPages', ({ documentId }) => {
+    return detectScannedPages(Number(documentId));
+  });
+  handle('ocr:geminiPage', ({ documentId, page }) => {
+    return runGeminiOcrForPage(Number(documentId), Number(page));
+  });
+  handle('ocr:geminiDocument', ({ documentId }) => {
+    return runGeminiScannedOcrForDocument(Number(documentId), (p) => {
+      send('ocr:geminiProgress', p);
+    });
+  });
   handle('ai:conversations', ({ mode }) => listConversations(mode));
   handle('ai:createConversation', ({ title, model, mode }) => createConversation(title, model, mode));
   handle('ai:getConversation', ({ id }) => getConversation(Number(id)));

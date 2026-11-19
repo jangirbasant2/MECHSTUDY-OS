@@ -15,9 +15,9 @@ CRITICAL ACADEMIC RULES:
 - You can execute real application tools to inspect schedules, create study tasks, check progress, and search notes.`;
 
 export const DEFAULT_AI_SETTINGS: AiSettings = {
-  ollamaHost: 'http://127.0.0.1:11434',
-  selectedModel: 'qwen3:4b',
-  embeddingModel: 'nomic-embed-text:latest',
+  apiKey: '',
+  selectedModel: 'gemini-3.5-flash-lite',
+  autoOcr: true,
   temperature: 0.7,
   contextLength: 4096,
   maxTokens: 2048,
@@ -28,13 +28,15 @@ export const DEFAULT_AI_SETTINGS: AiSettings = {
   maxDailyStudyHours: 6,
   autoRag: true,
   ragTopK: 4,
+  ollamaHost: 'http://127.0.0.1:11434',
+  embeddingModel: 'nomic-embed-text:latest',
 };
 
 export function getAiSettings(): AiSettings {
   return {
-    ollamaHost: getSetting('ai.ollamaHost', DEFAULT_AI_SETTINGS.ollamaHost),
+    apiKey: getSetting('ai.apiKey', (process.env.GEMINI_API_KEY || process.env.GOOGLE_API_KEY || DEFAULT_AI_SETTINGS.apiKey)),
     selectedModel: getSetting('ai.selectedModel', DEFAULT_AI_SETTINGS.selectedModel),
-    embeddingModel: getSetting('ai.embeddingModel', DEFAULT_AI_SETTINGS.embeddingModel),
+    autoOcr: getSetting('ai.autoOcr', 'true') === 'true',
     temperature: parseFloat(getSetting('ai.temperature', String(DEFAULT_AI_SETTINGS.temperature))),
     contextLength: parseInt(getSetting('ai.contextLength', String(DEFAULT_AI_SETTINGS.contextLength)), 10) || 4096,
     maxTokens: parseInt(getSetting('ai.maxTokens', String(DEFAULT_AI_SETTINGS.maxTokens)), 10) || 2048,
@@ -45,13 +47,15 @@ export function getAiSettings(): AiSettings {
     maxDailyStudyHours: parseInt(getSetting('ai.maxDailyStudyHours', String(DEFAULT_AI_SETTINGS.maxDailyStudyHours)), 10) || 6,
     autoRag: getSetting('ai.autoRag', 'true') === 'true',
     ragTopK: parseInt(getSetting('ai.ragTopK', String(DEFAULT_AI_SETTINGS.ragTopK)), 10) || 4,
+    ollamaHost: getSetting('ai.ollamaHost', DEFAULT_AI_SETTINGS.ollamaHost || ''),
+    embeddingModel: getSetting('ai.embeddingModel', DEFAULT_AI_SETTINGS.embeddingModel || ''),
   };
 }
 
 export function updateAiSettings(patch: Partial<AiSettings>): void {
-  if (patch.ollamaHost !== undefined) setSetting('ai.ollamaHost', patch.ollamaHost.trim().replace(/\/+$/, ''));
+  if (patch.apiKey !== undefined) setSetting('ai.apiKey', patch.apiKey.trim());
   if (patch.selectedModel !== undefined) setSetting('ai.selectedModel', patch.selectedModel.trim());
-  if (patch.embeddingModel !== undefined) setSetting('ai.embeddingModel', patch.embeddingModel.trim());
+  if (patch.autoOcr !== undefined) setSetting('ai.autoOcr', patch.autoOcr ? 'true' : 'false');
   if (patch.temperature !== undefined) setSetting('ai.temperature', String(patch.temperature));
   if (patch.contextLength !== undefined) setSetting('ai.contextLength', String(patch.contextLength));
   if (patch.maxTokens !== undefined) setSetting('ai.maxTokens', String(patch.maxTokens));
@@ -62,4 +66,6 @@ export function updateAiSettings(patch: Partial<AiSettings>): void {
   if (patch.maxDailyStudyHours !== undefined) setSetting('ai.maxDailyStudyHours', String(patch.maxDailyStudyHours));
   if (patch.autoRag !== undefined) setSetting('ai.autoRag', patch.autoRag ? 'true' : 'false');
   if (patch.ragTopK !== undefined) setSetting('ai.ragTopK', String(patch.ragTopK));
+  if (patch.ollamaHost !== undefined) setSetting('ai.ollamaHost', patch.ollamaHost.trim().replace(/\/+$/, ''));
+  if (patch.embeddingModel !== undefined) setSetting('ai.embeddingModel', patch.embeddingModel.trim());
 }

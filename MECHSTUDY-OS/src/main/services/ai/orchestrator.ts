@@ -1,7 +1,7 @@
 import { get } from '../../db';
 import { addMessage, getConversationMessages, getConversationDocuments } from './chat';
 import { decrementTemporaryScreenshots } from './temporaryScreenshots';
-import { chatStream, OllamaMessage, pingOllama, startOllamaDaemon, isVisionModel } from './ollama';
+import { chatStreamGemini } from './gemini';
 import { getAiSettings } from './settings';
 import { formatMemoriesForPrompt } from './memory';
 import { ToolRegistry } from './toolRegistry';
@@ -272,16 +272,6 @@ export async function processUserMessage(
   const settings = getAiSettings();
   const model = req.model || settings.selectedModel;
 
-  // Auto-wake Ollama daemon if server is not responding
-  try {
-    const status = await pingOllama();
-    if (!status.connected && status.installed) {
-      await startOllamaDaemon();
-    }
-  } catch {
-    // Non-fatal
-  }
-
   // 1. Save user message to database
   const userMsg = addMessage({
     conversationId: req.conversationId,
@@ -387,7 +377,11 @@ Use these attached materials as your primary source for explanations, equations,
 
   // 4. Gather conversation history
   const dbMessages = getConversationMessages(req.conversationId);
-  const messagesToSend: OllamaMessage[] = [
+  const messagesToSend: Array<{
+    role: 'user' | 'assistant' | 'system';
+    content: string;
+    images?: string[];
+  }> = [
     { role: 'system', content: systemPrompt },
   ];
 
@@ -395,22 +389,16 @@ Use these attached materials as your primary source for explanations, equations,
   const historySlice = dbMessages.slice(-16);
   for (const m of historySlice) {
     messagesToSend.push({
-      role: m.role,
+      role: m.role as 'user' | 'assistant',
       content: m.content,
     });
   }
 
-  // Attach images for vision model if provided
+  // Attach images for multimodal analysis if provided
   const hasImages = Array.isArray(req.images) && req.images.length > 0;
-  const modelIsVision = isVisionModel(model);
   const lastUserMsg = messagesToSend[messagesToSend.length - 1];
   if (lastUserMsg && lastUserMsg.role === 'user' && hasImages) {
-    if (modelIsVision) {
-      lastUserMsg.images = req.images!.map(img => img.replace(/^data:image\/[a-z]+;base64,/, ''));
-    } else {
-      systemPrompt += `\n\n[SCREENSHOT ATTACHED]\nThe student attached a screenshot from the PDF reader. Note: the currently active model (${model}) is a text-only model. For direct image analysis, switch to a vision model (e.g. llama3.2-vision or llava) in Settings.`;
-      messagesToSend[0].content = systemPrompt;
-    }
+    lastUserMsg.images = req.images!.map(img => img.replace(/^data:image\/[a-z]+;base64,/, ''));
   }
 
   const toolRegistry = ToolRegistry.getInstance();
@@ -427,12 +415,12 @@ Use these attached materials as your primary source for explanations, equations,
       maxToolLoops--;
       let loopToolCalls: AiToolCall[] = [];
 
-      const response = await chatStream({
+      const response = await chatStreamGemini({
         model,
-        messages: messagesToSend,
+        systemPrompt,
+        messages: messagesToSend as any,
         tools: toolDefs,
         temperature: settings.temperature,
-        contextLength: settings.contextLength,
         maxTokens: settings.maxTokens,
         signal,
         onChunk: (chunk) => {
@@ -478,14 +466,7 @@ Use these attached materials as your primary source for explanations, equations,
           // Add tool result to context for next LLM turn
           messagesToSend.push({
             role: 'assistant',
-            content: response.content || '',
-            tool_calls: [tc],
-          });
-
-          messagesToSend.push({
-            role: 'tool',
-            name: tc.name,
-            content: JSON.stringify(execResult.result ?? { error: execResult.error }),
+            content: `Tool \`${tc.name}\` executed with arguments ${JSON.stringify(tc.arguments)}. Result:\n${JSON.stringify(execResult.result ?? { error: execResult.error })}`,
           });
         }
         // Continue loop to let model answer using tool results

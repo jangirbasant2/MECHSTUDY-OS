@@ -15,6 +15,7 @@ import { ReaderPage } from './pages/ReaderPage';
 import { NotesPage } from './pages/NotesPage';
 import { RtuPage } from './pages/RtuPage';
 import { GatePage } from './pages/GatePage';
+import { IitPage } from './pages/IitPage';
 import { PlannerPage } from './pages/PlannerPage';
 import { RevisionPage } from './pages/RevisionPage';
 import { PracticePage } from './pages/PracticePage';
@@ -157,6 +158,7 @@ export function App() {
       case 'notes': return <NotesPage />;
       case 'rtu': return <RtuPage />;
       case 'gate': return <GatePage />;
+      case 'iit': return <IitPage />;
       case 'planner': return <PlannerPage />;
       case 'revision': return <RevisionPage />;
       case 'practice': return <PracticePage />;
