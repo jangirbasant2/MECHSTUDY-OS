@@ -1,6 +1,6 @@
 # MECHSTUDY OS 🎓⚙️
 
-> **The Offline-First Academic Workspace & Local AI Brain for RTU Kota & GATE Mechanical Engineering**
+> **The Offline-First Academic Workspace & AI Study Brain for GATE Mechanical & IIT JEE Advanced**
 
 [![Version](https://img.shields.io/badge/version-1.0.0-blue.svg)](https://github.com/jangirbasant2/MECHSTUDY-OS/releases)
 [![License: MIT](https://img.shields.io/badge/License-MIT-yellow.svg)](LICENSE)
@@ -10,20 +10,23 @@
 [![SQLite](https://img.shields.io/badge/SQLite-FTS5-003B57.svg)]()
 [![Offline First](https://img.shields.io/badge/offline-100%25-brightgreen.svg)]()
 
-**MECHSTUDY OS** is a unified, high-performance desktop environment built specifically for Mechanical Engineering students preparing for **RTU Kota (B.Tech Mechanical, III Semester)** university examinations and the **GATE Mechanical Engineering** competitive exam.
+**MECHSTUDY OS** is a unified, high-performance desktop environment built for engineering students and aspirants preparing for **GATE Mechanical Engineering** and **IIT JEE Advanced (Physics, Chemistry, Mathematics)**, alongside **RTU Kota (B.Tech Mechanical)**.
 
-It pairs an interactive PDF reader with real visual sticky notes, an offline SQLite database with full-text search, spaced-repetition revision, timed GATE-style mock tests, and an optional local AI tutor powered by Ollama.
+It pairs an interactive PDF reader with real visual sticky notes, an offline SQLite database with **FTS5 full-text search**, scanned handwritten PDF OCR via Google AI Studio, spaced-repetition revision, authentic exam simulators (GATE 65 Qs / 180 min and IIT multi-type marking), and an AI study tutor powered by Google Gemini (`@google/genai`).
 
 ---
 
 ## ⚡ Key Highlights
 
-- **🔒 100% Offline & Private:** Zero cloud tracking, zero telemetry, zero accounts. All notes, highlights, and study data remain strictly on your machine.
-- **📚 PDF-Aware Document Intelligence:** High-performance reader featuring real visual sticky notes, text highlighting, and margin notes stored independently in SQLite — **original PDFs are never modified**.
-- **🤖 Local AI Study Brain (Zero API Costs):** Connects to your local [Ollama](https://ollama.com/) instance (`qwen3:4b`, `llama3.2-vision`, `phi4`, `deepseek-r1`) to draft study plans, summarize complex topics, and analyze diagrams via screenshot clipping.
-- **⏱️ Timed Mock Test Engine:** Authentic GATE exam interface with MCQ, MSQ, and NAT questions, formula keypad, official marking schemes (+1/+2, negative marks, key range verification), and in-depth performance analytics.
-- **🎯 Verified Curriculum Mapping:** Fully transcribed 2018–19 RTU Kota III-Semester Mechanical curriculum (10 subjects, 17 theory credits, 6 practical credits, 34 units, 248 topics) cross-mapped against the official GATE Mechanical Engineering syllabus.
-- **🔄 Spaced Repetition & Mistake Book:** Automatic revision alerts based on forgetting curves and a dedicated mistake book for tracking conceptual slips, formula errors, and calculation slips.
+- **🔄 Instant Global GATE ⟷ IIT Mode Switch:** A persistent top-center header switch that dynamically swaps theme accents, active syllabus trees (GATE Mechanical vs. IIT JEE PCM), formula vaults, PYQ questions, and exam simulator presets.
+- **🔒 100% Offline Core & Private:** All notes, highlights, bookmarks, exams, and study data are stored strictly on your machine in local SQLite with FTS5 search. Original PDFs are never modified.
+- **📚 Scanned Handwritten PDF OCR & FTS5 Search:** Built-in background engine detects scanned image pages, extracts text and LaTeX formulas using the Google AI Studio API, and indexes them into SQLite FTS5 for instant search across handwritten notes.
+- **🤖 Next-Gen Google AI Studio Brain (`@google/genai`):** Contextual AI study tutor powered by Gemini (`gemini-4-hydrogen`, `gemini-3.5-flash-lite`, `gemini-4-carbon`). No complex local GPU or Ollama configuration needed—simply input your free API key in the top header.
+- **⏱️ Dual Exam Simulation Engine:** 
+  - **GATE ME Mode:** 65 Qs / 180 min / 100 marks, MCQ (-1/3, -2/3), MSQ & NAT (0 negative), with built-in official Virtual Scientific Calculator.
+  - **IIT Mode:** Authentic IIT JEE Advanced marking schemes (Single Correct, Multi-Correct with partial marking, Integer/Numerical, Matrix Match) with virtual calculator strictly prohibited.
+- **🎯 Verified Curriculum Mapping:** Complete RTU Kota III-Semester Mechanical curriculum and IIT JEE Advanced syllabus cross-mapped with topic coverage tracking.
+- **🔁 Spaced Repetition & Mistake Book:** Automatic revision alerts based on forgetting curves and a dedicated mistake book for tracking conceptual slips, formula errors, and calculation slips.
 
 ---
 
@@ -31,12 +34,13 @@ It pairs an interactive PDF reader with real visual sticky notes, an offline SQL
 
 | Section | Capabilities |
 | :--- | :--- |
-| **Home Dashboard** | Daily study targets, streak tracker, Pomodoro/stopwatch timer, and spaced revision alerts. |
-| **PDF Reader** | PDF.js v5 engine, visual yellow/cyan/pink sticky notes, text highlights, margin notes, and clean export. |
-| **AI Study Tutor** | Contextual sidebar tutor, document picker for multi-session study planning, and screenshot visual analysis. |
-| **Syllabus Explorer** | Interactive RTU & GATE syllabus trees with topic status, credit counts, and inferred overlap scores. |
-| **Practice & Questions** | Searchable PYQ question bank, answer key verification, formula input support, and topic tagging. |
-| **Timed Exam Mode** | Timed test simulation, question palette, mark for review, auto-submit on countdown expiry, and scoring. |
+| **Global Exam Switch** | Top-center toggle dynamically switches between **GATE Mechanical** and **IIT JEE Advanced** presets. |
+| **AI Studio Menu** | Top header dropdown (300px) with secure API key storage, live connection indicator, model selector, and auto-OCR toggle. |
+| **PDF Reader** | PDF.js v5 engine, visual sticky notes, text highlights, margin notes, and in-document FTS5 search. |
+| **AI Study Tutor** | Contextual sidebar tutor, diagram screenshot analysis, formula derivations, and step-by-step problem solver. |
+| **Syllabus Explorer** | Interactive RTU, GATE ME, and IIT JEE Advanced syllabus trees with topic status and progress tracking. |
+| **Formula Vault** | Comprehensive formula handbook for GATE Mechanical and IIT JEE Physics, Chemistry, and Mathematics. |
+| **Exam Simulator** | Authentic GATE & IIT exam interface with question palette, answer submission, timer, and detailed scoring analytics. |
 | **Analytics & History** | Weekly study hours, subject breakdown, mistake category charts, and session management. |
 
 ---
@@ -74,27 +78,21 @@ irm https://raw.githubusercontent.com/jangirbasant2/MECHSTUDY-OS/main/install.ps
 | :--- | :--- | :--- |
 | **Operating System** | Windows 10 (64-bit, build 19041+) | Windows 11 (64-bit, 22H2+) |
 | **Processor** | Dual-core Intel / AMD 64-bit | Quad-core Intel Core i5 / AMD Ryzen 5 or higher |
-| **RAM** | 4 GB | 8 GB (16 GB if running large local AI models) |
+| **RAM** | 4 GB | 8 GB |
 | **Disk Space** | 300 MB for application | 500 MB+ (plus space for your own PDF documents) |
 | **Architecture** | x64 (64-bit) | x64 (64-bit) |
 
 ---
 
-## 🤖 Optional: Setting up the Local AI Brain
+## 🤖 Optional: Setting up the Google AI Studio Brain
 
-MECHSTUDY OS works 100% offline without AI. To enable the local AI Tutor and document intelligence features at zero cost:
+MECHSTUDY OS works 100% offline for reading, formulas, syllabus tracking, and exam practice. To enable the AI Study Tutor and Scanned PDF OCR:
 
-1. **Install Ollama:** Download and install [Ollama for Windows](https://ollama.com/download/windows).
-2. **Download a Recommended Model:**
-   Open PowerShell and pull one or both of our tuned study models:
-   ```powershell
-   # Ultra-fast, lightweight study tutor (3.5 GB):
-   ollama pull qwen3:4b
-
-   # Multimodal vision model for analyzing diagram screenshots (2.8 GB):
-   ollama pull llama3.2-vision
-   ```
-3. **Launch MECHSTUDY OS:** The app automatically detects Ollama running on `http://127.0.0.1:11434`.
+1. **Get an API Key:** Create a free API key at [Google AI Studio](https://aistudio.google.com/).
+2. **Open the AI Menu:** Click the **Google AI Studio** button in the top-right header of MECHSTUDY OS.
+3. **Paste & Connect:** Paste your API key and click **Save & Connect**.
+4. **Choose Model:** Select from `gemini-4-hydrogen`, `gemini-3.5-flash-lite`, or `gemini-4-carbon`.
+5. **Auto-OCR:** Enable the *Auto-OCR on PDF Import* switch if you want scanned handwritten notes indexed automatically.
 
 ---
 
@@ -108,6 +106,7 @@ MECHSTUDY OS works 100% offline without AI. To enable the local AI Tutor and doc
 | **Styling** | Tailwind CSS v4 | Dark/light theme engine, custom CSS variables, and layout recovery rails. |
 | **Local Database** | `node:sqlite` (SQLite 3.53) | Built-in SQLite with **FTS5 full-text indexing**, WAL mode, and zero native recompilation. |
 | **PDF Engine** | `pdfjs-dist` 5.4 & `pdf-lib` 1.17 | Text layer extraction, canvas rendering, and zero-loss annotated PDF export. |
+| **AI Integration** | `@google/genai` (Gemini SDK) | Multimodal streaming, diagram visual inspection, and OCR extraction. |
 | **Math Typography** | KaTeX 0.16 + `remark-math` | Hardware-accelerated rendering of engineering formulas and LaTeX equations. |
 | **State Management** | Zustand 5 | Lightweight, persistent state with session layout restoration. |
 
@@ -133,7 +132,7 @@ MECHSTUDY OS works 100% offline without AI. To enable the local AI Tutor and doc
 <details>
 <summary><b>Do I need an internet connection to use the app?</b></summary>
 <br>
-<b>No.</b> Everything—including the PDF reader, question bank, syllabus trees, exam simulations, notes, and local AI (via Ollama)—runs completely offline on your computer.
+<b>No for core features.</b> Everything—including the PDF reader, PYQ question bank, syllabus trees, exam simulations, notes, and formula vaults—runs completely offline on your computer. An internet connection is only needed when communicating with Google AI Studio (Gemini) for AI tutor questions or scanned handwritten PDF OCR.
 </details>
 
 <details>
