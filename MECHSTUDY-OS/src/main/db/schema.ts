@@ -703,5 +703,52 @@ CREATE TABLE IF NOT EXISTS topic_quizzes (
 );
 CREATE INDEX IF NOT EXISTS idx_topic_quizzes_topic ON topic_quizzes(topic_id);
 `
+  },
+  {
+    version: 12,
+    name: 'pyq_cache_and_mistakes',
+    sql: `
+CREATE TABLE IF NOT EXISTS pyq_ingest_cache (
+  file_hash TEXT PRIMARY KEY,
+  file_name TEXT NOT NULL,
+  file_size INTEGER NOT NULL,
+  exam_track TEXT NOT NULL,
+  subject_name TEXT,
+  year INTEGER,
+  questions_count INTEGER NOT NULL DEFAULT 0,
+  created_at TEXT NOT NULL DEFAULT (datetime('now'))
+);
+
+CREATE TABLE IF NOT EXISTS gate_mistakes (
+  id INTEGER PRIMARY KEY AUTOINCREMENT,
+  attempt_id INTEGER REFERENCES exam_attempts(id) ON DELETE CASCADE,
+  question_id INTEGER,
+  subject_name TEXT,
+  section TEXT,
+  question_text TEXT NOT NULL,
+  options_json TEXT,
+  correct_answer TEXT,
+  user_answer TEXT,
+  marks REAL NOT NULL DEFAULT 1,
+  negative_marks_lost REAL NOT NULL DEFAULT 0,
+  solution_text TEXT,
+  reviewed INTEGER NOT NULL DEFAULT 0,
+  notes TEXT,
+  created_at TEXT NOT NULL DEFAULT (datetime('now'))
+);
+CREATE INDEX IF NOT EXISTS idx_gate_mistakes_subj ON gate_mistakes(subject_name);
+CREATE INDEX IF NOT EXISTS idx_gate_mistakes_rev ON gate_mistakes(reviewed);
+
+CREATE TABLE IF NOT EXISTS rtu_evaluations (
+  id INTEGER PRIMARY KEY AUTOINCREMENT,
+  paper_id INTEGER REFERENCES exam_papers(id) ON DELETE CASCADE,
+  student_answers_json TEXT NOT NULL,
+  evaluations_json TEXT NOT NULL,
+  total_score REAL NOT NULL,
+  max_score REAL NOT NULL,
+  rubric_feedback TEXT,
+  created_at TEXT NOT NULL DEFAULT (datetime('now'))
+);
+`
   }
 ];

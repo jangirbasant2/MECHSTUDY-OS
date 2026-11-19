@@ -492,3 +492,103 @@ Return ONLY valid JSON matching this structure:
     throw new Error('Failed to parse generated RTU paper response.');
   }
 }
+
+/**
+ * Evaluate student's written RTU examination answers against university step-marking rubrics.
+ */
+export async function evaluateRtuAnswersWithGemini(
+  subjectName: string,
+  paperTitle: string,
+  questions: Array<{ number: string; part?: string; questionText: string; marks: number }>,
+  studentAnswers: Array<{ questionNumber: string; answerText?: string; imageBase64?: string }>,
+  apiKey?: string,
+  model?: string
+): Promise<any> {
+  const key = getEffectiveApiKey(apiKey);
+  if (!key) {
+    throw new Error('Google AI Studio API Key is required to evaluate answers.');
+  }
+
+  const selectedModel = model || getAiSettings().selectedModel || 'gemini-3.5-flash-lite';
+  const ai = new GoogleGenAI({ apiKey: key });
+
+  const prompt = `You are a strict, veteran professor and university evaluator at Rajasthan Technical University (RTU), Kota.
+You are evaluating a student's answer sheet for the paper: "${paperTitle}" in "${subjectName}".
+
+RTU OFFICIAL STEP-MARKING RUBRIC:
+- 1. Formula & Governing Equations (approx 25% weightage): Correct formula with standard variable definitions.
+- 2. Step-by-Step Derivation / Analytical Working (approx 40% weightage): Clear substitution, logical progression, intermediate values.
+- 3. Diagram & Schematic Representation (approx 20% weightage): Neat labeled sketches, free body diagrams, or state diagrams where applicable.
+- 4. Final Result & Units (approx 15% weightage): Correct magnitude, correct SI units, and boxed answer.
+
+STUDENT ANSWERS TO EVALUATE:
+${JSON.stringify(studentAnswers, null, 2)}
+
+OFFICIAL QUESTIONS:
+${JSON.stringify(questions, null, 2)}
+
+CRITICAL INSTRUCTIONS:
+- Grade every attempted question strictly according to the marks allocated.
+- For non-attempted questions, award 0 marks.
+- Award partial marks fairly based on the 4 rubric criteria.
+- Provide constructive, detailed feedback for each question highlighting where marks were lost.
+
+Return ONLY a JSON object matching this schema:
+{
+  "totalScore": 68,
+  "maxScore": 100,
+  "overallGrade": "A" | "B" | "C" | "D" | "F",
+  "keyStrengths": ["string", "string"],
+  "improvementAreas": ["string", "string"],
+  "evaluations": [
+    {
+      "questionNumber": "string",
+      "marksAwarded": 6.5,
+      "maxMarks": 8,
+      "rubricBreakdown": {
+        "formulaMarks": 2,
+        "stepMarks": 3,
+        "diagramMarks": 1,
+        "finalAnswerMarks": 0.5
+      },
+      "feedback": "string explaining marks breakdown and errors",
+      "modelAnswerSummary": "string highlighting ideal steps/formulas"
+    }
+  ]
+}`;
+
+  const parts: any[] = [{ text: prompt }];
+
+  // Attach any uploaded handwritten answer sheet images
+  for (const ans of studentAnswers) {
+    if (ans.imageBase64) {
+      const cleanBase64 = ans.imageBase64.replace(/^data:image\/[a-z]+;base64,/, '');
+      parts.push({
+        inlineData: {
+          mimeType: 'image/jpeg',
+          data: cleanBase64,
+        },
+      });
+    }
+  }
+
+  const response = await ai.models.generateContent({
+    model: selectedModel,
+    contents: [{ role: 'user', parts }],
+    config: {
+      temperature: 0.1,
+      maxOutputTokens: 8192,
+      responseMimeType: 'application/json',
+    },
+  });
+
+  const rawJson = response.text?.trim() || '{}';
+  try {
+    return JSON.parse(rawJson);
+  } catch {
+    const match = rawJson.match(/\{[\s\S]*\}/);
+    if (match) return JSON.parse(match[0]);
+    throw new Error('Failed to parse structured answer evaluation response from AI.');
+  }
+}
+

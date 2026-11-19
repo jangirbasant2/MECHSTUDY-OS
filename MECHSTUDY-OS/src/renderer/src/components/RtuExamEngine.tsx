@@ -1,26 +1,35 @@
-import React from 'react';
+import React, { useState, useEffect } from 'react';
 import {
   FileText, Sparkles, CheckCircle2, Award, Calendar, BookOpen, Loader2,
   ChevronDown, ChevronRight, Eye, EyeOff, Printer, Download, ArrowRight,
+  GraduationCap, AlertCircle, Check, Image as ImageIcon
 } from 'lucide-react';
 import { api } from '../lib/api';
 import { useApp } from '../store';
-import { Loading, EmptyState, SectionHeader } from './ui';
-import type { ExamPaperRecord } from '../../../shared/types';
+import { Loading, EmptyState, SectionHeader, Modal } from './ui';
+import type { ExamPaperRecord, RtuEvaluationResult } from '../../../shared/types';
 
 export function RtuExamEngine() {
   const toast = useApp(s => s.toast);
 
-  const [subjects, setSubjects] = React.useState<Array<{ id: number; name: string; code: string }>>([]);
-  const [selectedSubjectId, setSelectedSubjectId] = React.useState<number | null>(null);
-  const [selectedUnits, setSelectedUnits] = React.useState<number[]>([1, 2, 3, 4, 5]);
-  const [subMode, setSubMode] = React.useState<'END_SEM' | 'MT1' | 'MT2'>('END_SEM');
-  const [loadingSubjects, setLoadingSubjects] = React.useState(true);
-  const [generating, setGenerating] = React.useState(false);
-  const [activePaper, setActivePaper] = React.useState<any | null>(null);
-  const [showSolutions, setShowSolutions] = React.useState(false);
+  const [subjects, setSubjects] = useState<Array<{ id: number; name: string; code: string }>>([]);
+  const [selectedSubjectId, setSelectedSubjectId] = useState<number | null>(null);
+  const [selectedUnits, setSelectedUnits] = useState<number[]>([1, 2, 3, 4, 5]);
+  const [subMode, setSubMode] = useState<'END_SEM' | 'MT1' | 'MT2'>('END_SEM');
+  const [loadingSubjects, setLoadingSubjects] = useState(true);
+  const [generating, setGenerating] = useState(false);
+  const [activePaperRecord, setActivePaperRecord] = useState<ExamPaperRecord | null>(null);
+  const [activePaper, setActivePaper] = useState<any | null>(null);
+  const [showSolutions, setShowSolutions] = useState(false);
+  const [exportingPdf, setExportingPdf] = useState(false);
 
-  React.useEffect(() => {
+  // Evaluation Modal State
+  const [evalModalOpen, setEvalModalOpen] = useState(false);
+  const [studentAnswers, setStudentAnswers] = useState<Record<string, string>>({});
+  const [evaluating, setEvaluating] = useState(false);
+  const [evaluationResult, setEvaluationResult] = useState<RtuEvaluationResult | null>(null);
+
+  useEffect(() => {
     let alive = true;
     api.syllabus.subjects('RTU')
       .then(subs => {
@@ -49,10 +58,13 @@ export function RtuExamEngine() {
     if (!selectedSubjectId) return;
     setGenerating(true);
     setActivePaper(null);
+    setActivePaperRecord(null);
+    setEvaluationResult(null);
 
     try {
       const unitsToUse = subMode === 'END_SEM' ? [1, 2, 3, 4, 5] : selectedUnits;
       const paperRecord = await api.pyq.generateRtuPaper(selectedSubjectId, subMode, unitsToUse);
+      setActivePaperRecord(paperRecord);
       const parsedData = JSON.parse(paperRecord.questions_json);
       setActivePaper(parsedData);
       toast(`Generated ${subMode === 'END_SEM' ? 'End-Sem Predicted Paper' : subMode} successfully!`, 'success');
@@ -60,6 +72,42 @@ export function RtuExamEngine() {
       toast(`Paper generation failed: ${e?.message}`, 'error');
     } finally {
       setGenerating(false);
+    }
+  };
+
+  const handleExportPdf = async () => {
+    if (!activePaperRecord) return;
+    setExportingPdf(true);
+    try {
+      const cleanTitle = (activePaper?.title || 'RTU_Paper').replace(/[^a-zA-Z0-9_-]/g, '_');
+      const chosenPath = await api.pyq.pickSavePath(`${cleanTitle}.pdf`);
+      if (!chosenPath) return;
+
+      await api.pyq.exportRtuPaper(activePaperRecord.id, chosenPath);
+      toast(`Exported question paper to ${chosenPath}!`, 'success');
+    } catch (e: any) {
+      toast(`Failed to export PDF: ${e?.message}`, 'error');
+    } finally {
+      setExportingPdf(false);
+    }
+  };
+
+  const handleStartEvaluation = async () => {
+    if (!activePaperRecord) return;
+    setEvaluating(true);
+    try {
+      const formattedAnswers = Object.entries(studentAnswers).map(([qNum, text]) => ({
+        questionNumber: qNum,
+        answerText: text,
+      }));
+
+      const res = await api.pyq.evaluateRtuAnswers(activePaperRecord.id, formattedAnswers);
+      setEvaluationResult(res);
+      toast(`Evaluation complete: Score ${res.totalScore}/${res.maxScore} (Grade ${res.overallGrade})`, 'success');
+    } catch (e: any) {
+      toast(`Evaluation error: ${e?.message}`, 'error');
+    } finally {
+      setEvaluating(false);
     }
   };
 
@@ -98,12 +146,11 @@ export function RtuExamEngine() {
             }`}
           >
             <div className="flex items-center justify-between mb-2">
-              <span className="text-xs font-bold text-blue-400">Mode 1</span>
+              <span className="text-xs font-bold text-[var(--color-text)]">End-Sem Predicted Paper</span>
               <Award size={16} className="text-blue-400" />
             </div>
-            <h4 className="text-xs font-bold text-[var(--color-text)] mb-1">End-Sem Predicted Paper</h4>
             <p className="text-[11px] text-[var(--color-muted)] leading-relaxed">
-              Analyzes recurring topics and weightage across past 3–5 years. Full Part A, Part B &amp; Part C format.
+              Full 100 Marks (3 Hours). Analyzes recurring past 3-5 years PYQ questions and high-probability derivations across all 5 units.
             </p>
           </button>
 
@@ -120,12 +167,11 @@ export function RtuExamEngine() {
             }`}
           >
             <div className="flex items-center justify-between mb-2">
-              <span className="text-xs font-bold text-blue-400">Mode 2</span>
+              <span className="text-xs font-bold text-[var(--color-text)]">Mid-Term 1 (MT-1)</span>
               <Calendar size={16} className="text-blue-400" />
             </div>
-            <h4 className="text-xs font-bold text-[var(--color-text)] mb-1">Mid-Term 1 (MT-1)</h4>
             <p className="text-[11px] text-[var(--color-muted)] leading-relaxed">
-              Hybrid assembly: pulls uploaded RTU PYQs for selected MT-1 syllabus; AI generates authentic gap questions.
+              30 Marks (90 Min). Hybrid paper pulling exact match questions from your uploaded PYQs for Unit 1 &amp; 2, filling gaps with Gemini AI.
             </p>
           </button>
 
@@ -142,30 +188,30 @@ export function RtuExamEngine() {
             }`}
           >
             <div className="flex items-center justify-between mb-2">
-              <span className="text-xs font-bold text-blue-400">Mode 3</span>
+              <span className="text-xs font-bold text-[var(--color-text)]">Mid-Term 2 (MT-2)</span>
               <Calendar size={16} className="text-blue-400" />
             </div>
-            <h4 className="text-xs font-bold text-[var(--color-text)] mb-1">Mid-Term 2 (MT-2)</h4>
             <p className="text-[11px] text-[var(--color-muted)] leading-relaxed">
-              Intelligent hybrid assembly tailored for your Mid-Term 2 syllabus units with full university marking schemes.
+              30 Marks (90 Min). Covers later units (Units 3, 4, 5) with analytical numericals and internal choices.
             </p>
           </button>
         </div>
 
-        {/* Configuration Controls */}
+        {/* Controls: Subject & Units */}
         <div className="mt-5 grid grid-cols-1 md:grid-cols-2 gap-4 pt-4 border-t" style={{ borderColor: 'var(--color-border)' }}>
           <div>
             <label className="block text-xs font-semibold text-[var(--color-muted)] mb-1.5">
               Select RTU Subject:
             </label>
             <select
-              className="input w-full text-xs"
-              value={selectedSubjectId ?? ''}
+              value={selectedSubjectId || ''}
               onChange={e => setSelectedSubjectId(Number(e.target.value))}
+              className="w-full rounded-xl border px-3 py-2 text-xs font-medium"
+              style={{ background: 'var(--color-bg)', borderColor: 'var(--color-border)', color: 'var(--color-text)' }}
             >
               {subjects.map(s => (
                 <option key={s.id} value={s.id}>
-                  {s.name} ({s.code})
+                  {s.code ? `[${s.code}] ` : ''}{s.name}
                 </option>
               ))}
             </select>
@@ -173,9 +219,9 @@ export function RtuExamEngine() {
 
           <div>
             <label className="block text-xs font-semibold text-[var(--color-muted)] mb-1.5">
-              {subMode === 'END_SEM' ? 'Curriculum Scope (Full Syllabus):' : 'Select Units for Mid-Term Syllabus:'}
+              Included Units:
             </label>
-            <div className="flex items-center gap-1.5 flex-wrap">
+            <div className="flex items-center gap-1.5">
               {[1, 2, 3, 4, 5].map(u => {
                 const isSelected = selectedUnits.includes(u);
                 return (
@@ -235,7 +281,29 @@ export function RtuExamEngine() {
               <span>Maximum Marks: {activePaper.totalMarks}</span>
             </div>
 
-            <div className="flex items-center justify-end gap-2 mt-4">
+            {/* Action Bar */}
+            <div className="flex items-center justify-between gap-2 mt-4 pt-4 border-t border-[var(--color-border)]">
+              <div className="flex items-center gap-2">
+                <button
+                  type="button"
+                  className="btn btn-sm btn-secondary text-xs flex items-center gap-1.5"
+                  disabled={exportingPdf}
+                  onClick={handleExportPdf}
+                >
+                  {exportingPdf ? <Loader2 size={13} className="animate-spin" /> : <Printer size={13} />}
+                  <span>Export Clean Question Paper PDF</span>
+                </button>
+
+                <button
+                  type="button"
+                  className="btn btn-sm bg-blue-600 hover:bg-blue-500 text-white text-xs flex items-center gap-1.5"
+                  onClick={() => setEvalModalOpen(true)}
+                >
+                  <GraduationCap size={14} />
+                  <span>Evaluate My Answers (RTU Rubric)</span>
+                </button>
+              </div>
+
               <button
                 type="button"
                 className="btn btn-sm btn-ghost text-xs flex items-center gap-1.5"
@@ -299,6 +367,122 @@ export function RtuExamEngine() {
             </div>
           ))}
         </div>
+      )}
+
+      {/* Answer Evaluation Modal */}
+      {evalModalOpen && (
+        <Modal
+          open={true}
+          title="RTU Step-Marking Answer Evaluator 🎓"
+          onClose={() => setEvalModalOpen(false)}
+          width={760}
+        >
+          <div className="space-y-4 py-2">
+            {!evaluationResult ? (
+              <>
+                <p className="text-xs text-[var(--color-muted)]">
+                  Enter your derivations, formulas, and intermediate calculation steps. Gemini AI will grade your submission strictly following official RTU university step-marking rubrics (Formulas: 25%, Steps: 40%, Diagram: 20%, Final Unit: 15%).
+                </p>
+
+                <div className="max-h-[460px] overflow-y-auto space-y-4 pr-1">
+                  {Array.isArray(activePaper?.sections) && activePaper.sections.flatMap((s: any) => s.questions || []).map((q: any) => {
+                    const qKey = String(q.number);
+                    return (
+                      <div key={qKey} className="rounded-xl border border-[var(--color-border)] p-3 bg-[var(--color-panel2)] space-y-2">
+                        <div className="flex items-center justify-between text-xs">
+                          <span className="font-bold text-blue-400">Question {qKey} ({q.marks} Marks)</span>
+                          <span className="text-[10.5px] text-[var(--color-muted)] truncate max-w-[280px]">{q.text}</span>
+                        </div>
+                        <textarea
+                          rows={3}
+                          value={studentAnswers[qKey] || ''}
+                          onChange={e => setStudentAnswers({ ...studentAnswers, [qKey]: e.target.value })}
+                          placeholder="Type your formula, derivation steps, intermediate values, and final boxed answer..."
+                          className="w-full text-xs bg-[var(--color-bg)] border border-[var(--color-border)] rounded-lg p-2.5 text-white"
+                        />
+                      </div>
+                    );
+                  })}
+                </div>
+
+                <div className="flex items-center justify-between pt-3 border-t border-[var(--color-border)]">
+                  <button type="button" className="btn btn-ghost btn-sm" onClick={() => setEvalModalOpen(false)} disabled={evaluating}>
+                    Cancel
+                  </button>
+                  <button
+                    type="button"
+                    className="btn btn-primary btn-sm flex items-center gap-1.5"
+                    disabled={evaluating}
+                    onClick={handleStartEvaluation}
+                  >
+                    {evaluating ? (
+                      <>
+                        <Loader2 size={13} className="animate-spin" /> Evaluating Steps with RTU Rubric…
+                      </>
+                    ) : (
+                      <>
+                        <Check size={13} /> Submit &amp; Grade with Rubric
+                      </>
+                    )}
+                  </button>
+                </div>
+              </>
+            ) : (
+              <div className="space-y-4">
+                {/* Score Banner */}
+                <div className="rounded-2xl border border-blue-500/30 bg-blue-500/10 p-5 text-center">
+                  <div className="text-3xl font-black text-blue-400">
+                    {evaluationResult.totalScore} / {evaluationResult.maxScore}
+                  </div>
+                  <div className="text-xs font-semibold text-[var(--color-muted)] mt-1">
+                    Overall Grade: <span className="text-white font-bold text-sm">{evaluationResult.overallGrade}</span>
+                  </div>
+                </div>
+
+                {/* Strengths & Improvements */}
+                <div className="grid grid-cols-2 gap-3 text-xs">
+                  <div className="rounded-xl border border-emerald-500/20 bg-emerald-500/5 p-3">
+                    <div className="font-bold text-emerald-400 mb-1">Key Strengths:</div>
+                    <ul className="list-disc list-inside space-y-1 text-[var(--color-muted)]">
+                      {evaluationResult.keyStrengths?.map((s, i) => <li key={i}>{s}</li>)}
+                    </ul>
+                  </div>
+                  <div className="rounded-xl border border-amber-500/20 bg-amber-500/5 p-3">
+                    <div className="font-bold text-amber-400 mb-1">Areas to Improve:</div>
+                    <ul className="list-disc list-inside space-y-1 text-[var(--color-muted)]">
+                      {evaluationResult.improvementAreas?.map((s, i) => <li key={i}>{s}</li>)}
+                    </ul>
+                  </div>
+                </div>
+
+                {/* Per Question Breakdown */}
+                <div className="max-h-[300px] overflow-y-auto space-y-2 pr-1">
+                  {evaluationResult.evaluations?.map((ev, i) => (
+                    <div key={i} className="rounded-lg border border-[var(--color-border)] p-3 bg-[var(--color-panel2)] text-xs space-y-1.5">
+                      <div className="flex items-center justify-between font-bold">
+                        <span className="text-blue-400">Question {ev.questionNumber}</span>
+                        <span className="text-white">{ev.marksAwarded} / {ev.maxMarks} Marks</span>
+                      </div>
+                      <div className="grid grid-cols-4 gap-1 text-[10px] text-[var(--color-muted)] bg-[var(--color-bg)] p-1.5 rounded">
+                        <span>Formula: {ev.rubricBreakdown?.formulaMarks}M</span>
+                        <span>Steps: {ev.rubricBreakdown?.stepMarks}M</span>
+                        <span>Diagram: {ev.rubricBreakdown?.diagramMarks}M</span>
+                        <span>Units/Ans: {ev.rubricBreakdown?.finalAnswerMarks}M</span>
+                      </div>
+                      <p className="text-[11px] text-[var(--color-text)] leading-relaxed">{ev.feedback}</p>
+                    </div>
+                  ))}
+                </div>
+
+                <div className="flex justify-end pt-2 border-t border-[var(--color-border)]">
+                  <button type="button" className="btn btn-primary btn-sm" onClick={() => setEvalModalOpen(false)}>
+                    Close Report
+                  </button>
+                </div>
+              </div>
+            )}
+          </div>
+        </Modal>
       )}
     </div>
   );

@@ -76,11 +76,14 @@ import {
 } from './services/readerSettings';
 import { PYQ_FOLDER } from './data/pyqPapers';
 import {
-  getUserProfile, getUserTrophies, awardXp, recordMasteryQuizResult
+  getUserProfile, getUserTrophies, awardXp, recordMasteryQuizResult, getDueRevisions, completeRevisionDrill
 } from './services/gamification';
 import { generateMasteryQuizWithGemini } from './services/ai/gemini';
 import {
-  ingestPyqPdf, getRtuPyqList, getGatePyqList, createRtuExamPaper, getGateCbtPaper
+  ingestPyqPdf, getRtuPyqList, getGatePyqList, createRtuExamPaper, getGateCbtPaper,
+  updateRtuPyq, deleteRtuPyq, updateGatePyq, deleteGatePyq,
+  recordGateMistakes, getGateMistakes, updateGateMistake, deleteGateMistake,
+  evaluateRtuAnswers, exportRtuPaper
 } from './services/pyqIngest';
 
 /* ------------------------------------------------------------------ */
@@ -729,6 +732,8 @@ export function registerIpc(): void {
   handle('gamification:verifyMastery', ({ topicId, examTrack, questionText, options, correctAnswer, userAnswer, explanation }) =>
     recordMasteryQuizResult(Number(topicId), examTrack, questionText, options, correctAnswer, userAnswer, explanation)
   );
+  handle('gamification:getDueRevisions', () => getDueRevisions());
+  handle('gamification:completeRevisionDrill', ({ topicId, isCorrect }) => completeRevisionDrill(Number(topicId), Boolean(isCorrect)));
 
   /* ---------------- Topic Mastery Verification Quiz ---------------- */
   handle('quiz:generateMastery', ({ topicTitle, subjectName, examTrack }) =>
@@ -736,9 +741,31 @@ export function registerIpc(): void {
   );
 
   /* ---------------- Intelligent Bulk PYQ Ingestion & Papers ---------------- */
-  handle('pyq:ingestPdf', ({ filePath, targetExamHint }) => ingestPyqPdf(filePath, targetExamHint));
+  handle('pyq:ingestPdf', ({ filePath, targetExamHint, forceReingest }) =>
+    ingestPyqPdf(filePath, targetExamHint, p => send('pyq:ingest-progress', p), forceReingest)
+  );
   handle('pyq:getRtuList', ({ subjectId, part }) => getRtuPyqList(subjectId ? Number(subjectId) : undefined, part));
   handle('pyq:getGateList', ({ subjectId, section }) => getGatePyqList(subjectId ? Number(subjectId) : undefined, section));
+  handle('pyq:updateRtu', ({ id, patch }) => updateRtuPyq(Number(id), patch));
+  handle('pyq:deleteRtu', ({ id }) => deleteRtuPyq(Number(id)));
+  handle('pyq:updateGate', ({ id, patch }) => updateGatePyq(Number(id), patch));
+  handle('pyq:deleteGate', ({ id }) => deleteGatePyq(Number(id)));
+  handle('pyq:recordGateMistakes', ({ attemptId, mistakes }) => recordGateMistakes(Number(attemptId), mistakes));
+  handle('pyq:getGateMistakes', ({ subjectName, section, reviewed }) =>
+    getGateMistakes(subjectName, section, reviewed !== undefined ? Number(reviewed) : undefined)
+  );
+  handle('pyq:updateGateMistake', ({ id, reviewed, notes }) => updateGateMistake(Number(id), Number(reviewed), notes));
+  handle('pyq:deleteGateMistake', ({ id }) => deleteGateMistake(Number(id)));
+  handle('pyq:evaluateRtuAnswers', ({ paperId, studentAnswers }) => evaluateRtuAnswers(Number(paperId), studentAnswers));
+  handle('pyq:exportRtuPaper', ({ paperId, savePath }) => exportRtuPaper(Number(paperId), savePath));
+  handle('pyq:pickSavePath', async ({ defaultName }) => {
+    const res = await dialog.showSaveDialog(mainWindow ?? undefined as any, {
+      title: 'Export Question Paper as Clean PDF',
+      defaultPath: defaultName || 'RTU_Question_Paper.pdf',
+      filters: [{ name: 'PDF Document', extensions: ['pdf'] }],
+    });
+    return res.canceled || !res.filePath ? null : res.filePath;
+  });
   handle('pyq:generateRtuPaper', ({ subjectId, mode, selectedUnits }) =>
     createRtuExamPaper(Number(subjectId), mode, selectedUnits)
   );

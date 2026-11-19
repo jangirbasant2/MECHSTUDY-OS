@@ -1,18 +1,19 @@
 import React from 'react';
 import {
   Play, Clock, BookOpen, CheckCircle2, AlertCircle, TrendingUp, Flame,
-  ArrowRight, FolderInput, GraduationCap, Sparkles, FileText, Timer, Plus,
+  ArrowRight, FolderInput, GraduationCap, Sparkles, FileText, Timer, Plus, Award,
 } from 'lucide-react';
 import { api } from '../lib/api';
 import { useApp } from '../store';
 import {
   Badge, EmptyState, ErrorState, Loading, ProgressBar, SectionHeader, Stat, Spinner,
 } from '../components/ui';
+import { QuickDrillModal } from '../components/QuickDrillModal';
 import {
   bytes, dateLabel, hours, pct, relativeDays, seconds, todayIso,
 } from '../lib/format';
 import type {
-  AnalyticsSummary, DocumentRow, ProgressSummary, ReviewRow, TaskRow,
+  AnalyticsSummary, DocumentRow, ProgressSummary, ReviewRow, TaskRow, UserProfile, DueRevisionTopic,
 } from '../../../shared/types';
 
 export function HomePage() {
@@ -20,28 +21,34 @@ export function HomePage() {
   const openDocument = useApp(s => s.openDocument);
   const setTimer = useApp(s => s.setTimer);
   const toast = useApp(s => s.toast);
+  const activeExamMode = useApp(s => s.activeExamMode);
 
   const [loading, setLoading] = React.useState(true);
   const [error, setError] = React.useState<string | null>(null);
   const [tasks, setTasks] = React.useState<TaskRow[]>([]);
   const [recent, setRecent] = React.useState<DocumentRow[]>([]);
   const [due, setDue] = React.useState<ReviewRow[]>([]);
+  const [dueRevisions, setDueRevisions] = React.useState<DueRevisionTopic[]>([]);
+  const [profile, setProfile] = React.useState<UserProfile | null>(null);
   const [rtu, setRtu] = React.useState<ProgressSummary | null>(null);
   const [gate, setGate] = React.useState<ProgressSummary | null>(null);
   const [analytics, setAnalytics] = React.useState<AnalyticsSummary | null>(null);
   const [starting, setStarting] = React.useState<number | null>(null);
+  const [drillOpen, setDrillOpen] = React.useState(false);
 
   const load = React.useCallback(async () => {
     setLoading(true);
     setError(null);
     try {
-      const [t, docs, r, rtuP, gateP, a] = await Promise.all([
+      const [t, docs, r, rtuP, gateP, a, prof, revs] = await Promise.all([
         api.tasks.list({ date: todayIso() }),
         api.library.list(),
         api.review.due(6),
         api.syllabus.progress('RTU'),
         api.syllabus.progress('GATE'),
         api.analytics.summary(),
+        api.gamification.getProfile().catch(() => null),
+        api.gamification.getDueRevisions().catch(() => []),
       ]);
       setTasks(t);
       setRecent(docs.filter(d => d.last_opened_at).slice(0, 5));
@@ -49,6 +56,8 @@ export function HomePage() {
       setRtu(rtuP);
       setGate(gateP);
       setAnalytics(a);
+      if (prof) setProfile(prof);
+      if (revs) setDueRevisions(revs);
     } catch (e) {
       setError((e as Error).message);
     } finally {
@@ -102,9 +111,92 @@ export function HomePage() {
   const plannedMinutes = pending.reduce((s, t) => s + t.est_minutes, 0);
   const hasLibrary = recent.length > 0;
 
+  const daysRemaining = React.useMemo(() => {
+    // RTU End-Sem Target: ~Jan 2026 / 45 days; GATE ME 2027: Feb 6, 2027
+    const targetDate = activeExamMode === 'GATE'
+      ? new Date('2027-02-06T00:00:00')
+      : new Date(Date.now() + 45 * 24 * 60 * 60 * 1000);
+    const diff = Math.ceil((targetDate.getTime() - Date.now()) / (1000 * 60 * 60 * 24));
+    return Math.max(1, diff);
+  }, [activeExamMode]);
+
   return (
     <div className="scroll-y h-full">
       <div className="mx-auto max-w-[1280px] px-5 py-5">
+        {/* Today's Target Unified Strip */}
+        <div
+          className="mb-5 flex flex-wrap items-center justify-between gap-3 rounded-xl p-3.5 shadow-sm"
+          style={{
+            background: 'linear-gradient(135deg, var(--color-panel) 0%, var(--color-panel2) 100%)',
+            border: '1px solid var(--color-border)',
+          }}
+        >
+          <div className="flex flex-wrap items-center gap-3">
+            {/* Mode & Countdown Badge */}
+            <div className="flex items-center gap-2 rounded-lg px-2.5 py-1.5" style={{ background: 'var(--color-bg)', border: '1px solid var(--color-border)' }}>
+              <span className="text-xs font-bold uppercase tracking-wider" style={{ color: 'var(--color-accent)' }}>
+                {activeExamMode} Mode
+              </span>
+              <span className="text-[11px] font-medium opacity-80">
+                · {daysRemaining}d {activeExamMode === 'GATE' ? 'to GATE 2027' : 'to End-Sem'}
+              </span>
+            </div>
+
+            {/* Today Study & Pomodoro */}
+            <div className="flex items-center gap-2 text-xs" style={{ color: 'var(--color-muted)' }}>
+              <Clock size={13} className="text-blue-500" />
+              <span className="font-semibold tabular-nums" style={{ color: 'var(--color-text)' }}>
+                {Math.round(todaySeconds / 60)}m
+              </span> studied today
+              <span>·</span>
+              <Timer size={13} className="text-indigo-400" />
+              <span className="font-semibold tabular-nums" style={{ color: 'var(--color-text)' }}>
+                {analytics?.today.sessions ?? 0}
+              </span> sessions
+            </div>
+
+            {/* Gamification / XP & Streak */}
+            <div className="flex items-center gap-2 text-xs" style={{ color: 'var(--color-muted)' }}>
+              <span>·</span>
+              <Award size={13} className="text-amber-500" />
+              <span className="font-semibold tabular-nums" style={{ color: 'var(--color-text)' }}>
+                Lvl {profile?.level ?? 1}
+              </span>
+              <span className="text-[11px] opacity-75">({profile?.total_xp ?? 0} XP)</span>
+              <span>·</span>
+              <Flame size={13} className="text-orange-500 fill-orange-500/20" />
+              <span className="font-semibold tabular-nums" style={{ color: 'var(--color-text)' }}>
+                {profile?.streak_days ?? 0}d
+              </span> streak
+            </div>
+          </div>
+
+          {/* Quick Actions */}
+          <div className="flex items-center gap-2">
+            {recent[0] && (
+              <button
+                className="btn btn-sm text-xs"
+                onClick={() => openDocument(recent[0].id, 1)}
+                title={`Continue ${recent[0].filename}`}
+              >
+                <BookOpen size={12} className="text-teal-500" />
+                Continue PDF
+              </button>
+            )}
+            <button
+              className="btn btn-sm btn-primary text-xs relative"
+              onClick={() => setDrillOpen(true)}
+            >
+              <Sparkles size={12} />
+              Quick 5-Min Drill
+              {dueRevisions.length > 0 && (
+                <span className="ml-1 inline-flex items-center justify-center rounded-full bg-amber-500 px-1.5 py-0.2 text-[9px] font-bold text-black">
+                  {dueRevisions.length} due
+                </span>
+              )}
+            </button>
+          </div>
+        </div>
         <div className="mb-5 flex items-end justify-between gap-4">
           <div>
             <h2 className="text-lg font-semibold">Today</h2>
@@ -500,6 +592,14 @@ export function HomePage() {
             <Sparkles size={12} /> GATE workspace
           </button>
         </div>
+
+        <QuickDrillModal
+          open={drillOpen}
+          onClose={() => setDrillOpen(false)}
+          examTrack={activeExamMode === 'GATE' ? 'GATE' : 'RTU'}
+          dueTopic={dueRevisions[0] || null}
+          onDrillComplete={() => void load()}
+        />
       </div>
     </div>
   );

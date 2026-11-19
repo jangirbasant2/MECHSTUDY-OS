@@ -844,6 +844,69 @@ export interface IngestPyqResult {
   year: number;
   questionsExtracted: number;
   errors: string[];
+  cached?: boolean;
+  extractedQuestions?: Array<RtuPyq | GatePyq>;
+}
+
+export interface PyqIngestProgress {
+  stage: 'hashing' | 'reading' | 'extracting' | 'saving' | 'done' | 'error';
+  current: number;
+  total: number;
+  message: string;
+  error?: string;
+}
+
+export interface GateMistakeRecord {
+  id: number;
+  attempt_id: number | null;
+  question_id: number | null;
+  subject_name: string;
+  section: string;
+  question_text: string;
+  options_json: string | null;
+  correct_answer: string | null;
+  user_answer: string | null;
+  marks: number;
+  negative_marks_lost: number;
+  solution_text: string | null;
+  reviewed: number;
+  notes: string | null;
+  created_at: string;
+}
+
+export interface RtuQuestionEvaluation {
+  questionNumber: string;
+  marksAwarded: number;
+  maxMarks: number;
+  rubricBreakdown: {
+    formulaMarks: number;
+    stepMarks: number;
+    diagramMarks: number;
+    finalAnswerMarks: number;
+  };
+  feedback: string;
+  modelAnswerSummary?: string;
+}
+
+export interface RtuEvaluationResult {
+  totalScore: number;
+  maxScore: number;
+  overallGrade: string;
+  keyStrengths: string[];
+  improvementAreas: string[];
+  evaluations: RtuQuestionEvaluation[];
+}
+
+export interface DueRevisionTopic {
+  topicId: number;
+  topicTitle: string;
+  subjectId: number;
+  subjectName: string;
+  examType: string;
+  reviewCount: number;
+  intervalDays: number;
+  nextReviewAt: string;
+  lastReviewedAt: string | null;
 }
 
 

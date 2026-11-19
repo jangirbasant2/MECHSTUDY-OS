@@ -224,9 +224,25 @@ const api: MechStudyApi = {
     provenance: (id) => invoke('pyq:provenance', { id }),
     solutions: () => invoke('pyq:solutions'),
     onProgress: (cb) => subscribe('pyq:progress', cb),
-    ingestPdf: (filePath: string, targetExamHint?: any) => invoke('pyq:ingestPdf', { filePath, targetExamHint }),
+    onIngestProgress: (cb: any) => subscribe('pyq:ingest-progress', cb),
+    ingestPdf: (filePath: string, targetExamHint?: any, forceReingest?: boolean) =>
+      invoke('pyq:ingestPdf', { filePath, targetExamHint, forceReingest }),
     getRtuList: (subjectId?: number, part?: string) => invoke('pyq:getRtuList', { subjectId, part }),
     getGateList: (subjectId?: number, section?: string) => invoke('pyq:getGateList', { subjectId, section }),
+    updateRtu: (id: number, patch: any) => invoke('pyq:updateRtu', { id, patch }),
+    deleteRtu: (id: number) => invoke('pyq:deleteRtu', { id }),
+    updateGate: (id: number, patch: any) => invoke('pyq:updateGate', { id, patch }),
+    deleteGate: (id: number) => invoke('pyq:deleteGate', { id }),
+    recordGateMistakes: (attemptId: number, mistakes: any[]) => invoke('pyq:recordGateMistakes', { attemptId, mistakes }),
+    getGateMistakes: (subjectName?: string, section?: string, reviewed?: number) =>
+      invoke('pyq:getGateMistakes', { subjectName, section, reviewed }),
+    updateGateMistake: (id: number, reviewed: number, notes?: string) =>
+      invoke('pyq:updateGateMistake', { id, reviewed, notes }),
+    deleteGateMistake: (id: number) => invoke('pyq:deleteGateMistake', { id }),
+    evaluateRtuAnswers: (paperId: number, studentAnswers: any[]) =>
+      invoke('pyq:evaluateRtuAnswers', { paperId, studentAnswers }),
+    exportRtuPaper: (paperId: number, savePath: string) => invoke('pyq:exportRtuPaper', { paperId, savePath }),
+    pickSavePath: (defaultName?: string) => invoke('pyq:pickSavePath', { defaultName }),
     generateRtuPaper: (subjectId: number, mode: any, selectedUnits?: number[]) =>
       invoke('pyq:generateRtuPaper', { subjectId, mode, selectedUnits }),
     getGateCbtPaper: (mode?: any) => invoke('pyq:getGateCbtPaper', { mode }),
@@ -301,6 +317,9 @@ const api: MechStudyApi = {
     getTrophies: () => invoke('gamification:getTrophies'),
     awardXp: (amount: number, track?: any) => invoke('gamification:awardXp', { amount, track }),
     verifyMastery: (params: any) => invoke('gamification:verifyMastery', params),
+    getDueRevisions: () => invoke('gamification:getDueRevisions'),
+    completeRevisionDrill: (topicId: number, isCorrect: boolean) =>
+      invoke('gamification:completeRevisionDrill', { topicId, isCorrect }),
   },
   quiz: {
     generateMastery: (params: any) => invoke('quiz:generateMastery', params),

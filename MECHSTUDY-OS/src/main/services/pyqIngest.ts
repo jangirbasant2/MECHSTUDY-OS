@@ -1,39 +1,156 @@
-import { readFile } from 'node:fs/promises';
+import { readFile, stat } from 'node:fs/promises';
+import { createHash } from 'node:crypto';
+import { basename } from 'node:path';
 import { getDb } from '../db';
 import { openPdf, closePdf, pageCount, pageTextRaw } from './pdf';
-import { extractPyqsWithGemini, generateRtuPaperWithGemini } from './ai/gemini';
+import { extractPyqsWithGemini, generateRtuPaperWithGemini, evaluateRtuAnswersWithGemini } from './ai/gemini';
 import { awardXp, unlockTrophy } from './gamification';
-import type { IngestPyqResult, RtuPyq, GatePyq, ExamPaperRecord } from '../../shared/types';
+import { exportRtuPaperToPdf } from './export';
+import type {
+  IngestPyqResult,
+  RtuPyq,
+  GatePyq,
+  ExamPaperRecord,
+  PyqIngestProgress,
+  GateMistakeRecord,
+  RtuEvaluationResult,
+} from '../../shared/types';
 
 export async function ingestPyqPdf(
   filePath: string,
-  targetExamHint: 'RTU' | 'GATE' | 'AUTO' = 'AUTO'
+  targetExamHint: 'RTU' | 'GATE' | 'AUTO' = 'AUTO',
+  onProgress?: (progress: PyqIngestProgress) => void,
+  forceReingest = false
 ): Promise<IngestPyqResult> {
   let doc: any = null;
   const errors: string[] = [];
 
   try {
+    // 1. Content-Hash Deduplication Check
+    onProgress?.({ stage: 'hashing', current: 0, total: 100, message: 'Computing file content hash...' });
+    const fileBytes = await readFile(filePath);
+    const fileHash = createHash('sha256').update(fileBytes).digest('hex');
+    const fileName = basename(filePath);
+    const fileStat = await stat(filePath);
+
+    if (!forceReingest) {
+      const cached = (getDb().prepare(`
+        SELECT * FROM pyq_ingest_cache WHERE file_hash = ?
+      `).get(fileHash) as unknown) as {
+        file_hash: string;
+        file_name: string;
+        file_size: number;
+        exam_track: 'RTU' | 'GATE';
+        subject_name: string;
+        year: number;
+        questions_count: number;
+      } | undefined;
+
+      if (cached && cached.questions_count > 0) {
+        onProgress?.({
+          stage: 'done',
+          current: 100,
+          total: 100,
+          message: `Loaded ${cached.questions_count} questions from local cache.`,
+        });
+
+        const recentQuestions = cached.exam_track === 'RTU'
+          ? (getDb().prepare('SELECT * FROM rtu_pyqs WHERE subject_name LIKE ? AND year = ? ORDER BY id DESC LIMIT 50').all(`%${cached.subject_name}%`, cached.year) as unknown as RtuPyq[])
+          : (getDb().prepare('SELECT * FROM gate_pyqs WHERE year = ? ORDER BY id DESC LIMIT 50').all(cached.year) as unknown as GatePyq[]);
+
+        return {
+          examTrack: cached.exam_track,
+          subjectName: cached.subject_name,
+          year: cached.year,
+          questionsExtracted: cached.questions_count,
+          errors: [],
+          cached: true,
+          extractedQuestions: recentQuestions,
+        };
+      }
+    }
+
+    // 2. Open PDF and Read Text
+    onProgress?.({ stage: 'reading', current: 10, total: 100, message: 'Reading PDF document structure...' });
     doc = await openPdf(filePath);
     const numPages = pageCount(doc);
     let fullText = '';
+    const pageTexts: { page: number; text: string }[] = [];
 
     for (let p = 1; p <= numPages; p++) {
       const pText = await pageTextRaw(doc, p);
+      pageTexts.push({ page: p, text: pText });
       fullText += `\n--- PAGE ${p} ---\n` + pText;
     }
 
-    // If native text layer is nearly empty, read raw file buffer for Gemini multimodal ingestion
-    let extractionInput: string | { imageBuffer: Buffer; mimeType: string } = fullText;
-    if (fullText.replace(/--- PAGE \d+ ---/g, '').trim().length < 150) {
-      const pdfBytes = await readFile(filePath);
-      // Pass the first few pages as buffer or text
-      extractionInput = { imageBuffer: pdfBytes, mimeType: 'application/pdf' };
+    const isScannedOrSparse = fullText.replace(/--- PAGE \d+ ---/g, '').trim().length < 150;
+
+    // 3. Batch / Chunked Queue Processing
+    let parsed: any = { examTrack: targetExamHint === 'AUTO' ? 'RTU' : targetExamHint, questions: [] };
+
+    if (isScannedOrSparse) {
+      // Scanned document: send the raw file buffer to Gemini multimodal
+      onProgress?.({ stage: 'extracting', current: 30, total: 100, message: 'Analyzing scanned document with multimodal AI...' });
+      const singleParsed = await extractPyqsWithGemini({ imageBuffer: fileBytes, mimeType: 'application/pdf' }, targetExamHint);
+      if (singleParsed && Array.isArray(singleParsed.questions)) {
+        parsed = singleParsed;
+      }
+    } else if (numPages <= 4) {
+      // Small text PDF: extract directly
+      onProgress?.({ stage: 'extracting', current: 30, total: 100, message: `Extracting questions from ${numPages} pages...` });
+      const singleParsed = await extractPyqsWithGemini(fullText, targetExamHint);
+      if (singleParsed && Array.isArray(singleParsed.questions)) {
+        parsed = singleParsed;
+      }
+    } else {
+      // Multi-page large PDF: chunk in batches of 3-4 pages to prevent timeouts & token limits
+      const CHUNK_SIZE = 4;
+      const totalChunks = Math.ceil(numPages / CHUNK_SIZE);
+      const allExtractedQuestions: any[] = [];
+
+      for (let c = 0; c < totalChunks; c++) {
+        const startP = c * CHUNK_SIZE + 1;
+        const endP = Math.min((c + 1) * CHUNK_SIZE, numPages);
+        const chunkText = pageTexts
+          .filter(pt => pt.page >= startP && pt.page <= endP)
+          .map(pt => `\n--- PAGE ${pt.page} ---\n` + pt.text)
+          .join('\n');
+
+        const pct = Math.round(30 + ((c + 1) / totalChunks) * 50);
+        onProgress?.({
+          stage: 'extracting',
+          current: pct,
+          total: 100,
+          message: `Processing batch ${c + 1} of ${totalChunks} (Pages ${startP}–${endP})...`,
+        });
+
+        try {
+          const chunkResult = await extractPyqsWithGemini(chunkText, targetExamHint);
+          if (chunkResult) {
+            if (c === 0) {
+              parsed.examTrack = chunkResult.examTrack || parsed.examTrack;
+              parsed.subjectName = chunkResult.subjectName;
+              parsed.subjectCode = chunkResult.subjectCode;
+              parsed.year = chunkResult.year;
+              parsed.examTerm = chunkResult.examTerm;
+            }
+            if (Array.isArray(chunkResult.questions)) {
+              allExtractedQuestions.push(...chunkResult.questions);
+            }
+          }
+        } catch (e: any) {
+          errors.push(`Batch ${c + 1} error: ${e?.message}`);
+        }
+      }
+      parsed.questions = allExtractedQuestions;
     }
 
-    const parsed = await extractPyqsWithGemini(extractionInput, targetExamHint);
     if (!parsed || !Array.isArray(parsed.questions) || parsed.questions.length === 0) {
       throw new Error('AI could not identify any questions from the uploaded PYQ document.');
     }
+
+    // 4. Save and Index Questions
+    onProgress?.({ stage: 'saving', current: 85, total: 100, message: 'Storing and indexing questions into local SQLite...' });
 
     const examTrack: 'RTU' | 'GATE' = parsed.examTrack === 'GATE' ? 'GATE' : 'RTU';
     const rawSubject = (parsed.subjectName || 'Mechanical Engineering').trim();
@@ -53,6 +170,7 @@ export async function ingestPyqPdf(
     const subjectCode = matchedSubject?.code ?? rawCode;
 
     let insertedCount = 0;
+    const insertedRecords: Array<RtuPyq | GatePyq> = [];
 
     if (examTrack === 'RTU') {
       const insertRtu = getDb().prepare(`
@@ -69,7 +187,7 @@ export async function ingestPyqPdf(
           const qText = (q.questionText || '').trim();
           if (!qText) continue;
 
-          insertRtu.run(
+          const res = insertRtu.run(
             subjectId,
             subjectCode,
             subjectName,
@@ -86,6 +204,24 @@ export async function ingestPyqPdf(
             JSON.stringify(q)
           );
           insertedCount++;
+
+          insertedRecords.push({
+            id: Number(res.lastInsertRowid),
+            subject_id: subjectId,
+            subject_code: subjectCode,
+            subject_name: subjectName,
+            unit_number: q.unitNumber || 1,
+            topic_id: null,
+            year,
+            exam_term: examTerm,
+            part,
+            question_number: String(q.number || insertedCount),
+            question_text: qText,
+            marks: Number(q.marks) || (part === 'Part C' ? 15 : part === 'Part B' ? 8 : 2),
+            solution_text: q.solution || null,
+            diagram_description: null,
+            created_at: new Date().toISOString(),
+          });
 
           // Index into FTS5
           try {
@@ -124,7 +260,7 @@ export async function ingestPyqPdf(
           const natRangeStart = Array.isArray(q.natRange) && q.natRange.length > 0 ? Number(q.natRange[0]) : null;
           const natRangeEnd = Array.isArray(q.natRange) && q.natRange.length > 1 ? Number(q.natRange[1]) : natRangeStart;
 
-          insertGate.run(
+          const res = insertGate.run(
             subjectId,
             subjectCode,
             subjectName,
@@ -145,6 +281,28 @@ export async function ingestPyqPdf(
           );
           insertedCount++;
 
+          insertedRecords.push({
+            id: Number(res.lastInsertRowid),
+            subject_id: subjectId,
+            subject_code: subjectCode,
+            subject_name: subjectName,
+            topic_id: null,
+            section,
+            year,
+            shift: 1,
+            question_number: Number(q.number) || insertedCount,
+            type,
+            question_text: qText,
+            options_json: q.options ? JSON.stringify(q.options) : null,
+            answer_key: q.answerKey ? String(q.answerKey) : null,
+            nat_range_start: natRangeStart,
+            nat_range_end: natRangeEnd,
+            marks,
+            negative_marks: negMarks,
+            solution_text: q.solution || null,
+            created_at: new Date().toISOString(),
+          });
+
           // Index into FTS5
           try {
             getDb().prepare(`
@@ -160,11 +318,31 @@ export async function ingestPyqPdf(
       }
     }
 
+    // 5. Store Cache Entry
+    try {
+      getDb().prepare(`
+        INSERT INTO pyq_ingest_cache (file_hash, file_name, file_size, exam_track, subject_name, year, questions_count)
+        VALUES (?, ?, ?, ?, ?, ?, ?)
+        ON CONFLICT(file_hash) DO UPDATE SET
+          questions_count = excluded.questions_count,
+          created_at = datetime('now')
+      `).run(fileHash, fileName, fileStat.size, examTrack, subjectName, year, insertedCount);
+    } catch {
+      // Ignore cache insertion error
+    }
+
     // Award XP for successful PYQ ingestion
     if (insertedCount > 0) {
       awardXp(100, examTrack);
       unlockTrophy('PYQ_ARCHIVIST');
     }
+
+    onProgress?.({
+      stage: 'done',
+      current: 100,
+      total: 100,
+      message: `Successfully ingested ${insertedCount} questions from ${fileName}.`,
+    });
 
     return {
       examTrack,
@@ -172,11 +350,205 @@ export async function ingestPyqPdf(
       year,
       questionsExtracted: insertedCount,
       errors,
+      cached: false,
+      extractedQuestions: insertedRecords,
     };
   } finally {
     if (doc) await closePdf(doc);
   }
 }
+
+/* ---------------- Manual Override & Editing Helpers ---------------- */
+
+export function updateRtuPyq(id: number, patch: Partial<RtuPyq>): boolean {
+  const fields: string[] = [];
+  const params: any[] = [];
+
+  if (patch.subject_name !== undefined) { fields.push('subject_name = ?'); params.push(patch.subject_name); }
+  if (patch.unit_number !== undefined) { fields.push('unit_number = ?'); params.push(patch.unit_number); }
+  if (patch.part !== undefined) { fields.push('part = ?'); params.push(patch.part); }
+  if (patch.question_number !== undefined) { fields.push('question_number = ?'); params.push(patch.question_number); }
+  if (patch.question_text !== undefined) { fields.push('question_text = ?'); params.push(patch.question_text); }
+  if (patch.marks !== undefined) { fields.push('marks = ?'); params.push(patch.marks); }
+  if (patch.solution_text !== undefined) { fields.push('solution_text = ?'); params.push(patch.solution_text); }
+  if (patch.year !== undefined) { fields.push('year = ?'); params.push(patch.year); }
+
+  if (fields.length === 0) return false;
+  params.push(id);
+
+  const res = getDb().prepare(`UPDATE rtu_pyqs SET ${fields.join(', ')} WHERE id = ?`).run(...params);
+  return Number(res.changes) > 0;
+}
+
+export function deleteRtuPyq(id: number): boolean {
+  const res = getDb().prepare('DELETE FROM rtu_pyqs WHERE id = ?').run(id);
+  return Number(res.changes) > 0;
+}
+
+export function updateGatePyq(id: number, patch: Partial<GatePyq>): boolean {
+  const fields: string[] = [];
+  const params: any[] = [];
+
+  if (patch.subject_name !== undefined) { fields.push('subject_name = ?'); params.push(patch.subject_name); }
+  if (patch.section !== undefined) { fields.push('section = ?'); params.push(patch.section); }
+  if (patch.question_number !== undefined) { fields.push('question_number = ?'); params.push(patch.question_number); }
+  if (patch.type !== undefined) { fields.push('type = ?'); params.push(patch.type); }
+  if (patch.question_text !== undefined) { fields.push('question_text = ?'); params.push(patch.question_text); }
+  if (patch.options_json !== undefined) { fields.push('options_json = ?'); params.push(patch.options_json); }
+  if (patch.answer_key !== undefined) { fields.push('answer_key = ?'); params.push(patch.answer_key); }
+  if (patch.marks !== undefined) { fields.push('marks = ?'); params.push(patch.marks); }
+  if (patch.solution_text !== undefined) { fields.push('solution_text = ?'); params.push(patch.solution_text); }
+  if (patch.year !== undefined) { fields.push('year = ?'); params.push(patch.year); }
+
+  if (fields.length === 0) return false;
+  params.push(id);
+
+  const res = getDb().prepare(`UPDATE gate_pyqs SET ${fields.join(', ')} WHERE id = ?`).run(...params);
+  return Number(res.changes) > 0;
+}
+
+export function deleteGatePyq(id: number): boolean {
+  const res = getDb().prepare('DELETE FROM gate_pyqs WHERE id = ?').run(id);
+  return Number(res.changes) > 0;
+}
+
+/* ---------------- GATE Mistake Notebook Helpers ---------------- */
+
+export function recordGateMistakes(attemptId: number, mistakes: any[]): number {
+  const insert = getDb().prepare(`
+    INSERT INTO gate_mistakes (
+      attempt_id, question_id, subject_name, section, question_text,
+      options_json, correct_answer, user_answer, marks, negative_marks_lost,
+      solution_text, reviewed, notes, created_at
+    ) VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, 0, ?, datetime('now'))
+  `);
+
+  let count = 0;
+  for (const m of mistakes) {
+    insert.run(
+      attemptId,
+      m.question_id || null,
+      m.subject_name || 'Mechanical Engineering',
+      m.section || 'ME',
+      m.question_text,
+      m.options_json || null,
+      m.correct_answer || null,
+      m.user_answer || null,
+      m.marks || 1,
+      m.negative_marks_lost || 0,
+      m.solution_text || null,
+      m.notes || null
+    );
+    count++;
+  }
+  return count;
+}
+
+export function getGateMistakes(subjectName?: string, section?: string, reviewed?: number): GateMistakeRecord[] {
+  let sql = 'SELECT * FROM gate_mistakes WHERE 1=1';
+  const params: any[] = [];
+  if (subjectName) {
+    sql += ' AND subject_name LIKE ?';
+    params.push(`%${subjectName}%`);
+  }
+  if (section) {
+    sql += ' AND section = ?';
+    params.push(section);
+  }
+  if (reviewed !== undefined) {
+    sql += ' AND reviewed = ?';
+    params.push(reviewed);
+  }
+  sql += ' ORDER BY id DESC LIMIT 200';
+  return (getDb().prepare(sql).all(...params) as unknown) as GateMistakeRecord[];
+}
+
+export function updateGateMistake(id: number, reviewed: number, notes?: string): boolean {
+  const res = getDb().prepare(`
+    UPDATE gate_mistakes SET reviewed = ?, notes = COALESCE(?, notes) WHERE id = ?
+  `).run(reviewed, notes ?? null, id);
+  return Number(res.changes) > 0;
+}
+
+export function deleteGateMistake(id: number): boolean {
+  const res = getDb().prepare('DELETE FROM gate_mistakes WHERE id = ?').run(id);
+  return Number(res.changes) > 0;
+}
+
+/* ---------------- RTU Answer Evaluation & Clean PDF Export ---------------- */
+
+export async function evaluateRtuAnswers(
+  paperId: number,
+  studentAnswers: Array<{ questionNumber: string; answerText?: string; imageBase64?: string }>
+): Promise<RtuEvaluationResult> {
+  const paperRow = (getDb().prepare(`
+    SELECT title, subject_id, questions_json FROM exam_papers WHERE id = ?
+  `).get(paperId) as unknown) as { title: string; subject_id: number; questions_json: string } | undefined;
+
+  if (!paperRow) throw new Error(`Exam paper ID ${paperId} not found.`);
+
+  const paperData = JSON.parse(paperRow.questions_json);
+  const subjectRow = paperRow.subject_id
+    ? (getDb().prepare('SELECT name FROM subjects WHERE id = ?').get(paperRow.subject_id) as any)
+    : null;
+
+  const subjectName = subjectRow?.name || paperRow.title;
+
+  // Flatten questions from sections
+  const questions: Array<{ number: string; part?: string; questionText: string; marks: number }> = [];
+  if (Array.isArray(paperData.sections)) {
+    for (const sec of paperData.sections) {
+      if (Array.isArray(sec.questions)) {
+        for (const q of sec.questions) {
+          questions.push({
+            number: String(q.number),
+            part: sec.name,
+            questionText: q.text,
+            marks: Number(q.marks) || 2,
+          });
+        }
+      }
+    }
+  }
+
+  const result = await evaluateRtuAnswersWithGemini(
+    subjectName,
+    paperRow.title,
+    questions,
+    studentAnswers
+  );
+
+  // Store in rtu_evaluations table
+  try {
+    getDb().prepare(`
+      INSERT INTO rtu_evaluations (paper_id, student_answers_json, evaluations_json, total_score, max_score, rubric_feedback, created_at)
+      VALUES (?, ?, ?, ?, ?, ?, datetime('now'))
+    `).run(
+      paperId,
+      JSON.stringify(studentAnswers),
+      JSON.stringify(result.evaluations),
+      result.totalScore,
+      result.maxScore,
+      `${result.overallGrade} Grade - ${result.keyStrengths?.join(', ')}`
+    );
+  } catch {
+    // Ignore store error
+  }
+
+  return result;
+}
+
+export async function exportRtuPaper(paperId: number, savePath: string): Promise<string> {
+  const paperRow = (getDb().prepare(`
+    SELECT title, duration_minutes, total_marks, questions_json FROM exam_papers WHERE id = ?
+  `).get(paperId) as unknown) as { title: string; duration_minutes: number; total_marks: number; questions_json: string } | undefined;
+
+  if (!paperRow) throw new Error(`Exam paper ID ${paperId} not found.`);
+
+  const paperData = JSON.parse(paperRow.questions_json);
+  return await exportRtuPaperToPdf(paperData, savePath);
+}
+
 
 export function getRtuPyqList(subjectId?: number, part?: string): RtuPyq[] {
   let sql = 'SELECT * FROM rtu_pyqs WHERE 1=1';

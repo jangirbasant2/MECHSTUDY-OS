@@ -175,6 +175,22 @@ export function recordMasteryQuizResult(
       const t = unlockTrophy('TOPIC_MASTER_5');
       if (t) unlockedTrophies.push(t);
     }
+
+    // Schedule spaced-repetition revision (7 days initial interval)
+    try {
+      getDb().prepare(`
+        INSERT INTO review_schedule (
+          topic_id, first_studied_at, last_reviewed_at, confidence, review_count, last_outcome, interval_days, next_review_at
+        ) VALUES (?, datetime('now'), datetime('now'), 5, 0, 'pass', 7, datetime('now', '+7 days'))
+        ON CONFLICT(topic_id) DO UPDATE SET
+          last_reviewed_at = datetime('now'),
+          confidence = 5,
+          interval_days = 7,
+          next_review_at = datetime('now', '+7 days')
+      `).run(topicId);
+    } catch {
+      // Ignore revision schedule error
+    }
   }
 
   return {
@@ -185,3 +201,71 @@ export function recordMasteryQuizResult(
     unlockedTrophies,
   };
 }
+
+export function getDueRevisions(): Array<{
+  topicId: number;
+  topicTitle: string;
+  subjectId: number;
+  subjectName: string;
+  examType: string;
+  reviewCount: number;
+  intervalDays: number;
+  nextReviewAt: string;
+  lastReviewedAt: string | null;
+}> {
+  const rows = (getDb().prepare(`
+    SELECT r.topic_id, t.title as topic_title, s.id as subject_id, s.name as subject_name,
+           v.exam_type, r.review_count, r.interval_days, r.next_review_at, r.last_reviewed_at
+    FROM review_schedule r
+    JOIN topics t ON t.id = r.topic_id
+    JOIN units u ON u.id = t.unit_id
+    JOIN subjects s ON s.id = u.subject_id
+    JOIN syllabus_versions v ON v.id = s.version_id
+    WHERE r.next_review_at IS NOT NULL AND r.next_review_at <= datetime('now')
+    ORDER BY r.next_review_at ASC
+    LIMIT 20
+  `).all() as unknown) as Array<any>;
+
+  return rows.map(r => ({
+    topicId: r.topic_id,
+    topicTitle: r.topic_title,
+    subjectId: r.subject_id,
+    subjectName: r.subject_name,
+    examType: r.exam_type,
+    reviewCount: r.review_count,
+    intervalDays: r.interval_days,
+    nextReviewAt: r.next_review_at,
+    lastReviewedAt: r.last_reviewed_at,
+  }));
+}
+
+export function completeRevisionDrill(topicId: number, isCorrect: boolean): { success: boolean; xpAwarded: number; nextReviewAt: string } {
+  const current = getDb().prepare('SELECT interval_days, review_count FROM review_schedule WHERE topic_id = ?').get(topicId) as any;
+  const currentInterval = current?.interval_days || 7;
+  const count = (current?.review_count || 0) + 1;
+
+  let nextInterval = 2;
+  let xp = 0;
+  if (isCorrect) {
+    nextInterval = currentInterval >= 7 ? 21 : currentInterval * 3;
+    xp = 25;
+    awardXp(xp, 'BOTH');
+  }
+
+  getDb().prepare(`
+    UPDATE review_schedule SET
+      last_reviewed_at = datetime('now'),
+      review_count = ?,
+      interval_days = ?,
+      next_review_at = datetime('now', '+' || ? || ' days')
+    WHERE topic_id = ?
+  `).run(count, nextInterval, nextInterval, topicId);
+
+  const updated = getDb().prepare('SELECT next_review_at FROM review_schedule WHERE topic_id = ?').get(topicId) as any;
+  return {
+    success: true,
+    xpAwarded: xp,
+    nextReviewAt: updated?.next_review_at || '',
+  };
+}
+

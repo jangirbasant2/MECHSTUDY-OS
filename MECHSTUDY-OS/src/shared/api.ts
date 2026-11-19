@@ -14,6 +14,7 @@ import type {
   AttachedDocumentSummary, DocumentProcessingProgress, DocumentTopicAnalysis,
   TemporaryScreenshotRecord, ReminderSettings, ReminderNotificationPayload, ReaderSettings,
   UserProfile, UserTrophy, TopicQuizResult, RtuPyq, GatePyq, ExamPaperRecord, IngestPyqResult,
+  PyqIngestProgress, GateMistakeRecord, RtuEvaluationResult, DueRevisionTopic,
 } from './types';
 
 export type Unsubscribe = () => void;
@@ -196,9 +197,21 @@ export interface MechStudyApi {
     provenance(id: number): Promise<PyqProvenance | null>;
     solutions(): Promise<PyqSolutionOutcome>;
     onProgress(cb: (p: PyqProgress) => void): Unsubscribe;
-    ingestPdf(filePath: string, targetExamHint?: 'RTU' | 'GATE' | 'AUTO'): Promise<IngestPyqResult>;
+    onIngestProgress(cb: (p: PyqIngestProgress) => void): Unsubscribe;
+    ingestPdf(filePath: string, targetExamHint?: 'RTU' | 'GATE' | 'AUTO', forceReingest?: boolean): Promise<IngestPyqResult>;
     getRtuList(subjectId?: number, part?: string): Promise<RtuPyq[]>;
     getGateList(subjectId?: number, section?: string): Promise<GatePyq[]>;
+    updateRtu(id: number, patch: Partial<RtuPyq>): Promise<boolean>;
+    deleteRtu(id: number): Promise<boolean>;
+    updateGate(id: number, patch: Partial<GatePyq>): Promise<boolean>;
+    deleteGate(id: number): Promise<boolean>;
+    recordGateMistakes(attemptId: number, mistakes: any[]): Promise<number>;
+    getGateMistakes(subjectName?: string, section?: string, reviewed?: number): Promise<GateMistakeRecord[]>;
+    updateGateMistake(id: number, reviewed: number, notes?: string): Promise<boolean>;
+    deleteGateMistake(id: number): Promise<boolean>;
+    evaluateRtuAnswers(paperId: number, studentAnswers: Array<{ questionNumber: string; answerText?: string; imageBase64?: string }>): Promise<RtuEvaluationResult>;
+    exportRtuPaper(paperId: number, savePath: string): Promise<string>;
+    pickSavePath(defaultName?: string): Promise<string | null>;
     generateRtuPaper(subjectId: number, mode: 'END_SEM' | 'MT1' | 'MT2', selectedUnits?: number[]): Promise<ExamPaperRecord>;
     getGateCbtPaper(mode?: 'STRICT_CBT' | 'PRACTICE'): Promise<ExamPaperRecord>;
   };
@@ -273,6 +286,8 @@ export interface MechStudyApi {
       userAnswer: string;
       explanation: string;
     }): Promise<TopicQuizResult>;
+    getDueRevisions(): Promise<DueRevisionTopic[]>;
+    completeRevisionDrill(topicId: number, isCorrect: boolean): Promise<{ success: boolean; xpAwarded: number; nextReviewAt: string }>;
   };
   quiz: {
     generateMastery(params: {

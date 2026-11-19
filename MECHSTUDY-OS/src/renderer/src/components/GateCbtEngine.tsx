@@ -1,7 +1,7 @@
 import React from 'react';
 import {
   Timer, Calculator, ShieldAlert, Award, CheckCircle2, AlertTriangle,
-  RotateCcw, Sparkles, User, ChevronRight, HelpCircle, ArrowRight,
+  RotateCcw, Sparkles, User, ChevronRight, HelpCircle, ArrowRight, BookOpen,
 } from 'lucide-react';
 import { api } from '../lib/api';
 import { useApp } from '../store';
@@ -38,6 +38,10 @@ export function GateCbtEngine() {
   const [statuses, setStatuses] = React.useState<Record<number, QuestionStatus>>({});
   const [showCalculator, setShowCalculator] = React.useState(false);
   const [showSubmitModal, setShowSubmitModal] = React.useState(false);
+  const [preExamModalOpen, setPreExamModalOpen] = React.useState(false);
+  const [showMistakesModal, setShowMistakesModal] = React.useState(false);
+  const [mistakesList, setMistakesList] = React.useState<any[]>([]);
+  const [mistakeSectionFilter, setMistakeSectionFilter] = React.useState<string>('All');
   const [examResult, setExamResult] = React.useState<any | null>(null);
   const [violationTerminated, setViolationTerminated] = React.useState(false);
 
@@ -190,11 +194,31 @@ export function GateCbtEngine() {
     let correctCount = 0;
     let wrongCount = 0;
     let unattemptedCount = 0;
+    let negativeMarksLost = 0;
+
+    let gaScore = 0;
+    let emScore = 0;
+    let meScore = 0;
+
+    const mistakeRecords: any[] = [];
 
     questions.forEach(q => {
       const userAns = (answers[q.id] || '').trim();
       if (!userAns) {
         unattemptedCount++;
+        mistakeRecords.push({
+          question_id: q.id,
+          subject_name: q.section === 'GA' ? 'General Aptitude' : q.section === 'EM' ? 'Engineering Mathematics' : 'Mechanical Engineering',
+          section: q.section,
+          question_text: q.questionText,
+          options_json: q.options ? JSON.stringify(q.options) : null,
+          correct_answer: q.answerKey,
+          user_answer: '(Unattempted)',
+          marks: q.marks,
+          negative_marks_lost: 0,
+          solution_text: q.solution,
+          notes: 'Unattempted during exam',
+        });
         return;
       }
 
@@ -215,11 +239,37 @@ export function GateCbtEngine() {
       if (isCorrect) {
         score += q.marks;
         correctCount++;
+        if (q.section === 'GA') gaScore += q.marks;
+        else if (q.section === 'EM') emScore += q.marks;
+        else meScore += q.marks;
       } else {
         score -= q.negativeMarks;
         wrongCount++;
+        negativeMarksLost += q.negativeMarks;
+        if (q.section === 'GA') gaScore -= q.negativeMarks;
+        else if (q.section === 'EM') emScore -= q.negativeMarks;
+        else meScore -= q.negativeMarks;
+
+        mistakeRecords.push({
+          question_id: q.id,
+          subject_name: q.section === 'GA' ? 'General Aptitude' : q.section === 'EM' ? 'Engineering Mathematics' : 'Mechanical Engineering',
+          section: q.section,
+          question_text: q.questionText,
+          options_json: q.options ? JSON.stringify(q.options) : null,
+          correct_answer: q.answerKey,
+          user_answer: userAns,
+          marks: q.marks,
+          negative_marks_lost: q.negativeMarks,
+          solution_text: q.solution,
+          notes: 'Incorrect attempt',
+        });
       }
     });
+
+    const timeTaken = 10800 - secondsRemaining;
+    const attemptedCount = correctCount + wrongCount;
+    const accuracy = attemptedCount > 0 ? Math.round((correctCount / attemptedCount) * 100) : 0;
+    const avgSecondsPerQ = attemptedCount > 0 ? Math.round(timeTaken / attemptedCount) : 0;
 
     const resultPayload = {
       score: Math.max(0, Math.round(score * 100) / 100),
@@ -227,12 +277,23 @@ export function GateCbtEngine() {
       correctCount,
       wrongCount,
       unattemptedCount,
+      negativeMarksLost: Math.round(negativeMarksLost * 100) / 100,
+      accuracy,
+      avgSecondsPerQ,
+      gaScore: Math.max(0, Math.round(gaScore * 100) / 100),
+      emScore: Math.max(0, Math.round(emScore * 100) / 100),
+      meScore: Math.max(0, Math.round(meScore * 100) / 100),
       totalQuestions: questions.length,
-      timeTakenSeconds: 10800 - secondsRemaining,
+      timeTakenSeconds: timeTaken,
     };
 
     setExamResult(resultPayload);
     toast(auto ? 'Time expired. Exam auto-submitted!' : 'Exam submitted successfully!', 'success');
+
+    // Auto-save mistakes into GATE Mistake Notebook
+    if (mistakeRecords.length > 0) {
+      api.pyq.recordGateMistakes(1, mistakeRecords).catch(() => {});
+    }
 
     // Award XP
     api.gamification.awardXp(Math.max(20, Math.round(score * 2)), 'GATE');
@@ -312,7 +373,7 @@ export function GateCbtEngine() {
               <button
                 type="button"
                 className="btn btn-primary w-full py-2 text-xs font-bold bg-cyan-600 hover:bg-cyan-500"
-                onClick={() => handleStartExam('STRICT_CBT')}
+                onClick={() => setPreExamModalOpen(true)}
                 disabled={loading}
               >
                 Launch Strict Full-Length CBT Exam
@@ -349,6 +410,21 @@ export function GateCbtEngine() {
               </button>
             </div>
           </div>
+
+          <div className="mt-4 pt-4 border-t flex justify-end" style={{ borderColor: 'var(--color-border)' }}>
+            <button
+              type="button"
+              className="btn btn-ghost btn-sm text-xs flex items-center gap-1.5"
+              onClick={async () => {
+                const list = await api.pyq.getGateMistakes();
+                setMistakesList(list);
+                setShowMistakesModal(true);
+              }}
+            >
+              <BookOpen size={14} className="text-amber-400" />
+              <span>Open GATE Mistake Notebook</span>
+            </button>
+          </div>
         </div>
       </div>
     );
@@ -379,30 +455,102 @@ export function GateCbtEngine() {
 
   if (examResult) {
     return (
-      <div className="max-w-xl mx-auto py-8 space-y-6">
-        <div className="rounded-2xl border p-6 text-center space-y-3" style={{ background: 'var(--color-panel)', borderColor: 'var(--color-border)' }}>
-          <CheckCircle2 size={44} className="text-emerald-400 mx-auto" />
-          <h2 className="text-xl font-bold text-[var(--color-text)]">GATE CBT Result Summary</h2>
-          <div className="text-4xl font-black text-cyan-400 font-mono">
-            {examResult.score} <span className="text-lg text-[var(--color-muted)]">/ 100</span>
+      <div className="max-w-3xl mx-auto py-8 space-y-6">
+        <div className="rounded-2xl border p-6 space-y-6" style={{ background: 'var(--color-panel)', borderColor: 'var(--color-border)' }}>
+          {/* Header */}
+          <div className="text-center space-y-2 pb-4 border-b border-[var(--color-border)]">
+            <CheckCircle2 size={40} className="text-emerald-400 mx-auto" />
+            <h2 className="text-xl font-bold text-[var(--color-text)]">GATE CBT Examination Scorecard</h2>
+            <div className="text-4xl font-black text-cyan-400 font-mono">
+              {examResult.score} <span className="text-lg text-[var(--color-muted)]">/ 100</span>
+            </div>
+            <p className="text-xs text-[var(--color-muted)]">
+              GATE Mechanical Engineering Standard Evaluation
+            </p>
           </div>
 
-          <div className="grid grid-cols-3 gap-3 pt-4 border-t" style={{ borderColor: 'var(--color-border)' }}>
-            <div className="rounded-xl p-3 bg-emerald-500/10 text-emerald-400">
-              <div className="text-xs font-bold">{examResult.correctCount}</div>
-              <div className="text-[10px] text-[var(--color-muted)]">Correct</div>
+          {/* Core Analytics Grid */}
+          <div className="grid grid-cols-2 sm:grid-cols-4 gap-3">
+            <div className="rounded-xl p-3 bg-emerald-500/10 border border-emerald-500/20 text-center">
+              <div className="text-xs text-[var(--color-muted)]">Accuracy</div>
+              <div className="text-lg font-bold text-emerald-400 font-mono">{examResult.accuracy}%</div>
+              <div className="text-[10px] text-[var(--color-muted)]">{examResult.correctCount} Correct / {examResult.correctCount + examResult.wrongCount} Attempted</div>
             </div>
-            <div className="rounded-xl p-3 bg-rose-500/10 text-rose-400">
-              <div className="text-xs font-bold">{examResult.wrongCount}</div>
-              <div className="text-[10px] text-[var(--color-muted)]">Wrong</div>
+
+            <div className="rounded-xl p-3 bg-rose-500/10 border border-rose-500/20 text-center">
+              <div className="text-xs text-[var(--color-muted)]">Negative Marks Lost</div>
+              <div className="text-lg font-bold text-rose-400 font-mono">-{examResult.negativeMarksLost}</div>
+              <div className="text-[10px] text-[var(--color-muted)]">{examResult.wrongCount} Wrong MCQs</div>
             </div>
-            <div className="rounded-xl p-3 bg-neutral-500/10 text-neutral-400">
-              <div className="text-xs font-bold">{examResult.unattemptedCount}</div>
-              <div className="text-[10px] text-[var(--color-muted)]">Unattempted</div>
+
+            <div className="rounded-xl p-3 bg-cyan-500/10 border border-cyan-500/20 text-center">
+              <div className="text-xs text-[var(--color-muted)]">Time / Question</div>
+              <div className="text-lg font-bold text-cyan-400 font-mono">
+                {Math.floor(examResult.avgSecondsPerQ / 60)}m {examResult.avgSecondsPerQ % 60}s
+              </div>
+              <div className="text-[10px] text-[var(--color-muted)]">Target: 2m 46s</div>
+            </div>
+
+            <div className="rounded-xl p-3 bg-neutral-500/10 border border-neutral-500/20 text-center">
+              <div className="text-xs text-[var(--color-muted)]">Unattempted</div>
+              <div className="text-lg font-bold text-neutral-300 font-mono">{examResult.unattemptedCount}</div>
+              <div className="text-[10px] text-[var(--color-muted)]">0 Penalty</div>
             </div>
           </div>
 
-          <div className="pt-4 flex justify-center">
+          {/* Sectional Breakdown */}
+          <div className="rounded-xl p-4 bg-[var(--color-panel2)] border border-[var(--color-border)] space-y-3">
+            <div className="text-xs font-bold text-[var(--color-text)]">Section-wise Performance Breakdown:</div>
+            <div className="grid grid-cols-3 gap-3 text-xs">
+              <div className="p-3 rounded-lg bg-[var(--color-bg)] border border-[var(--color-border)]">
+                <div className="text-[10.5px] text-[var(--color-muted)]">General Aptitude</div>
+                <div className="text-sm font-bold text-cyan-400 font-mono">{examResult.gaScore} <span className="text-[10px] text-[var(--color-muted)]">/ 15M</span></div>
+              </div>
+              <div className="p-3 rounded-lg bg-[var(--color-bg)] border border-[var(--color-border)]">
+                <div className="text-[10.5px] text-[var(--color-muted)]">Engineering Maths</div>
+                <div className="text-sm font-bold text-blue-400 font-mono">{examResult.emScore} <span className="text-[10px] text-[var(--color-muted)]">/ 13M</span></div>
+              </div>
+              <div className="p-3 rounded-lg bg-[var(--color-bg)] border border-[var(--color-border)]">
+                <div className="text-[10.5px] text-[var(--color-muted)]">Mechanical Core</div>
+                <div className="text-sm font-bold text-amber-400 font-mono">{examResult.meScore} <span className="text-[10px] text-[var(--color-muted)]">/ 72M</span></div>
+              </div>
+            </div>
+          </div>
+
+          {/* Mistake Auto-Saved Notice */}
+          <div className="rounded-xl border border-amber-500/30 bg-amber-500/10 p-3.5 flex items-center justify-between text-xs text-amber-300">
+            <div className="flex items-center gap-2">
+              <BookOpen size={16} className="text-amber-400 shrink-0" />
+              <span>
+                Auto-saved {examResult.wrongCount + examResult.unattemptedCount} questions into your <strong>GATE Mistake Notebook</strong> for targeted revision.
+              </span>
+            </div>
+            <button
+              type="button"
+              className="px-3 py-1 rounded-lg bg-amber-500/20 hover:bg-amber-500/30 text-amber-300 font-semibold shrink-0 ml-3"
+              onClick={async () => {
+                const list = await api.pyq.getGateMistakes();
+                setMistakesList(list);
+                setShowMistakesModal(true);
+              }}
+            >
+              Open Notebook
+            </button>
+          </div>
+
+          {/* Action Bar */}
+          <div className="flex justify-between items-center pt-2 border-t border-[var(--color-border)]">
+            <button
+              type="button"
+              className="btn btn-secondary btn-sm"
+              onClick={async () => {
+                const list = await api.pyq.getGateMistakes();
+                setMistakesList(list);
+                setShowMistakesModal(true);
+              }}
+            >
+              Review Mistakes
+            </button>
             <button
               type="button"
               className="btn btn-primary btn-sm"
@@ -411,7 +559,7 @@ export function GateCbtEngine() {
                 setRunning(false);
               }}
             >
-              Take Another Mock
+              Take Another Mock Exam
             </button>
           </div>
         </div>
@@ -759,6 +907,143 @@ export function GateCbtEngine() {
                 onClick={() => handleSubmit(false)}
               >
                 Confirm Submit
+              </button>
+            </div>
+          </div>
+        </div>
+      )}
+
+      {/* Pre-Exam Anti-Cheat Warning Modal */}
+      {preExamModalOpen && (
+        <div className="fixed inset-0 z-50 flex items-center justify-center bg-black/70 backdrop-blur-xs p-4 animate-in fade-in duration-200">
+          <div className="w-full max-w-md rounded-2xl border border-rose-500/40 p-6 space-y-4 shadow-2xl" style={{ background: 'var(--color-panel)' }}>
+            <div className="flex items-center gap-3 text-rose-400">
+              <ShieldAlert size={26} />
+              <h3 className="text-base font-bold text-white">Strict GATE CBT Simulation Rules</h3>
+            </div>
+            <div className="text-xs text-[var(--color-muted)] space-y-2.5 leading-relaxed">
+              <p>
+                • <strong className="text-rose-300">Fullscreen Focus Lock:</strong> Switching application tabs, minimizing, or clicking outside will immediately reset and terminate the exam with zero marks, simulating real exam conditions.
+              </p>
+              <p>
+                • <strong className="text-[var(--color-text)]">Marking Scheme:</strong> 1-mark MCQs carry <span className="text-rose-400">-0.33</span> negative marking; 2-mark MCQs carry <span className="text-rose-400">-0.66</span> negative marking. MSQ &amp; NAT have no negative marking.
+              </p>
+              <p>
+                • <strong className="text-[var(--color-text)]">Duration:</strong> 180 Minutes (3 Hours) strictly enforced for 65 Questions (10 General Aptitude + 55 Technical &amp; Maths).
+              </p>
+            </div>
+            <div className="flex justify-end gap-2 pt-3 border-t border-[var(--color-border)]">
+              <button type="button" className="btn btn-ghost btn-sm" onClick={() => setPreExamModalOpen(false)}>
+                Cancel
+              </button>
+              <button
+                type="button"
+                className="btn btn-primary btn-sm bg-rose-600 hover:bg-rose-500 text-white font-bold"
+                onClick={() => {
+                  setPreExamModalOpen(false);
+                  handleStartExam('STRICT_CBT');
+                }}
+              >
+                I Understand &amp; Agree — Start Exam
+              </button>
+            </div>
+          </div>
+        </div>
+      )}
+
+      {/* GATE Mistake Notebook Modal */}
+      {showMistakesModal && (
+        <div className="fixed inset-0 z-50 flex items-center justify-center bg-black/70 backdrop-blur-xs p-4 animate-in fade-in duration-200">
+          <div className="w-full max-w-2xl max-h-[85vh] rounded-2xl border border-[var(--color-border)] p-6 space-y-4 flex flex-col shadow-2xl" style={{ background: 'var(--color-panel)' }}>
+            <div className="flex items-center justify-between pb-3 border-b border-[var(--color-border)]">
+              <div className="flex items-center gap-2">
+                <BookOpen size={18} className="text-amber-400" />
+                <h3 className="text-sm font-bold text-[var(--color-text)]">
+                  GATE Mistake Notebook ({mistakesList.length})
+                </h3>
+              </div>
+              <button
+                onClick={() => setShowMistakesModal(false)}
+                className="p-1 rounded text-[var(--color-muted)] hover:text-white"
+              >
+                ✕
+              </button>
+            </div>
+
+            {/* Filter Pills */}
+            <div className="flex items-center gap-2">
+              {['All', 'GA', 'EM', 'ME'].map(sec => (
+                <button
+                  key={sec}
+                  onClick={() => setMistakeSectionFilter(sec)}
+                  className={`px-3 py-1 rounded-lg text-xs font-semibold transition-all ${
+                    mistakeSectionFilter === sec
+                      ? 'bg-amber-600 text-white'
+                      : 'bg-[var(--color-bg)] text-[var(--color-muted)] hover:text-white border border-[var(--color-border)]'
+                  }`}
+                >
+                  {sec === 'All' ? 'All Sections' : sec === 'GA' ? 'General Aptitude' : sec === 'EM' ? 'Engg Maths' : 'Mechanical'}
+                </button>
+              ))}
+            </div>
+
+            {/* Mistake Items */}
+            <div className="flex-1 overflow-y-auto space-y-3 pr-1">
+              {mistakesList
+                .filter(m => mistakeSectionFilter === 'All' || m.section === mistakeSectionFilter)
+                .map((m: any) => (
+                  <div
+                    key={m.id}
+                    className="p-4 rounded-xl border border-[var(--color-border)] bg-[var(--color-bg)] space-y-2 text-xs"
+                  >
+                    <div className="flex items-center justify-between">
+                      <div className="flex items-center gap-2">
+                        <span className="px-2 py-0.5 rounded text-[10px] font-bold bg-rose-500/10 text-rose-400 border border-rose-500/20">
+                          {m.section || 'ME'}
+                        </span>
+                        <span className="text-[11px] text-[var(--color-muted)] font-medium">
+                          {m.subject_name}
+                        </span>
+                      </div>
+                      {m.negative_marks_lost > 0 && (
+                        <span className="text-rose-400 text-[10px] font-semibold">
+                          Lost: -{m.negative_marks_lost} Marks
+                        </span>
+                      )}
+                    </div>
+
+                    <p className="text-xs text-[var(--color-text)] leading-relaxed font-medium">
+                      {m.question_text}
+                    </p>
+
+                    <div className="grid grid-cols-2 gap-2 text-[11px] p-2 rounded-lg bg-[var(--color-panel2)]">
+                      <div>
+                        <span className="text-[var(--color-muted)]">Your Answer: </span>
+                        <span className="text-rose-400 font-bold">{m.user_answer}</span>
+                      </div>
+                      <div>
+                        <span className="text-[var(--color-muted)]">Correct Key: </span>
+                        <span className="text-emerald-400 font-bold">{m.correct_answer}</span>
+                      </div>
+                    </div>
+
+                    {m.solution_text && (
+                      <div className="text-[11px] text-emerald-300 bg-emerald-500/5 p-2.5 rounded-lg border border-emerald-500/10">
+                        <span className="font-bold">Solution Note: </span>
+                        <span>{m.solution_text}</span>
+                      </div>
+                    )}
+                  </div>
+                ))}
+            </div>
+
+            <div className="flex justify-end pt-2 border-t border-[var(--color-border)]">
+              <button
+                type="button"
+                className="btn btn-primary btn-sm"
+                onClick={() => setShowMistakesModal(false)}
+              >
+                Close Notebook
               </button>
             </div>
           </div>
