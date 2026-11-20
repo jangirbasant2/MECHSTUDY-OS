@@ -2,6 +2,7 @@ import React from 'react';
 import {
   BookOpen, FileText, Star, Search, FolderInput, RefreshCw, Link2, Trash2,
   MoreVertical, AlertTriangle, ScanText, HardDrive, X, Check, FolderSearch,
+  Sparkles, Bookmark,
 } from 'lucide-react';
 import { api } from '../lib/api';
 import { useApp } from '../store';
@@ -39,6 +40,7 @@ export function LibraryPage() {
   const [menuFor, setMenuFor] = React.useState<number | null>(null);
   const [confirmRemove, setConfirmRemove] = React.useState<DocumentRow | null>(null);
   const [duplicates, setDuplicates] = React.useState<{ sha256: string; copies: number; names: string }[] | null>(null);
+  const [linkModalDoc, setLinkModalDoc] = React.useState<DocumentRow | null>(null);
 
   const load = React.useCallback(async () => {
     setError(null);
@@ -161,6 +163,25 @@ export function LibraryPage() {
           description="Every PDF stays exactly where it is. The app records its location, reads its metadata, and stores your annotations separately."
           action={
             <div className="flex items-center gap-2">
+              <button
+                className="btn btn-sm"
+                onClick={async () => {
+                  setBusy(true);
+                  try {
+                    const res = await api.library.autoLinkAll();
+                    toast(`Auto-linked ${res.matched} of ${res.total} PDFs to syllabus!`, 'success');
+                    await load();
+                  } catch (e: any) {
+                    toast(e?.message, 'error');
+                  } finally {
+                    setBusy(false);
+                  }
+                }}
+                disabled={busy}
+                title="Automatically match and link PDFs to RTU and GATE syllabus chapters/units"
+              >
+                {busy ? <Spinner size={12} /> : <Sparkles size={13} className="text-amber-400" />} Auto-Link Syllabus
+              </button>
               <button className="btn btn-sm" onClick={() => void refresh()} disabled={busy} title="Check that every file still exists on disk">
                 {busy ? <Spinner size={12} /> : <RefreshCw size={13} />} Verify files
               </button>
@@ -311,6 +332,19 @@ export function LibraryPage() {
                     <div className="truncate text-[10.5px]" style={{ color: 'var(--color-faint)' }}>
                       {doc.rel_path ?? doc.filename}
                     </div>
+                    {doc.chapter && (
+                      <div className="mt-1 flex items-center gap-1.5 flex-wrap">
+                        <span className="inline-flex items-center gap-1 rounded bg-blue-500/10 px-1.5 py-0.5 text-[10px] font-medium text-blue-400 border border-blue-500/20">
+                          <Bookmark size={9} />
+                          <span>{doc.chapter}</span>
+                        </span>
+                        {doc.topic_title && (
+                          <span className="truncate max-w-[200px] text-[10px] text-[var(--color-muted)]">
+                            · {doc.topic_title}
+                          </span>
+                        )}
+                      </div>
+                    )}
                   </td>
 
                   <td className="px-2 py-1.5">
@@ -385,6 +419,14 @@ export function LibraryPage() {
                               );
                               await load();
                             } catch (e) { toast((e as Error).message, 'error'); }
+                          }}
+                        />
+                        <MenuItem
+                          icon={<Link2 size={12} />}
+                          label="Link to Syllabus"
+                          onClick={() => {
+                            setMenuFor(null);
+                            setLinkModalDoc(doc);
                           }}
                         />
                         <MenuItem
@@ -472,7 +514,197 @@ export function LibraryPage() {
           </div>
         )}
       </Modal>
+      <LinkSyllabusModal
+        doc={linkModalDoc}
+        onClose={() => setLinkModalDoc(null)}
+        onSaved={() => void load()}
+      />
     </div>
+  );
+}
+
+function LinkSyllabusModal({
+  doc,
+  onClose,
+  onSaved,
+}: {
+  doc: DocumentRow | null;
+  onClose: () => void;
+  onSaved: () => void;
+}) {
+  const toast = useApp(s => s.toast);
+  const [examType, setExamType] = React.useState<'RTU' | 'GATE'>('RTU');
+  const [tree, setTree] = React.useState<any[]>([]);
+  const [loading, setLoading] = React.useState(true);
+  const [selectedSubjectId, setSelectedSubjectId] = React.useState<number | ''>(doc?.subject_id ?? '');
+  const [selectedUnitId, setSelectedUnitId] = React.useState<number | ''>(doc?.unit_id ?? '');
+  const [selectedTopicId, setSelectedTopicId] = React.useState<number | ''>(doc?.topic_id ?? '');
+  const [customChapter, setCustomChapter] = React.useState(doc?.chapter ?? '');
+  const [saving, setSaving] = React.useState(false);
+
+  React.useEffect(() => {
+    if (!doc) return;
+    setSelectedSubjectId(doc.subject_id ?? '');
+    setSelectedUnitId(doc.unit_id ?? '');
+    setSelectedTopicId(doc.topic_id ?? '');
+    setCustomChapter(doc.chapter ?? '');
+  }, [doc]);
+
+  React.useEffect(() => {
+    let alive = true;
+    setLoading(true);
+    api.syllabus.tree(examType)
+      .then(t => {
+        if (!alive) return;
+        setTree(t);
+        if (t.length > 0 && selectedSubjectId === '') {
+          setSelectedSubjectId(t[0].id);
+        }
+      })
+      .catch(() => {})
+      .finally(() => { if (alive) setLoading(false); });
+    return () => { alive = false; };
+  }, [examType]);
+
+  const activeSubject = tree.find(s => s.id === selectedSubjectId);
+  const activeUnits = activeSubject?.units ?? [];
+  const activeUnit = activeUnits.find((u: any) => u.id === selectedUnitId);
+  const activeTopics = activeUnit?.topics ?? [];
+
+  const handleSave = async () => {
+    if (!doc) return;
+    setSaving(true);
+    try {
+      await api.library.linkSyllabus(doc.id, {
+        subjectId: selectedSubjectId === '' ? null : Number(selectedSubjectId),
+        unitId: selectedUnitId === '' ? null : Number(selectedUnitId),
+        topicId: selectedTopicId === '' ? null : Number(selectedTopicId),
+        chapter: customChapter.trim() || undefined,
+      });
+      toast('Document successfully linked to syllabus!', 'success');
+      onSaved();
+      onClose();
+    } catch (e: any) {
+      toast(`Linking failed: ${e?.message}`, 'error');
+    } finally {
+      setSaving(false);
+    }
+  };
+
+  return (
+    <Modal
+      open={doc !== null}
+      onClose={onClose}
+      title="Link PDF to Syllabus Chapter / Unit"
+      width={560}
+      footer={
+        <div className="flex justify-end gap-2">
+          <button className="btn" onClick={onClose} disabled={saving}>Cancel</button>
+          <button className="btn btn-primary" onClick={handleSave} disabled={saving}>
+            {saving ? <Spinner size={12} /> : <Check size={13} />} Save Link
+          </button>
+        </div>
+      }
+    >
+      <div className="space-y-4 text-xs">
+        <div>
+          <label className="font-semibold block mb-1">Target Document</label>
+          <div className="p-2.5 rounded border font-mono text-[11px] bg-[var(--color-panel2)] border-[var(--color-border)] truncate">
+            {doc?.filename}
+          </div>
+        </div>
+
+        <div>
+          <label className="font-semibold block mb-1">Curriculum Track</label>
+          <div className="flex gap-2">
+            {(['RTU', 'GATE'] as const).map(track => (
+              <button
+                key={track}
+                type="button"
+                className={`btn btn-sm ${examType === track ? 'btn-primary' : ''}`}
+                onClick={() => { setExamType(track); setSelectedUnitId(''); setSelectedTopicId(''); }}
+              >
+                {track} Syllabus
+              </button>
+            ))}
+          </div>
+        </div>
+
+        {loading ? (
+          <Loading label="Loading syllabus tree..." />
+        ) : (
+          <>
+            <div>
+              <label className="font-semibold block mb-1">Subject</label>
+              <select
+                className="input w-full text-xs"
+                value={selectedSubjectId}
+                onChange={e => {
+                  setSelectedSubjectId(e.target.value === '' ? '' : Number(e.target.value));
+                  setSelectedUnitId('');
+                  setSelectedTopicId('');
+                }}
+              >
+                <option value="">-- Choose Subject --</option>
+                {tree.map(s => (
+                  <option key={s.id} value={s.id}>
+                    {s.code ? `${s.code} · ` : ''}{s.name} {s.semester ? `(Sem ${s.semester})` : ''}
+                  </option>
+                ))}
+              </select>
+            </div>
+
+            <div>
+              <label className="font-semibold block mb-1">Unit / Chapter</label>
+              <select
+                className="input w-full text-xs"
+                value={selectedUnitId}
+                onChange={e => {
+                  const val = e.target.value === '' ? '' : Number(e.target.value);
+                  setSelectedUnitId(val);
+                  setSelectedTopicId('');
+                  const matched = activeUnits.find((u: any) => u.id === val);
+                  if (matched) setCustomChapter(`Unit ${matched.number}: ${matched.title}`);
+                }}
+                disabled={activeUnits.length === 0}
+              >
+                <option value="">-- Choose Unit / Chapter --</option>
+                {activeUnits.map((u: any) => (
+                  <option key={u.id} value={u.id}>
+                    Unit {u.number}: {u.title}
+                  </option>
+                ))}
+              </select>
+            </div>
+
+            <div>
+              <label className="font-semibold block mb-1">Specific Topic (Optional)</label>
+              <select
+                className="input w-full text-xs"
+                value={selectedTopicId}
+                onChange={e => setSelectedTopicId(e.target.value === '' ? '' : Number(e.target.value))}
+                disabled={activeTopics.length === 0}
+              >
+                <option value="">-- Whole Unit / General Chapter --</option>
+                {activeTopics.map((tp: any) => (
+                  <option key={tp.id} value={tp.id}>{tp.title}</option>
+                ))}
+              </select>
+            </div>
+
+            <div>
+              <label className="font-semibold block mb-1">Chapter Display Label</label>
+              <input
+                className="input w-full text-xs"
+                placeholder="e.g. Unit 2: Stresses in Beams"
+                value={customChapter}
+                onChange={e => setCustomChapter(e.target.value)}
+              />
+            </div>
+          </>
+        )}
+      </div>
+    </Modal>
   );
 }
 

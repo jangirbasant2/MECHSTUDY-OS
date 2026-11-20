@@ -62,6 +62,9 @@ const api: MechStudyApi = {
     savePosition: (id, page) => invoke('library:savePosition', { id, page }),
     topicsFor: (documentId) => invoke('library:topicsFor', { documentId }),
     remove: (id) => invoke('library:remove', { id }),
+    linkSyllabus: (id, link) => invoke('library:linkSyllabus', { id, ...link }),
+    autoLinkAll: () => invoke('library:autoLinkAll'),
+    syllabusLinks: (documentId) => invoke('library:syllabusLinks', { documentId }),
     onImportProgress: (cb) => subscribe('import:progress', cb),
   },
 
@@ -243,8 +246,8 @@ const api: MechStudyApi = {
     updateGateMistake: (id: number, reviewed: number, notes?: string) =>
       invoke('pyq:updateGateMistake', { id, reviewed, notes }),
     deleteGateMistake: (id: number) => invoke('pyq:deleteGateMistake', { id }),
-    evaluateRtuAnswers: (paperId: number, studentAnswers: any[]) =>
-      invoke('pyq:evaluateRtuAnswers', { paperId, studentAnswers }),
+    evaluateRtuAnswers: (paperId: number, studentAnswers?: any[], pdfPath?: string) =>
+      invoke('pyq:evaluateRtuAnswers', { paperId, studentAnswers, pdfPath }),
     exportRtuPaper: (paperId: number, savePath: string) => invoke('pyq:exportRtuPaper', { paperId, savePath }),
     pickSavePath: (defaultName?: string) => invoke('pyq:pickSavePath', { defaultName }),
     generateRtuPaper: (subjectId: number, mode: any, selectedUnits?: number[]) =>
@@ -340,6 +343,7 @@ const api: MechStudyApi = {
     review: (id: number, rating: string) => invoke('flashcard:review', { id, rating }),
     syncMistakes: () => invoke('flashcard:syncMistakes'),
     syncWeakTopics: () => invoke('flashcard:syncWeakTopics'),
+    generateSyllabusDeck: (options: any) => invoke('flashcard:generateSyllabusDeck', options),
     completeSession: (cardsReviewed: number) => invoke('flashcard:completeSession', { cardsReviewed }),
   },
   backupArchive: {

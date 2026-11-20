@@ -6,6 +6,9 @@ export function listFlashcards(filter?: {
   sourceType?: FlashcardSourceType | 'ALL';
   dueOnly?: boolean;
   subjectName?: string;
+  examType?: string;
+  semester?: number;
+  unitNumber?: number;
   limit?: number;
 }): FlashcardItem[] {
   let sql = 'SELECT * FROM flashcards WHERE 1=1';
@@ -23,6 +26,21 @@ export function listFlashcards(filter?: {
   if (filter?.subjectName && filter.subjectName !== 'All Subjects') {
     sql += ' AND subject_name = ?';
     params.push(filter.subjectName);
+  }
+
+  if (filter?.examType && filter.examType !== 'ALL') {
+    sql += ' AND (exam_type = ? OR exam_type IS NULL)';
+    params.push(filter.examType);
+  }
+
+  if (filter?.semester !== undefined && filter.semester !== null && filter.semester > 0) {
+    sql += ' AND semester = ?';
+    params.push(filter.semester);
+  }
+
+  if (filter?.unitNumber !== undefined && filter.unitNumber !== null && filter.unitNumber > 0) {
+    sql += ' AND unit_number = ?';
+    params.push(filter.unitNumber);
   }
 
   sql += ' ORDER BY next_review_date ASC, id DESC';
@@ -43,19 +61,26 @@ export function createFlashcard(card: {
   back: string;
   subject_name?: string;
   topic_name?: string;
+  exam_type?: string;
+  semester?: number;
+  unit_number?: number;
 }): FlashcardItem {
   const info = run(
     `INSERT INTO flashcards (
       source_type, source_id, title, front, back, subject_name, topic_name,
+      exam_type, semester, unit_number,
       interval_days, ease_factor, repetitions, next_review_date, created_at, updated_at
-    ) VALUES (?, ?, ?, ?, ?, ?, ?, 1, 2.5, 0, date('now'), datetime('now'), datetime('now'))`,
+    ) VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?, ?, 1, 2.5, 0, date('now'), datetime('now'), datetime('now'))`,
     card.source_type,
     card.source_id || null,
     card.title,
     card.front,
     card.back,
     card.subject_name || null,
-    card.topic_name || null
+    card.topic_name || null,
+    card.exam_type || 'RTU',
+    card.semester ?? null,
+    card.unit_number ?? null
   );
 
   return get<FlashcardItem>('SELECT * FROM flashcards WHERE id = ?', info.lastInsertRowid)!;
@@ -250,4 +275,79 @@ export function completeFlashcardSession(cardsReviewed: number): { xpAwarded: nu
     return { xpAwarded: 10 };
   }
   return { xpAwarded: 0 };
+}
+
+/**
+ * Automatically create flashcards across all chapters, units, and topics for RTU and GATE syllabi.
+ */
+export function generateSyllabusDeck(options: {
+  examType: 'RTU' | 'GATE';
+  semester?: number;
+  subjectName?: string;
+  unitNumber?: number;
+}): { created: number; total: number } {
+  let sql = `
+    SELECT t.id as topic_id, t.title as topic_title, t.description as topic_desc,
+           u.number as unit_number, u.title as unit_title,
+           s.name as subject_name, s.code as subject_code, s.semester,
+           v.exam_type
+    FROM topics t
+    JOIN units u ON u.id = t.unit_id
+    JOIN subjects s ON s.id = u.subject_id
+    JOIN syllabus_versions v ON v.id = s.version_id
+    WHERE v.exam_type = ?
+      AND s.is_practical = 0
+      AND s.name NOT LIKE '%Technical Communication%'
+  `;
+  const params: any[] = [options.examType];
+
+  if (options.semester !== undefined && options.semester !== null && options.semester > 0) {
+    sql += ' AND s.semester = ?';
+    params.push(options.semester);
+  }
+
+  if (options.subjectName && options.subjectName !== 'All Subjects') {
+    sql += ' AND s.name = ?';
+    params.push(options.subjectName);
+  }
+
+  if (options.unitNumber !== undefined && options.unitNumber !== null && options.unitNumber > 0) {
+    sql += ' AND u.number = ?';
+    params.push(options.unitNumber);
+  }
+
+  sql += ' ORDER BY s.semester ASC, s.sort_order ASC, u.number ASC, t.sort_order ASC';
+
+  const topics = all<any>(sql, ...params);
+  let created = 0;
+
+  for (const t of topics) {
+    // Check if card already exists for this topic
+    const existing = get<{ id: number }>(
+      "SELECT id FROM flashcards WHERE source_type = 'SYLLABUS_TOPIC' AND source_id = ?",
+      String(t.topic_id)
+    );
+    if (existing) continue;
+
+    const title = `[${t.subject_code || t.subject_name} · Unit ${t.unit_number}] ${t.topic_title}`;
+    const front = `### ${t.topic_title}\n\n**Subject:** ${t.subject_name} (${t.exam_type}${t.semester ? ` Sem ${t.semester}` : ''})\n**Unit ${t.unit_number}:** ${t.unit_title}\n\n**Active Recall Challenge:**\nExplain the foundational physical mechanism, governing mathematical formula ($KaTeX$), and critical engineering assumptions behind **${t.topic_title}**.`;
+
+    const back = `**Key Concept & Physical Meaning:**\n${t.topic_desc || `${t.topic_title} establishes the relationship between governing system parameters and thermodynamic/mechanical boundary conditions in ${t.subject_name}.`}\n\n**Governing Mathematical Principles:**\n- Verify governing variables, boundary limits, and SI unit conventions.\n- Ensure appropriate sign convention for work, heat, stresses, or acceleration.\n\n**Exam Pitfall / Unit Traps:**\nWatch out for standard trap conversions (e.g., $MPa \\leftrightarrow kPa$, Celsius $\\leftrightarrow$ Kelvin, or diameter vs radius in moment of inertia calculations).`;
+
+    createFlashcard({
+      source_type: 'SYLLABUS_TOPIC',
+      source_id: String(t.topic_id),
+      title,
+      front,
+      back,
+      subject_name: t.subject_name,
+      topic_name: t.topic_title,
+      exam_type: t.exam_type,
+      semester: t.semester,
+      unit_number: t.unit_number,
+    });
+    created++;
+  }
+
+  return { created, total: topics.length };
 }

@@ -11,6 +11,10 @@ import {
   FORMULA_SUBJECTS,
   IIT_FORMULA_SUBJECTS,
   MECHANICAL_FORMULAS,
+  GATE_FORMULAS,
+  GATE_FORMULA_SUBJECTS,
+  RTU_SEMESTER_CONFIG,
+  RTU_FORMULAS,
   IIT_FORMULAS,
   type FormulaItem,
 } from '../data/formulasData';
@@ -42,20 +46,35 @@ export function FormulasPage() {
   const setPage = useApp(s => s.setPage);
   const activeExamMode = useApp(s => s.activeExamMode);
 
-  const activeSubjects = activeExamMode === 'IIT' ? IIT_FORMULA_SUBJECTS : FORMULA_SUBJECTS;
-  const activeDataset = activeExamMode === 'IIT' ? IIT_FORMULAS : MECHANICAL_FORMULAS;
-
+  const [selectedSemester, setSelectedSemester] = React.useState<number>(3);
   const [selectedSubject, setSelectedSubject] = React.useState<string>('All Subjects');
   const [searchQuery, setSearchQuery] = React.useState<string>('');
   const [copiedId, setCopiedId] = React.useState<string | null>(null);
   const [expandedSandboxId, setExpandedSandboxId] = React.useState<string | null>(null);
   const [exportingCheatSheet, setExportingCheatSheet] = React.useState<boolean>(false);
 
-  // Reset selected subject filter when switching exam modes
+  const activeSubjects = React.useMemo(() => {
+    if (activeExamMode === 'RTU') {
+      const semObj = RTU_SEMESTER_CONFIG.find(s => s.semester === selectedSemester);
+      return ['All Subjects', ...(semObj?.subjects || [])];
+    }
+    if (activeExamMode === 'IIT') return IIT_FORMULA_SUBJECTS;
+    return GATE_FORMULA_SUBJECTS;
+  }, [activeExamMode, selectedSemester]);
+
+  const activeDataset = React.useMemo(() => {
+    if (activeExamMode === 'RTU') {
+      return RTU_FORMULAS.filter(f => f.semester === selectedSemester);
+    }
+    if (activeExamMode === 'IIT') return IIT_FORMULAS;
+    return GATE_FORMULAS;
+  }, [activeExamMode, selectedSemester]);
+
+  // Reset selected subject filter when switching exam modes or semester
   React.useEffect(() => {
     setSelectedSubject('All Subjects');
     setExpandedSandboxId(null);
-  }, [activeExamMode]);
+  }, [activeExamMode, selectedSemester]);
 
   const handleExportCheatSheet = async () => {
     setExportingCheatSheet(true);
@@ -194,6 +213,31 @@ export function FormulasPage() {
         </div>
       </div>
 
+      {/* RTU Semester Selector Tabs */}
+      {activeExamMode === 'RTU' && (
+        <div className="mb-4 flex items-center gap-1.5 overflow-x-auto pb-1">
+          <span className="text-xs font-bold text-[var(--color-muted)] mr-2 shrink-0">
+            Select Semester:
+          </span>
+          {[1, 2, 3, 4, 5, 6, 7, 8].map(sem => {
+            const active = selectedSemester === sem;
+            return (
+              <button
+                key={sem}
+                onClick={() => setSelectedSemester(sem)}
+                className={`rounded-lg px-3 py-1.5 text-xs font-bold transition-all shrink-0 ${
+                  active
+                    ? 'bg-blue-600 text-white shadow-xs'
+                    : 'bg-[var(--color-panel)] hover:bg-[var(--color-panel2)] text-[var(--color-muted)] border border-[var(--color-border)]'
+                }`}
+              >
+                Semester {sem}
+              </button>
+            );
+          })}
+        </div>
+      )}
+
       {/* Subject Filter Tabs */}
       <div className="mb-4 flex flex-wrap gap-1.5">
         {activeSubjects.map(subj => {
@@ -281,6 +325,11 @@ export function FormulasPage() {
                   <div className="flex items-start justify-between gap-2 mb-2">
                     <div>
                       <div className="flex flex-wrap items-center gap-1.5 mb-1">
+                        {formula.semester && (
+                          <span className="text-[10px] font-bold px-2 py-0.5 rounded bg-blue-500/10 text-blue-400 border border-blue-500/20">
+                            Sem {formula.semester}
+                          </span>
+                        )}
                         <span className="text-[10px] font-medium px-2 py-0.5 rounded bg-[var(--color-panel2)] text-[var(--color-muted)]">
                           {formula.subject}
                         </span>

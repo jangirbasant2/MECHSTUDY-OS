@@ -5,6 +5,7 @@ import { join, relative, basename, extname } from 'node:path';
 import { all, get, run, tx } from '../db';
 import { inspectPdf } from './pdf';
 import { indexAllTextLayers } from './indexer';
+import { matchDocumentToSyllabus } from './syllabusMatcher';
 
 export const SUPPORTED_EXT = new Set(['.pdf']);
 
@@ -99,6 +100,7 @@ export async function importFiles(
 ): Promise<{ added: number; updated: number; failed: { path: string; error: string }[] }> {
   let added = 0, updated = 0;
   const failed: { path: string; error: string }[] = [];
+  const importedDocIds: number[] = [];
 
   for (let i = 0; i < files.length; i++) {
     const path = files[i];
@@ -123,9 +125,10 @@ export async function importFiles(
           rel, basename(path), st.size, st.mtime.toISOString(), info.pageCount,
           info.hasTextLayer ? 1 : 0, info.textChars, sha, existing.id
         );
+        importedDocIds.push(existing.id);
         updated++;
       } else {
-        run(
+        const infoRow = run(
           `INSERT INTO documents
             (path, rel_path, filename, size_bytes, mtime, page_count, has_text_layer, text_chars,
              sha256, material_type, subject_id, subject_code, subject_source, scanned_at)
@@ -135,6 +138,7 @@ export async function importFiles(
           guessMaterialType(basename(path), rel), subjectId, guessed,
           guessed ? 'filename' : 'none'
         );
+        importedDocIds.push(infoRow.lastInsertRowid);
         added++;
       }
     } catch (e) {
@@ -142,8 +146,17 @@ export async function importFiles(
     }
   }
   onProgress?.({ done: files.length, total: files.length, current: '' });
+
   // Automatically extract selectable text into SQLite FTS5 in background
-  indexAllTextLayers().catch(err => console.warn('[library] Background text indexing error:', err));
+  indexAllTextLayers()
+    .then(async () => {
+      // Once text layers are indexed, auto-match documents to syllabus
+      for (const id of importedDocIds) {
+        await matchDocumentToSyllabus(id).catch(err => console.warn('[library] Auto-match error:', err));
+      }
+    })
+    .catch(err => console.warn('[library] Background text indexing error:', err));
+
   return { added, updated, failed };
 }
 
@@ -156,18 +169,29 @@ export function listDocuments(filter?: { subjectId?: number; q?: string; starred
   if (filter?.q) { where.push('(d.filename LIKE ? OR d.rel_path LIKE ?)'); params.push(`%${filter.q}%`, `%${filter.q}%`); }
   const sql = `
     SELECT d.*, s.name AS subject_name,
+      u.number AS unit_number, u.title AS unit_title,
+      t.title AS topic_title,
       (SELECT COUNT(*) FROM annotations a WHERE a.document_id = d.id) AS annotation_count,
       (SELECT COUNT(*) FROM bookmarks b WHERE b.document_id = d.id) AS bookmark_count,
       (SELECT COUNT(*) FROM sticky_notes n WHERE n.document_id = d.id) AS note_count
-    FROM documents d LEFT JOIN subjects s ON s.id = d.subject_id
+    FROM documents d
+    LEFT JOIN subjects s ON s.id = d.subject_id
+    LEFT JOIN units u ON u.id = d.unit_id
+    LEFT JOIN topics t ON t.id = d.topic_id
     ${where.length ? 'WHERE ' + where.join(' AND ') : ''}
     ORDER BY d.last_opened_at DESC NULLS LAST, d.filename`;
   return all(sql, ...params);
 }
 
 export function getDocument(id: number) {
-  return get(`SELECT d.*, s.name AS subject_name FROM documents d
-              LEFT JOIN subjects s ON s.id = d.subject_id WHERE d.id = ?`, id);
+  return get(`SELECT d.*, s.name AS subject_name,
+                u.number AS unit_number, u.title AS unit_title,
+                t.title AS topic_title
+              FROM documents d
+              LEFT JOIN subjects s ON s.id = d.subject_id
+              LEFT JOIN units u ON u.id = d.unit_id
+              LEFT JOIN topics t ON t.id = d.topic_id
+              WHERE d.id = ?`, id);
 }
 
 export function setStarred(id: number, starred: boolean) {

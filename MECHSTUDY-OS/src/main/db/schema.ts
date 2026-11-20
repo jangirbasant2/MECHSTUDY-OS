@@ -796,5 +796,42 @@ CREATE VIRTUAL TABLE IF NOT EXISTS fts_syllabus USING fts5(
   tokenize = 'porter unicode61'
 );
 `
+  },
+  {
+    version: 15,
+    name: 'syllabus_pdf_linking_and_exam_modes',
+    sql: `
+ALTER TABLE documents ADD COLUMN unit_id INTEGER REFERENCES units(id) ON DELETE SET NULL;
+ALTER TABLE documents ADD COLUMN topic_id INTEGER REFERENCES topics(id) ON DELETE SET NULL;
+ALTER TABLE documents ADD COLUMN chapter TEXT;
+ALTER TABLE documents ADD COLUMN match_confidence REAL DEFAULT 0;
+ALTER TABLE documents ADD COLUMN match_basis TEXT;
+
+CREATE TABLE IF NOT EXISTS document_syllabus_links (
+  id INTEGER PRIMARY KEY AUTOINCREMENT,
+  document_id INTEGER NOT NULL REFERENCES documents(id) ON DELETE CASCADE,
+  subject_id INTEGER REFERENCES subjects(id) ON DELETE CASCADE,
+  unit_id INTEGER REFERENCES units(id) ON DELETE CASCADE,
+  topic_id INTEGER REFERENCES topics(id) ON DELETE CASCADE,
+  exam_type TEXT NOT NULL DEFAULT 'RTU',
+  confidence REAL NOT NULL DEFAULT 1.0,
+  match_basis TEXT NOT NULL DEFAULT 'inferred',
+  matched_text TEXT,
+  created_at TEXT NOT NULL DEFAULT (datetime('now'))
+);
+CREATE INDEX IF NOT EXISTS idx_doc_syl_links_doc ON document_syllabus_links(document_id);
+CREATE INDEX IF NOT EXISTS idx_doc_syl_links_subj ON document_syllabus_links(subject_id);
+CREATE INDEX IF NOT EXISTS idx_doc_syl_links_unit ON document_syllabus_links(unit_id);
+CREATE INDEX IF NOT EXISTS idx_doc_syl_links_topic ON document_syllabus_links(topic_id);
+
+ALTER TABLE flashcards ADD COLUMN exam_type TEXT DEFAULT 'RTU';
+ALTER TABLE flashcards ADD COLUMN semester INTEGER;
+ALTER TABLE flashcards ADD COLUMN unit_number INTEGER;
+CREATE INDEX IF NOT EXISTS idx_flashcards_exam ON flashcards(exam_type);
+CREATE INDEX IF NOT EXISTS idx_flashcards_sem ON flashcards(semester);
+
+ALTER TABLE mistakes ADD COLUMN exam_type TEXT DEFAULT 'RTU';
+ALTER TABLE mistakes ADD COLUMN subject_name TEXT;
+`
   }
 ];

@@ -16,6 +16,7 @@ import type {
   UserProfile, UserTrophy, TopicQuizResult, RtuPyq, GatePyq, ExamPaperRecord, IngestPyqResult,
   PyqIngestProgress, GateMistakeRecord, RtuEvaluationResult, DueRevisionTopic,
   FlashcardItem, FormulaPracticeNumerical, CheatSheetOptions, CheatSheetResult, BackupArchiveResult,
+  DocumentSyllabusLink,
 } from './types';
 
 export type Unsubscribe = () => void;
@@ -54,6 +55,9 @@ export interface MechStudyApi {
     savePosition(id: number, page: number): Promise<boolean>;
     topicsFor(documentId: number): Promise<any[]>;
     remove(id: number): Promise<{ removed: boolean; fileStillOnDisk: boolean; filename: string }>;
+    linkSyllabus(id: number, link: { subjectId: number | null; unitId: number | null; topicId: number | null; chapter?: string }): Promise<boolean>;
+    autoLinkAll(): Promise<{ total: number; matched: number }>;
+    syllabusLinks(documentId: number): Promise<DocumentSyllabusLink[]>;
     onImportProgress(cb: (p: ImportProgress) => void): Unsubscribe;
   };
   syllabus: {
@@ -212,7 +216,7 @@ export interface MechStudyApi {
     getGateMistakes(subjectName?: string, section?: string, reviewed?: number): Promise<GateMistakeRecord[]>;
     updateGateMistake(id: number, reviewed: number, notes?: string): Promise<boolean>;
     deleteGateMistake(id: number): Promise<boolean>;
-    evaluateRtuAnswers(paperId: number, studentAnswers: Array<{ questionNumber: string; answerText?: string; imageBase64?: string }>): Promise<RtuEvaluationResult>;
+    evaluateRtuAnswers(paperId: number, studentAnswers?: Array<{ questionNumber: string; answerText?: string; imageBase64?: string }>, pdfPath?: string): Promise<RtuEvaluationResult>;
     exportRtuPaper(paperId: number, savePath: string): Promise<string>;
     pickSavePath(defaultName?: string): Promise<string | null>;
     generateRtuPaper(subjectId: number, mode: 'END_SEM' | 'MT1' | 'MT2', selectedUnits?: number[]): Promise<ExamPaperRecord>;
@@ -318,6 +322,9 @@ export interface MechStudyApi {
       sourceType?: string;
       dueOnly?: boolean;
       subjectName?: string;
+      examType?: string;
+      semester?: number;
+      unitNumber?: number;
       limit?: number;
     }): Promise<FlashcardItem[]>;
     create(card: {
@@ -328,12 +335,16 @@ export interface MechStudyApi {
       back: string;
       subject_name?: string;
       topic_name?: string;
+      exam_type?: string;
+      semester?: number;
+      unit_number?: number;
     }): Promise<FlashcardItem>;
     update(id: number, patch: Partial<Pick<FlashcardItem, 'title' | 'front' | 'back' | 'subject_name' | 'topic_name'>>): Promise<FlashcardItem>;
     delete(id: number): Promise<boolean>;
     review(id: number, rating: 'again' | 'hard' | 'good' | 'easy'): Promise<FlashcardItem>;
     syncMistakes(): Promise<number>;
     syncWeakTopics(): Promise<number>;
+    generateSyllabusDeck(options: { examType: 'RTU' | 'GATE'; semester?: number; subjectName?: string; unitNumber?: number }): Promise<{ created: number; total: number }>;
     completeSession(cardsReviewed: number): Promise<{ xpAwarded: number }>;
   };
   backupArchive: {

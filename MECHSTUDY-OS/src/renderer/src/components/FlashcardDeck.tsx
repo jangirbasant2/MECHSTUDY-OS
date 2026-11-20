@@ -43,10 +43,18 @@ function renderMathText(text: string) {
 
 export function FlashcardDeck() {
   const toast = useApp(s => s.toast);
+  const activeExamMode = useApp(s => s.activeExamMode);
 
   const [cards, setCards] = useState<FlashcardItem[]>([]);
   const [loading, setLoading] = useState(true);
   const [filterType, setFilterType] = useState<FlashcardSourceType | 'ALL'>('ALL');
+  const [examType, setExamType] = useState<'RTU' | 'GATE'>(activeExamMode === 'GATE' ? 'GATE' : 'RTU');
+  const [semester, setSemester] = useState<number | 'ALL'>('ALL');
+  const [subjectName, setSubjectName] = useState<string | 'ALL'>('ALL');
+  const [unitNumber, setUnitNumber] = useState<number | 'ALL'>('ALL');
+  const [subjects, setSubjects] = useState<Array<{ id: number; name: string }>>([]);
+  const [generatingDeck, setGeneratingDeck] = useState(false);
+
   const [currentIndex, setCurrentIndex] = useState(0);
   const [isFlipped, setIsFlipped] = useState(false);
   const [reviewedInSession, setReviewedInSession] = useState(0);
@@ -59,12 +67,30 @@ export function FlashcardDeck() {
   const [newFront, setNewFront] = useState('');
   const [newBack, setNewBack] = useState('');
   const [newSubject, setNewSubject] = useState('Engineering Thermodynamics');
+  const [newSemester, setNewSemester] = useState<number>(3);
+  const [newUnit, setNewUnit] = useState<number>(1);
+
+  // Load subjects when examType changes
+  useEffect(() => {
+    let alive = true;
+    api.syllabus.subjects(examType)
+      .then(subs => {
+        if (!alive) return;
+        setSubjects(subs.map(s => ({ id: s.id, name: s.name })));
+      })
+      .catch(() => {});
+    return () => { alive = false; };
+  }, [examType]);
 
   const loadCards = useCallback(async () => {
     setLoading(true);
     try {
       const data = await api.flashcards.list({
         sourceType: filterType === 'ALL' ? undefined : filterType,
+        examType,
+        semester: examType === 'RTU' && semester !== 'ALL' ? semester : undefined,
+        subjectName: subjectName !== 'ALL' ? subjectName : undefined,
+        unitNumber: unitNumber !== 'ALL' ? unitNumber : undefined,
       });
       setCards(data);
       setCurrentIndex(0);
@@ -74,7 +100,7 @@ export function FlashcardDeck() {
     } finally {
       setLoading(false);
     }
-  }, [filterType, toast]);
+  }, [filterType, examType, semester, subjectName, unitNumber, toast]);
 
   useEffect(() => {
     void loadCards();
@@ -114,6 +140,24 @@ export function FlashcardDeck() {
     }
   };
 
+  const handleGenerateSyllabusDeck = async () => {
+    setGeneratingDeck(true);
+    try {
+      const count = await api.flashcards.generateSyllabusDeck({
+        examType,
+        semester: examType === 'RTU' && semester !== 'ALL' ? semester : undefined,
+        subjectName: subjectName !== 'ALL' ? subjectName : undefined,
+        unitNumber: unitNumber !== 'ALL' ? unitNumber : undefined,
+      });
+      toast(`Generated ${count} active-recall syllabus cards for ${examType}!`, 'success');
+      await loadCards();
+    } catch (e: any) {
+      toast(`Failed to generate syllabus deck: ${e?.message}`, 'error');
+    } finally {
+      setGeneratingDeck(false);
+    }
+  };
+
   const handleSyncDecks = async () => {
     setSyncing(true);
     try {
@@ -143,6 +187,9 @@ export function FlashcardDeck() {
         front: newFront.trim(),
         back: newBack.trim(),
         subject_name: newSubject,
+        exam_type: examType,
+        semester: examType === 'RTU' ? newSemester : undefined,
+        unit_number: newUnit,
       });
       toast('Created new custom flashcard!', 'success');
       setCreateModalOpen(false);
@@ -160,37 +207,142 @@ export function FlashcardDeck() {
   return (
     <div className="space-y-5">
       {/* Deck Controls Header */}
-      <div className="flex flex-col sm:flex-row sm:items-center justify-between gap-3 rounded-2xl border p-4 bg-[var(--color-panel)] border-[var(--color-border)]">
-        <div>
-          <h3 className="text-sm font-bold text-[var(--color-text)] flex items-center gap-2">
-            <Layers size={16} className="text-blue-400" />
-            <span>Active Recall Flashcards Deck</span>
-          </h3>
-          <p className="text-xs text-[var(--color-muted)] mt-0.5">
-            Auto-compiled from Reader notes, GATE Mistake Notebook, and weak mastery quiz concepts.
-          </p>
+      <div className="rounded-2xl border p-4 bg-[var(--color-panel)] border-[var(--color-border)] space-y-4">
+        <div className="flex flex-col sm:flex-row sm:items-center justify-between gap-3">
+          <div>
+            <h3 className="text-sm font-bold text-[var(--color-text)] flex items-center gap-2">
+              <Layers size={16} className="text-blue-400" />
+              <span>Active Recall Flashcards Deck</span>
+            </h3>
+            <p className="text-xs text-[var(--color-muted)] mt-0.5">
+              Comprehensive flashcards across all chapters, units, and topics for RTU (Sem 1–8) and GATE Mechanical.
+            </p>
+          </div>
+
+          <div className="flex items-center gap-2 flex-wrap">
+            <button
+              type="button"
+              disabled={generatingDeck}
+              onClick={handleGenerateSyllabusDeck}
+              className="btn btn-sm bg-purple-600 hover:bg-purple-500 text-white text-xs flex items-center gap-1.5 shadow-xs"
+              title="Auto-generate structured flashcards for the selected syllabus"
+            >
+              <Sparkles size={12} className={generatingDeck ? 'animate-spin' : ''} />
+              <span>{generatingDeck ? 'Generating Cards…' : 'Auto-Generate Syllabus Cards'}</span>
+            </button>
+
+            <button
+              type="button"
+              disabled={syncing}
+              onClick={handleSyncDecks}
+              className="btn btn-sm btn-secondary text-xs flex items-center gap-1.5"
+              title="Scan mistake notebook & quizzes for new flashcards"
+            >
+              <RefreshCw size={12} className={syncing ? 'animate-spin' : ''} />
+              <span>Auto-Sync Gaps</span>
+            </button>
+
+            <button
+              type="button"
+              onClick={() => setCreateModalOpen(true)}
+              className="btn btn-sm btn-primary text-xs flex items-center gap-1.5"
+            >
+              <Plus size={13} />
+              <span>New Card</span>
+            </button>
+          </div>
         </div>
 
-        <div className="flex items-center gap-2 flex-wrap">
-          <button
-            type="button"
-            disabled={syncing}
-            onClick={handleSyncDecks}
-            className="btn btn-sm btn-secondary text-xs flex items-center gap-1.5"
-            title="Scan mistake notebook & quizzes for new flashcards"
-          >
-            <RefreshCw size={12} className={syncing ? 'animate-spin' : ''} />
-            <span>Auto-Sync Deck</span>
-          </button>
+        {/* Syllabus Hierarchy Filtering Bar */}
+        <div className="pt-3 border-t border-[var(--color-border)] flex flex-wrap items-center gap-3 text-xs">
+          {/* Exam Mode Toggle */}
+          <div className="flex items-center gap-1 bg-[var(--color-bg)] p-1 rounded-xl border border-[var(--color-border)]">
+            <button
+              type="button"
+              onClick={() => {
+                setExamType('RTU');
+                setSubjectName('ALL');
+                setUnitNumber('ALL');
+              }}
+              className={`px-2.5 py-1 rounded-lg font-bold transition-all ${
+                examType === 'RTU'
+                  ? 'bg-blue-600 text-white shadow-xs'
+                  : 'text-[var(--color-muted)] hover:text-white'
+              }`}
+            >
+              RTU Mode
+            </button>
+            <button
+              type="button"
+              onClick={() => {
+                setExamType('GATE');
+                setSemester('ALL');
+                setSubjectName('ALL');
+                setUnitNumber('ALL');
+              }}
+              className={`px-2.5 py-1 rounded-lg font-bold transition-all ${
+                examType === 'GATE'
+                  ? 'bg-blue-600 text-white shadow-xs'
+                  : 'text-[var(--color-muted)] hover:text-white'
+              }`}
+            >
+              GATE Mode
+            </button>
+          </div>
 
-          <button
-            type="button"
-            onClick={() => setCreateModalOpen(true)}
-            className="btn btn-sm btn-primary text-xs flex items-center gap-1.5"
-          >
-            <Plus size={13} />
-            <span>New Card</span>
-          </button>
+          {/* Semester Selector (for RTU) */}
+          {examType === 'RTU' && (
+            <div className="flex items-center gap-1">
+              <span className="text-[11px] font-semibold text-[var(--color-muted)] mr-1">Semester:</span>
+              <select
+                value={semester}
+                onChange={e => {
+                  const v = e.target.value === 'ALL' ? 'ALL' : Number(e.target.value);
+                  setSemester(v);
+                  setSubjectName('ALL');
+                }}
+                className="rounded-lg border px-2.5 py-1 text-xs font-medium"
+                style={{ background: 'var(--color-bg)', borderColor: 'var(--color-border)', color: 'var(--color-text)' }}
+              >
+                <option value="ALL">All Semesters (1–8)</option>
+                {[1, 2, 3, 4, 5, 6, 7, 8].map(s => (
+                  <option key={s} value={s}>Semester {s}</option>
+                ))}
+              </select>
+            </div>
+          )}
+
+          {/* Subject Dropdown */}
+          <div className="flex items-center gap-1 flex-1 min-w-[180px]">
+            <span className="text-[11px] font-semibold text-[var(--color-muted)] mr-1">Subject:</span>
+            <select
+              value={subjectName}
+              onChange={e => setSubjectName(e.target.value)}
+              className="w-full rounded-lg border px-2.5 py-1 text-xs font-medium truncate"
+              style={{ background: 'var(--color-bg)', borderColor: 'var(--color-border)', color: 'var(--color-text)' }}
+            >
+              <option value="ALL">All Subjects</option>
+              {subjects.map(s => (
+                <option key={s.id} value={s.name}>{s.name}</option>
+              ))}
+            </select>
+          </div>
+
+          {/* Unit Dropdown */}
+          <div className="flex items-center gap-1">
+            <span className="text-[11px] font-semibold text-[var(--color-muted)] mr-1">Unit:</span>
+            <select
+              value={unitNumber}
+              onChange={e => setUnitNumber(e.target.value === 'ALL' ? 'ALL' : Number(e.target.value))}
+              className="rounded-lg border px-2.5 py-1 text-xs font-medium"
+              style={{ background: 'var(--color-bg)', borderColor: 'var(--color-border)', color: 'var(--color-text)' }}
+            >
+              <option value="ALL">All Units</option>
+              {[1, 2, 3, 4, 5].map(u => (
+                <option key={u} value={u}>Unit {u}</option>
+              ))}
+            </select>
+          </div>
         </div>
       </div>
 
@@ -198,10 +350,11 @@ export function FlashcardDeck() {
       <div className="flex flex-wrap items-center gap-1.5 text-xs">
         {[
           { id: 'ALL', label: 'All Cards', icon: Layers },
-          { id: 'GATE_MISTAKE', label: 'GATE Mistakes Deck', icon: ShieldAlert },
+          { id: 'SYLLABUS_TOPIC', label: 'Syllabus Topic Decks', icon: BookOpen },
+          { id: 'GATE_MISTAKE', label: 'Mistake Book Deck', icon: ShieldAlert },
           { id: 'WEAK_TOPIC', label: 'Mastery Gap Concepts', icon: Zap },
           { id: 'NOTE', label: 'PDF Reader Notes', icon: BookOpen },
-          { id: 'CUSTOM', label: 'Custom Formula Cards', icon: Bookmark },
+          { id: 'CUSTOM', label: 'Custom Cards', icon: Bookmark },
         ].map(tab => {
           const active = filterType === tab.id;
           const Icon = tab.icon;
@@ -247,13 +400,24 @@ export function FlashcardDeck() {
       ) : !currentCard ? (
         <div className="rounded-2xl border border-dashed border-[var(--color-border)] bg-[var(--color-panel)] p-12 text-center space-y-3">
           <Brain size={32} className="mx-auto text-blue-400 opacity-60" />
-          <h4 className="text-sm font-bold text-white">No Flashcards In This Deck</h4>
+          <h4 className="text-sm font-bold text-white">No Flashcards Found For This Filter</h4>
           <p className="text-xs text-[var(--color-muted)] max-w-md mx-auto">
-            Click <strong>"Auto-Sync Deck"</strong> to automatically generate flashcards from your GATE Mistake Notebook and Mastery Quiz gaps, or create one manually.
+            Click <strong>"Auto-Generate Syllabus Cards"</strong> to populate this deck from your curriculum topics with KaTeX math, or click <strong>"Auto-Sync Gaps"</strong>.
           </p>
-          <button type="button" onClick={handleSyncDecks} className="btn btn-sm btn-primary">
-            <RefreshCw size={12} /> Auto-Sync Mistakes &amp; Gaps
-          </button>
+          <div className="flex items-center justify-center gap-2 pt-2">
+            <button
+              type="button"
+              onClick={handleGenerateSyllabusDeck}
+              disabled={generatingDeck}
+              className="btn btn-sm bg-purple-600 hover:bg-purple-500 text-white"
+            >
+              <Sparkles size={12} className={generatingDeck ? 'animate-spin' : ''} />
+              <span>Auto-Generate Syllabus Cards</span>
+            </button>
+            <button type="button" onClick={handleSyncDecks} className="btn btn-sm btn-secondary">
+              <RefreshCw size={12} /> Auto-Sync Mistakes &amp; Gaps
+            </button>
+          </div>
         </div>
       ) : (
         <div className="space-y-4">
@@ -269,18 +433,28 @@ export function FlashcardDeck() {
           >
             {/* Card Badge Top */}
             <div className="flex items-center justify-between text-xs">
-              <div className="flex items-center gap-2">
+              <div className="flex items-center gap-2 flex-wrap">
                 <span className="rounded-md bg-blue-500/20 px-2 py-0.5 text-[10.5px] font-bold text-blue-400">
                   {currentCard.source_type.replace('_', ' ')}
                 </span>
+                {currentCard.exam_type && (
+                  <span className="rounded-md bg-purple-500/20 px-2 py-0.5 text-[10.5px] font-bold text-purple-400">
+                    {currentCard.exam_type}{currentCard.semester ? ` Sem ${currentCard.semester}` : ''}
+                  </span>
+                )}
+                {currentCard.unit_number && (
+                  <span className="rounded-md bg-emerald-500/20 px-2 py-0.5 text-[10.5px] font-bold text-emerald-400">
+                    Unit {currentCard.unit_number}
+                  </span>
+                )}
                 {currentCard.subject_name && (
-                  <span className="text-[11px] text-[var(--color-muted)]">
+                  <span className="text-[11px] text-[var(--color-muted)] truncate max-w-[200px]">
                     {currentCard.subject_name}
                   </span>
                 )}
               </div>
               <span className="text-[10px] text-[var(--color-faint)]">
-                Click anywhere or press Space to {isFlipped ? 'flip back' : 'reveal solution'}
+                Click anywhere to {isFlipped ? 'flip back' : 'reveal solution'}
               </span>
             </div>
 
@@ -375,6 +549,54 @@ export function FlashcardDeck() {
                   onChange={e => setNewTitle(e.target.value)}
                   className="w-full rounded-lg border border-[var(--color-border)] bg-[var(--color-bg)] p-2.5 text-white"
                 />
+              </div>
+
+              <div className="grid grid-cols-2 gap-3">
+                <div>
+                  <label className="block text-[11px] font-semibold text-[var(--color-muted)] mb-1">
+                    Exam Mode:
+                  </label>
+                  <select
+                    value={examType}
+                    onChange={e => setExamType(e.target.value as any)}
+                    className="w-full rounded-lg border border-[var(--color-border)] bg-[var(--color-bg)] p-2 text-white"
+                  >
+                    <option value="RTU">RTU</option>
+                    <option value="GATE">GATE</option>
+                  </select>
+                </div>
+
+                {examType === 'RTU' ? (
+                  <div>
+                    <label className="block text-[11px] font-semibold text-[var(--color-muted)] mb-1">
+                      Semester (1–8):
+                    </label>
+                    <select
+                      value={newSemester}
+                      onChange={e => setNewSemester(Number(e.target.value))}
+                      className="w-full rounded-lg border border-[var(--color-border)] bg-[var(--color-bg)] p-2 text-white"
+                    >
+                      {[1, 2, 3, 4, 5, 6, 7, 8].map(s => (
+                        <option key={s} value={s}>Semester {s}</option>
+                      ))}
+                    </select>
+                  </div>
+                ) : (
+                  <div>
+                    <label className="block text-[11px] font-semibold text-[var(--color-muted)] mb-1">
+                      Unit / Section:
+                    </label>
+                    <select
+                      value={newUnit}
+                      onChange={e => setNewUnit(Number(e.target.value))}
+                      className="w-full rounded-lg border border-[var(--color-border)] bg-[var(--color-bg)] p-2 text-white"
+                    >
+                      {[1, 2, 3, 4, 5].map(u => (
+                        <option key={u} value={u}>Unit {u}</option>
+                      ))}
+                    </select>
+                  </div>
+                )}
               </div>
 
               <div>

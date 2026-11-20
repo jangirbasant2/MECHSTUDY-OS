@@ -36,9 +36,35 @@ export interface DocumentRow {
   added_at: string;
   scanned_at: string | null;
   subject_name?: string | null;
+  unit_id?: number | null;
+  topic_id?: number | null;
+  chapter?: string | null;
+  match_confidence?: number | null;
+  match_basis?: string | null;
+  unit_number?: number | null;
+  unit_title?: string | null;
+  topic_title?: string | null;
   annotation_count?: number;
   bookmark_count?: number;
   note_count?: number;
+}
+
+export interface DocumentSyllabusLink {
+  id: number;
+  document_id: number;
+  subject_id: number | null;
+  unit_id: number | null;
+  topic_id: number | null;
+  exam_type: 'RTU' | 'GATE' | string;
+  confidence: number;
+  match_basis: string;
+  matched_text?: string | null;
+  created_at: string;
+  subject_name?: string | null;
+  subject_code?: string | null;
+  unit_number?: number | null;
+  unit_title?: string | null;
+  topic_title?: string | null;
 }
 
 export interface LibraryStats {
@@ -338,6 +364,7 @@ export interface MistakeRow {
   review_status: string; created_at: string;
   topic_title?: string | null; subject_name?: string | null;
   question_ref?: string | null;
+  exam_type?: string | null;
 }
 
 export interface ExportResult {
@@ -910,7 +937,7 @@ export interface DueRevisionTopic {
   lastReviewedAt: string | null;
 }
 
-export type FlashcardSourceType = 'NOTE' | 'HIGHLIGHT' | 'GATE_MISTAKE' | 'WEAK_TOPIC' | 'CUSTOM';
+export type FlashcardSourceType = 'NOTE' | 'HIGHLIGHT' | 'GATE_MISTAKE' | 'WEAK_TOPIC' | 'CUSTOM' | 'SYLLABUS_TOPIC';
 
 export interface FlashcardItem {
   id: number;
@@ -921,6 +948,9 @@ export interface FlashcardItem {
   back: string;
   subject_name?: string | null;
   topic_name?: string | null;
+  exam_type?: 'RTU' | 'GATE' | string;
+  semester?: number | null;
+  unit_number?: number | null;
   interval_days: number;
   ease_factor: number;
   repetitions: number;

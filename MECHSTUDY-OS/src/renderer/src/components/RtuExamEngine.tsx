@@ -2,15 +2,27 @@ import React, { useState, useEffect } from 'react';
 import {
   FileText, Sparkles, CheckCircle2, Award, Calendar, BookOpen, Loader2,
   ChevronDown, ChevronRight, Eye, EyeOff, Printer, Download, ArrowRight,
-  GraduationCap, AlertCircle, Check, Image as ImageIcon
+  GraduationCap, AlertCircle, Check, Image as ImageIcon, Clock, Timer,
+  UploadCloud, Play, Pause, AlertTriangle, BookMarked
 } from 'lucide-react';
 import { api } from '../lib/api';
 import { useApp } from '../store';
 import { Loading, EmptyState, SectionHeader, Modal } from './ui';
 import type { ExamPaperRecord, RtuEvaluationResult } from '../../../shared/types';
 
+function formatExamTime(secs: number): string {
+  const h = Math.floor(secs / 3600);
+  const m = Math.floor((secs % 3600) / 60);
+  const s = secs % 60;
+  if (h > 0) {
+    return `${h.toString().padStart(2, '0')}:${m.toString().padStart(2, '0')}:${s.toString().padStart(2, '0')}`;
+  }
+  return `${m.toString().padStart(2, '0')}:${s.toString().padStart(2, '0')}`;
+}
+
 export function RtuExamEngine() {
   const toast = useApp(s => s.toast);
+  const setPage = useApp(s => s.setPage);
 
   const [subjects, setSubjects] = useState<Array<{ id: number; name: string; code: string }>>([]);
   const [selectedSubjectId, setSelectedSubjectId] = useState<number | null>(null);
@@ -23,11 +35,35 @@ export function RtuExamEngine() {
   const [showSolutions, setShowSolutions] = useState(false);
   const [exportingPdf, setExportingPdf] = useState(false);
 
-  // Evaluation Modal State
+  // Timer State
+  const [timerActive, setTimerActive] = useState(false);
+  const [timerPaused, setTimerPaused] = useState(false);
+  const [secondsRemaining, setSecondsRemaining] = useState(10800); // 3h default
+  const [totalDurationSeconds, setTotalDurationSeconds] = useState(10800);
+
+  // Evaluation Modal & PDF Upload State
   const [evalModalOpen, setEvalModalOpen] = useState(false);
   const [studentAnswers, setStudentAnswers] = useState<Record<string, string>>({});
+  const [answerPdfPath, setAnswerPdfPath] = useState<string | null>(null);
   const [evaluating, setEvaluating] = useState(false);
   const [evaluationResult, setEvaluationResult] = useState<RtuEvaluationResult | null>(null);
+
+  useEffect(() => {
+    if (!timerActive || timerPaused) return;
+    const interval = setInterval(() => {
+      setSecondsRemaining(prev => {
+        if (prev <= 1) {
+          clearInterval(interval);
+          setTimerActive(false);
+          setEvalModalOpen(true);
+          toast('Time is up! Upload your answer sheet PDF for evaluation.', 'info');
+          return 0;
+        }
+        return prev - 1;
+      });
+    }, 1000);
+    return () => clearInterval(interval);
+  }, [timerActive, timerPaused, toast]);
 
   useEffect(() => {
     let alive = true;
@@ -67,7 +103,12 @@ export function RtuExamEngine() {
       setActivePaperRecord(paperRecord);
       const parsedData = JSON.parse(paperRecord.questions_json);
       setActivePaper(parsedData);
-      toast(`Generated ${subMode === 'END_SEM' ? 'End-Sem Predicted Paper' : subMode} successfully!`, 'success');
+      const dur = subMode === 'END_SEM' ? 180 * 60 : 60 * 60;
+      setSecondsRemaining(dur);
+      setTotalDurationSeconds(dur);
+      setTimerActive(false);
+      setTimerPaused(false);
+      toast(`Generated ${subMode === 'END_SEM' ? 'End-Sem Predicted Paper (3 Hours)' : `${subMode} (1 Hour)`} successfully!`, 'success');
     } catch (e: any) {
       toast(`Paper generation failed: ${e?.message}`, 'error');
     } finally {
@@ -101,7 +142,7 @@ export function RtuExamEngine() {
         answerText: text,
       }));
 
-      const res = await api.pyq.evaluateRtuAnswers(activePaperRecord.id, formattedAnswers);
+      const res = await api.pyq.evaluateRtuAnswers(activePaperRecord.id, formattedAnswers, answerPdfPath || undefined);
       setEvaluationResult(res);
       toast(`Evaluation complete: Score ${res.totalScore}/${res.maxScore} (Grade ${res.overallGrade})`, 'success');
     } catch (e: any) {
@@ -150,7 +191,7 @@ export function RtuExamEngine() {
               <Award size={16} className="text-blue-400" />
             </div>
             <p className="text-[11px] text-[var(--color-muted)] leading-relaxed">
-              Full 100 Marks (3 Hours). Analyzes recurring past 3-5 years PYQ questions and high-probability derivations across all 5 units.
+              Full 100 Marks (3 Hours / 180 Min). Analyzes recurring past 3-5 years PYQ questions and high-probability derivations across all 5 units.
             </p>
           </button>
 
@@ -171,7 +212,7 @@ export function RtuExamEngine() {
               <Calendar size={16} className="text-blue-400" />
             </div>
             <p className="text-[11px] text-[var(--color-muted)] leading-relaxed">
-              30 Marks (90 Min). Hybrid paper pulling exact match questions from your uploaded PYQs for Unit 1 &amp; 2, filling gaps with Gemini AI.
+              30 Marks (1 Hour / 60 Min). Units 1 &amp; 2 exam with exact match questions and derivations.
             </p>
           </button>
 
@@ -192,7 +233,7 @@ export function RtuExamEngine() {
               <Calendar size={16} className="text-blue-400" />
             </div>
             <p className="text-[11px] text-[var(--color-muted)] leading-relaxed">
-              30 Marks (90 Min). Covers later units (Units 3, 4, 5) with analytical numericals and internal choices.
+              30 Marks (1 Hour / 60 Min). Units 3, 4 &amp; 5 exam with analytical numericals and internal choices.
             </p>
           </button>
         </div>
@@ -267,6 +308,81 @@ export function RtuExamEngine() {
       {/* Generated RTU Paper Display */}
       {activePaper && (
         <div className="rounded-2xl border p-6 space-y-6 shadow-sm" style={{ background: 'var(--color-panel)', borderColor: 'var(--color-border)' }}>
+          {/* Live RTU Exam Countdown Timer & Status Bar */}
+          <div className="rounded-xl border p-4 flex flex-col md:flex-row items-center justify-between gap-4 bg-[var(--color-panel2)]" style={{ borderColor: 'var(--color-border)' }}>
+            <div className="flex items-center gap-3">
+              <div className={`p-2.5 rounded-xl flex items-center justify-center ${timerActive && !timerPaused ? 'bg-blue-500/20 text-blue-400 animate-pulse' : 'bg-zinc-800 text-zinc-400'}`}>
+                <Clock size={22} />
+              </div>
+              <div>
+                <div className="flex items-center gap-2">
+                  <span className="text-xl font-mono font-black tracking-tight text-[var(--color-text)]">
+                    {formatExamTime(secondsRemaining)}
+                  </span>
+                  <span className="text-xs text-[var(--color-muted)]">
+                    / {formatExamTime(totalDurationSeconds)}
+                  </span>
+                  {secondsRemaining <= 300 && timerActive && (
+                    <span className="rounded-md bg-amber-500/20 border border-amber-500/40 text-amber-300 px-2 py-0.5 text-[10.5px] font-bold flex items-center gap-1">
+                      <AlertTriangle size={12} /> &lt;5m remaining!
+                    </span>
+                  )}
+                </div>
+                <p className="text-[11px] text-[var(--color-muted)]">
+                  {subMode === 'END_SEM' ? 'Official End-Sem Timed Session (3 Hours)' : `${subMode} Timed Session (1 Hour)`}
+                </p>
+              </div>
+            </div>
+
+            <div className="flex items-center gap-2">
+              {!timerActive ? (
+                <button
+                  type="button"
+                  className="btn btn-sm bg-emerald-600 hover:bg-emerald-500 text-white text-xs flex items-center gap-1.5 px-3 py-1.5"
+                  onClick={() => {
+                    setTimerActive(true);
+                    setTimerPaused(false);
+                    toast('Exam timer started! Good luck.', 'info');
+                  }}
+                >
+                  <Play size={13} />
+                  <span>Start Timed Exam</span>
+                </button>
+              ) : (
+                <button
+                  type="button"
+                  className="btn btn-sm btn-secondary text-xs flex items-center gap-1.5 px-3 py-1.5"
+                  onClick={() => setTimerPaused(!timerPaused)}
+                >
+                  {timerPaused ? <Play size={13} /> : <Pause size={13} />}
+                  <span>{timerPaused ? 'Resume Timer' : 'Pause'}</span>
+                </button>
+              )}
+
+              <button
+                type="button"
+                className="btn btn-sm btn-ghost text-xs text-[var(--color-muted)] hover:text-white"
+                onClick={() => {
+                  setTimerActive(false);
+                  setTimerPaused(false);
+                  const dur = subMode === 'END_SEM' ? 180 * 60 : 60 * 60;
+                  setSecondsRemaining(dur);
+                }}
+              >
+                Reset
+              </button>
+
+              <button
+                type="button"
+                className="btn btn-sm bg-blue-600 hover:bg-blue-500 text-white text-xs flex items-center gap-1.5 px-4 py-1.5 ml-2 shadow-xs"
+                onClick={() => setEvalModalOpen(true)}
+              >
+                <UploadCloud size={14} />
+                <span>Finish &amp; Upload Answer PDF</span>
+              </button>
+            </div>
+          </div>
+
           {/* Official RTU Paper Header */}
           <div className="text-center pb-5 border-b" style={{ borderColor: 'var(--color-border)' }}>
             <div className="text-[11px] font-bold uppercase tracking-widest text-blue-400 mb-1">
@@ -381,10 +497,55 @@ export function RtuExamEngine() {
             {!evaluationResult ? (
               <>
                 <p className="text-xs text-[var(--color-muted)]">
-                  Enter your derivations, formulas, and intermediate calculation steps. Gemini AI will grade your submission strictly following official RTU university step-marking rubrics (Formulas: 25%, Steps: 40%, Diagram: 20%, Final Unit: 15%).
+                  Enter your derivations, formulas, and intermediate calculation steps, or upload your handwritten/scanned answer sheet PDF. Gemini AI will grade your submission strictly following official RTU university step-marking rubrics (Formulas: 25%, Steps: 40%, Diagram: 20%, Final Unit: 15%).
                 </p>
 
-                <div className="max-h-[460px] overflow-y-auto space-y-4 pr-1">
+                {/* Upload Answer PDF */}
+                <div className="rounded-xl border border-dashed border-blue-500/40 p-4 bg-blue-500/5">
+                  <div className="flex flex-col sm:flex-row items-start sm:items-center justify-between gap-3">
+                    <div className="flex items-center gap-3">
+                      <div className="p-2 rounded-lg bg-blue-500/10 text-blue-400 shrink-0">
+                        <UploadCloud size={20} />
+                      </div>
+                      <div>
+                        <div className="text-xs font-bold text-[var(--color-text)]">
+                          Upload Scanned Answer Sheet PDF (Optional / Recommended)
+                        </div>
+                        <p className="text-[11px] text-[var(--color-muted)] truncate max-w-[420px]">
+                          {answerPdfPath
+                            ? `Selected: ${answerPdfPath.split(/[/\\]/).pop()}`
+                            : 'Upload your written answer sheet PDF (phone cam scan or scanner) for AI OCR & diagram evaluation.'}
+                        </p>
+                      </div>
+                    </div>
+                    <div className="flex items-center gap-2 shrink-0">
+                      <button
+                        type="button"
+                        className="btn btn-sm btn-secondary text-xs"
+                        onClick={async () => {
+                          const picked = await api.library.pickFile([{ name: 'PDF Documents', extensions: ['pdf'] }]);
+                          if (picked) {
+                            setAnswerPdfPath(picked);
+                            toast('Answer sheet PDF attached!', 'success');
+                          }
+                        }}
+                      >
+                        {answerPdfPath ? 'Change PDF' : 'Select PDF'}
+                      </button>
+                      {answerPdfPath && (
+                        <button
+                          type="button"
+                          className="btn btn-sm btn-ghost text-xs text-red-400 hover:text-red-300"
+                          onClick={() => setAnswerPdfPath(null)}
+                        >
+                          Remove
+                        </button>
+                      )}
+                    </div>
+                  </div>
+                </div>
+
+                <div className="max-h-[420px] overflow-y-auto space-y-4 pr-1">
                   {Array.isArray(activePaper?.sections) && activePaper.sections.flatMap((s: any) => s.questions || []).map((q: any) => {
                     const qKey = String(q.number);
                     return (
@@ -437,6 +598,30 @@ export function RtuExamEngine() {
                   <div className="text-xs font-semibold text-[var(--color-muted)] mt-1">
                     Overall Grade: <span className="text-white font-bold text-sm">{evaluationResult.overallGrade}</span>
                   </div>
+                </div>
+
+                {/* Mistake Book Auto-Sync Notification */}
+                <div className="rounded-xl border border-blue-500/30 bg-blue-500/10 p-3.5 flex flex-col sm:flex-row items-start sm:items-center justify-between gap-3">
+                  <div className="flex items-center gap-2.5">
+                    <BookMarked size={18} className="text-blue-400 shrink-0" />
+                    <div className="text-xs">
+                      <span className="font-semibold text-white">Mistake Book Auto-Sync: </span>
+                      <span className="text-[var(--color-muted)]">
+                        All questions with lost marks have been automatically added to your Mistake Book with step-marking rubrics.
+                      </span>
+                    </div>
+                  </div>
+                  <button
+                    type="button"
+                    className="btn btn-sm btn-secondary text-xs flex items-center gap-1 shrink-0"
+                    onClick={() => {
+                      setEvalModalOpen(false);
+                      setPage('practice');
+                    }}
+                  >
+                    <span>Open Mistake Book</span>
+                    <ArrowRight size={13} />
+                  </button>
                 </div>
 
                 {/* Strengths & Improvements */}

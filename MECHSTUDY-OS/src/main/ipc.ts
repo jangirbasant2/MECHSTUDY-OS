@@ -83,8 +83,10 @@ import {
 import { generateMasteryQuizWithGemini, generateFormulaPracticeNumerical, coachExamQuestionWithGemini } from './services/ai/gemini';
 import {
   listFlashcards, createFlashcard, updateFlashcard, deleteFlashcard, reviewFlashcard,
-  autoSyncMistakeFlashcards, autoSyncWeakTopicFlashcards, completeFlashcardSession
+  autoSyncMistakeFlashcards, autoSyncWeakTopicFlashcards, completeFlashcardSession,
+  generateSyllabusDeck
 } from './services/flashcards';
+import { manualLinkDocument, autoMatchAllDocuments, getDocumentSyllabusLinks } from './services/syllabusMatcher';
 import {
   ingestPyqPdf, ingestPyqDirectory, getRtuPyqList, getGatePyqList, createRtuExamPaper, getGateCbtPaper,
   updateRtuPyq, deleteRtuPyq, updateGatePyq, deleteGatePyq,
@@ -308,6 +310,17 @@ export function registerIpc(): void {
     run('DELETE FROM documents WHERE id = ?', Number(id));
     return { removed: true, fileStillOnDisk: existsSync(doc.path), filename: doc.filename };
   });
+  handle('library:linkSyllabus', ({ id, subjectId, unitId, topicId, chapter }) => {
+    manualLinkDocument(Number(id), {
+      subjectId: subjectId ? Number(subjectId) : null,
+      unitId: unitId ? Number(unitId) : null,
+      topicId: topicId ? Number(topicId) : null,
+      chapter: chapter ? String(chapter) : undefined,
+    });
+    return true;
+  });
+  handle('library:autoLinkAll', () => autoMatchAllDocuments());
+  handle('library:syllabusLinks', ({ documentId }) => getDocumentSyllabusLinks(Number(documentId)));
 
   /* ---------------- syllabus ---------------- */
   handle('syllabus:subjects', ({ examType }) => listSubjects(examType ?? 'RTU'));
@@ -795,7 +808,9 @@ export function registerIpc(): void {
   );
   handle('pyq:updateGateMistake', ({ id, reviewed, notes }) => updateGateMistake(Number(id), Number(reviewed), notes));
   handle('pyq:deleteGateMistake', ({ id }) => deleteGateMistake(Number(id)));
-  handle('pyq:evaluateRtuAnswers', ({ paperId, studentAnswers }) => evaluateRtuAnswers(Number(paperId), studentAnswers));
+  handle('pyq:evaluateRtuAnswers', ({ paperId, studentAnswers, pdfPath }) =>
+    evaluateRtuAnswers(Number(paperId), studentAnswers, pdfPath)
+  );
   handle('pyq:exportRtuPaper', ({ paperId, savePath }) => exportRtuPaper(Number(paperId), savePath));
   handle('pyq:pickSavePath', async ({ defaultName }) => {
     const res = await dialog.showSaveDialog(mainWindow ?? undefined as any, {
@@ -823,6 +838,7 @@ export function registerIpc(): void {
   handle('flashcard:review', ({ id, rating }) => reviewFlashcard(Number(id), rating));
   handle('flashcard:syncMistakes', () => autoSyncMistakeFlashcards());
   handle('flashcard:syncWeakTopics', () => autoSyncWeakTopicFlashcards());
+  handle('flashcard:generateSyllabusDeck', (options) => generateSyllabusDeck(options ?? { examType: 'RTU' }));
   handle('flashcard:completeSession', ({ cardsReviewed }) => completeFlashcardSession(Number(cardsReviewed)));
 
   /* ---------------- Cheat-Sheet PDF Compiler ---------------- */

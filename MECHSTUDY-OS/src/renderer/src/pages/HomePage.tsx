@@ -36,6 +36,15 @@ export function HomePage() {
   const [starting, setStarting] = React.useState<number | null>(null);
   const [drillOpen, setDrillOpen] = React.useState(false);
 
+  const daysRemaining = React.useMemo(() => {
+    // RTU End-Sem Target: ~Jan 2026 / 45 days; GATE ME 2027: Feb 6, 2027
+    const targetDate = activeExamMode === 'GATE'
+      ? new Date('2027-02-06T00:00:00')
+      : new Date(Date.now() + 45 * 24 * 60 * 60 * 1000);
+    const diff = Math.ceil((targetDate.getTime() - Date.now()) / (1000 * 60 * 60 * 24));
+    return Math.max(1, diff);
+  }, [activeExamMode]);
+
   const load = React.useCallback(async () => {
     setLoading(true);
     setError(null);
@@ -101,9 +110,6 @@ export function HomePage() {
     }
   };
 
-  if (loading) return <Loading label="Loading your dashboard…" />;
-  if (error) return <ErrorState message={error} onRetry={() => void load()} />;
-
   const todaySeconds = analytics?.today.secs ?? 0;
   const weekSeconds = analytics?.week.secs ?? 0;
   const pending = tasks.filter(t => t.status !== 'done');
@@ -111,14 +117,8 @@ export function HomePage() {
   const plannedMinutes = pending.reduce((s, t) => s + t.est_minutes, 0);
   const hasLibrary = recent.length > 0;
 
-  const daysRemaining = React.useMemo(() => {
-    // RTU End-Sem Target: ~Jan 2026 / 45 days; GATE ME 2027: Feb 6, 2027
-    const targetDate = activeExamMode === 'GATE'
-      ? new Date('2027-02-06T00:00:00')
-      : new Date(Date.now() + 45 * 24 * 60 * 60 * 1000);
-    const diff = Math.ceil((targetDate.getTime() - Date.now()) / (1000 * 60 * 60 * 24));
-    return Math.max(1, diff);
-  }, [activeExamMode]);
+  if (loading) return <Loading label="Loading your dashboard…" />;
+  if (error) return <ErrorState message={error} onRetry={() => void load()} />;
 
   return (
     <div className="scroll-y h-full">

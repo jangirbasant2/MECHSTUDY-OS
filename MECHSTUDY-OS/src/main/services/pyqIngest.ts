@@ -479,7 +479,8 @@ export function deleteGateMistake(id: number): boolean {
 
 export async function evaluateRtuAnswers(
   paperId: number,
-  studentAnswers: Array<{ questionNumber: string; answerText?: string; imageBase64?: string }>
+  studentAnswers?: Array<{ questionNumber: string; answerText?: string; imageBase64?: string }>,
+  pdfPath?: string
 ): Promise<RtuEvaluationResult> {
   const paperRow = (getDb().prepare(`
     SELECT title, subject_id, questions_json FROM exam_papers WHERE id = ?
@@ -511,11 +512,40 @@ export async function evaluateRtuAnswers(
     }
   }
 
+  const effectiveAnswers = studentAnswers ? [...studentAnswers] : [];
+
+  // If student uploaded an answer PDF, extract its text content to include in evaluation
+  if (pdfPath) {
+    try {
+      const doc = await openPdf(pdfPath);
+      try {
+        const count = pageCount(doc);
+        const extractedPages: string[] = [];
+        for (let p = 1; p <= Math.min(count, 15); p++) {
+          const txt = await pageTextRaw(doc, p);
+          if (txt && txt.trim()) {
+            extractedPages.push(`[Answer Sheet Page ${p}]:\n${txt.trim()}`);
+          }
+        }
+        if (extractedPages.length > 0) {
+          effectiveAnswers.push({
+            questionNumber: 'Uploaded Answer PDF',
+            answerText: extractedPages.join('\n\n---\n\n'),
+          });
+        }
+      } finally {
+        closePdf(doc);
+      }
+    } catch (e: any) {
+      console.warn('[pyqIngest] Failed to extract text from answer PDF:', e);
+    }
+  }
+
   const result = await evaluateRtuAnswersWithGemini(
     subjectName,
     paperRow.title,
     questions,
-    studentAnswers
+    effectiveAnswers
   );
 
   // Store in rtu_evaluations table
@@ -525,7 +555,7 @@ export async function evaluateRtuAnswers(
       VALUES (?, ?, ?, ?, ?, ?, datetime('now'))
     `).run(
       paperId,
-      JSON.stringify(studentAnswers),
+      JSON.stringify(effectiveAnswers),
       JSON.stringify(result.evaluations),
       result.totalScore,
       result.maxScore,
@@ -533,6 +563,54 @@ export async function evaluateRtuAnswers(
     );
   } catch {
     // Ignore store error
+  }
+
+  // Automatically add every wrong or partial/incorrectly answered question to the Mistake Book
+  try {
+    if (Array.isArray(result.evaluations)) {
+      for (const ev of result.evaluations) {
+        if (typeof ev.marksAwarded === 'number' && typeof ev.maxMarks === 'number' && ev.marksAwarded < ev.maxMarks) {
+          const qObj = questions.find(q => q.number === String(ev.questionNumber));
+          const qText = qObj ? qObj.questionText : `Question ${ev.questionNumber}`;
+          const marksLost = ev.maxMarks - ev.marksAwarded;
+
+          // Insert into mistakes table for general revision
+          getDb().prepare(`
+            INSERT INTO mistakes
+              (question_text, wrong_approach, correct_concept, error_category, review_status, exam_type, subject_name, created_at)
+            VALUES (?, ?, ?, ?, 'open', 'RTU', ?, datetime('now'))
+          `).run(
+            `[${subjectName} - Q${ev.questionNumber}] ${qText}`,
+            `Marks lost: ${marksLost.toFixed(1)} / ${ev.maxMarks}. Evaluator Feedback: ${ev.feedback || 'Marks deducted based on RTU marking rubric.'}`,
+            ev.modelAnswerSummary || 'Review standard formula derivation and units.',
+            ev.rubricBreakdown?.formulaMarks && ev.rubricBreakdown.formulaMarks < (ev.maxMarks * 0.25)
+              ? 'formula'
+              : ev.rubricBreakdown?.diagramMarks && ev.rubricBreakdown.diagramMarks < (ev.maxMarks * 0.2)
+              ? 'diagram'
+              : 'step_calculation',
+            subjectName
+          );
+
+          // Also insert into gate_mistakes table for unified mistake notebooks & cheat sheets
+          getDb().prepare(`
+            INSERT INTO gate_mistakes
+              (subject_name, section, question_text, correct_answer, user_answer, marks, negative_marks_lost, solution_text, reviewed, notes, created_at)
+            VALUES (?, 'RTU Exam', ?, ?, ?, ?, ?, ?, 0, ?, datetime('now'))
+          `).run(
+            subjectName,
+            `[Q${ev.questionNumber}] ${qText}`,
+            ev.modelAnswerSummary || 'Model answer and step-by-step working',
+            `Awarded ${ev.marksAwarded}/${ev.maxMarks}`,
+            ev.maxMarks,
+            marksLost,
+            ev.modelAnswerSummary || '',
+            ev.feedback || ''
+          );
+        }
+      }
+    }
+  } catch (err: any) {
+    console.warn('[pyqIngest] Error recording RTU mistakes to Mistake Book:', err);
   }
 
   return result;
