@@ -44,6 +44,17 @@ export function getEffectiveApiKey(explicitKey?: string): string {
 }
 
 /**
+ * Return a GoogleGenAI client explicitly configured for v1beta.
+ * v1beta is required for function calling (tool use), structured JSON outputs, and modern multimodal schemas.
+ */
+export function getGeminiClient(apiKey: string): GoogleGenAI {
+  return new GoogleGenAI({
+    apiKey,
+    httpOptions: { apiVersion: 'v1beta' },
+  });
+}
+
+/**
  * Validate a Google AI Studio API key by issuing a minimal test generation.
  */
 export async function testGeminiApiKey(
@@ -56,7 +67,7 @@ export async function testGeminiApiKey(
   }
   const cleanModel = normalizeGeminiModel(model);
   try {
-    const ai = new GoogleGenAI({ apiKey: key });
+    const ai = getGeminiClient(key);
     const response = await ai.models.generateContent({
       model: cleanModel,
       contents: 'Respond with "OK" if this connection test is successful.',
@@ -89,7 +100,7 @@ export async function chatStreamGemini(
   }
 
   const model = normalizeGeminiModel(options.model || getAiSettings().selectedModel);
-  const ai = new GoogleGenAI({ apiKey });
+  const ai = getGeminiClient(apiKey);
 
   // Separate system prompt and conversation messages
   const systemInstruction = options.systemPrompt || '';
@@ -212,7 +223,7 @@ export async function geminiOcrPage(
   }
 
   const selectedModel = normalizeGeminiModel(model || getAiSettings().selectedModel);
-  const ai = new GoogleGenAI({ apiKey: key });
+  const ai = getGeminiClient(key);
 
   const base64Data = imageBuffer.toString('base64');
 
@@ -265,7 +276,7 @@ export async function extractPyqsWithGemini(
   }
 
   const selectedModel = normalizeGeminiModel(model || getAiSettings().selectedModel);
-  const ai = new GoogleGenAI({ apiKey: key });
+  const ai = getGeminiClient(key);
 
   const prompt = `You are an expert academic paper classifier and digitizer for MECHSTUDY OS.
 Your task is to analyze this previous year question paper (PYQ) document and parse all questions into structured JSON.
@@ -365,7 +376,7 @@ export async function generateMasteryQuizWithGemini(
   }
 
   const selectedModel = normalizeGeminiModel(model || getAiSettings().selectedModel);
-  const ai = new GoogleGenAI({ apiKey: key });
+  const ai = getGeminiClient(key);
 
   const prompt = `You are a strict academic examiner for MECHSTUDY OS.
 A student is attempting to mark the following curriculum topic as "Completed":
@@ -430,7 +441,7 @@ export async function generateRtuPaperWithGemini(
   }
 
   const selectedModel = normalizeGeminiModel(model || getAiSettings().selectedModel);
-  const ai = new GoogleGenAI({ apiKey: key });
+  const ai = getGeminiClient(key);
 
   const prompt = `You are the Chief Controller of Examinations for Rajasthan Technical University (RTU) Kota.
 Generate an official-format RTU Question Paper for:
@@ -521,7 +532,7 @@ export async function evaluateRtuAnswersWithGemini(
   }
 
   const selectedModel = normalizeGeminiModel(model || getAiSettings().selectedModel);
-  const ai = new GoogleGenAI({ apiKey: key });
+  const ai = getGeminiClient(key);
 
   const prompt = `You are a strict, veteran professor and university evaluator at Rajasthan Technical University (RTU), Kota.
 You are evaluating a student's answer sheet for the paper: "${paperTitle}" in "${subjectName}".
@@ -620,7 +631,7 @@ export async function generateFormulaPracticeNumerical(
   }
 
   const selectedModel = normalizeGeminiModel(model || getAiSettings().selectedModel);
-  const ai = new GoogleGenAI({ apiKey: key });
+  const ai = getGeminiClient(key);
 
   const prompt = `You are a Senior GATE Mechanical Engineering Professor and test-setter.
 Create an authentic, challenging GATE-level NAT (Numerical Answer Type) problem testing this specific formula:
@@ -697,7 +708,7 @@ export async function coachExamQuestionWithGemini(
   }
 
   const selectedModel = normalizeGeminiModel(getAiSettings().selectedModel);
-  const ai = new GoogleGenAI({ apiKey: key });
+  const ai = getGeminiClient(key);
 
   const optionsText = data.options && data.options.length
     ? `Options:\n${data.options.map((opt, i) => `${String.fromCharCode(65 + i)}) ${opt}`).join('\n')}`
