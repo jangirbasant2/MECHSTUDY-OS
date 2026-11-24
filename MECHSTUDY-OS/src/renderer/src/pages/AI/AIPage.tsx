@@ -330,9 +330,14 @@ export function AIPage() {
     setStreamingCitations([]);
 
     try {
+      const currentModel = activeConv?.model && !activeConv.model.includes('2.0')
+        ? activeConv.model
+        : (settings?.selectedModel && !settings.selectedModel.includes('2.0') ? settings.selectedModel : 'gemini-2.5-flash');
+
       await api.ai.sendMessage({
         conversationId: activeConvId,
         content,
+        model: currentModel,
         mode: tab === 'tutor' ? 'tutor' : tab === 'planner' ? 'planner' : 'chat',
         tutorLevel: tab === 'tutor' ? tutorLevel : undefined,
         contextDocumentId: activeConv?.attachedDocuments?.[0]?.documentId,
@@ -1066,8 +1071,8 @@ export function AIPage() {
                   >
                     <option value="gemini-2.5-flash">gemini-2.5-flash (Fast &amp; Responsive - Default)</option>
                     <option value="gemini-2.5-pro">gemini-2.5-pro (Deep Multi-Step Proofs &amp; STEM Derivations)</option>
-                    <option value="gemini-2.0-flash">gemini-2.0-flash (High Speed)</option>
-                    <option value="gemini-1.5-flash">gemini-1.5-flash (Lightweight)</option>
+                    <option value="gemini-1.5-flash">gemini-1.5-flash (Fast Fallback)</option>
+                    <option value="gemini-1.5-pro">gemini-1.5-pro (Comprehensive)</option>
                   </select>
                   <p className="text-[11px] text-[var(--color-faint)] mt-1">
                     Zero GPU RAM required. Runs in the cloud with sub-second response times.

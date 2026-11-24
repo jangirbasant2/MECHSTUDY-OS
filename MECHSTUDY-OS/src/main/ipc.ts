@@ -650,10 +650,10 @@ export function registerIpc(): void {
     message: 'Google AI Studio active',
   }));
   handle('ai:listModels', () => [
-    { name: 'gemini-2.5-flash', model: 'gemini-2.5-flash', size: 0, parameterSize: 'Fast / Multimodal (Default)', family: 'Google AI Studio' },
-    { name: 'gemini-2.5-pro', model: 'gemini-2.5-pro', size: 0, parameterSize: 'Deep STEM & Derivations', family: 'Google AI Studio' },
-    { name: 'gemini-2.0-flash', model: 'gemini-2.0-flash', size: 0, parameterSize: 'High Speed Inference', family: 'Google AI Studio' },
-    { name: 'gemini-1.5-flash', model: 'gemini-1.5-flash', size: 0, parameterSize: 'Standard Lightweight', family: 'Google AI Studio' },
+    { name: 'gemini-2.5-flash', model: 'gemini-2.5-flash', size: 0, parameterSize: 'Fast & Multimodal (Default)', family: 'Google AI Studio' },
+    { name: 'gemini-2.5-pro', model: 'gemini-2.5-pro', size: 0, parameterSize: 'Deep STEM & Complex Derivations', family: 'Google AI Studio' },
+    { name: 'gemini-1.5-flash', model: 'gemini-1.5-flash', size: 0, parameterSize: 'Standard Fast Fallback', family: 'Google AI Studio' },
+    { name: 'gemini-1.5-pro', model: 'gemini-1.5-pro', size: 0, parameterSize: 'Deep Reasoning Legacy', family: 'Google AI Studio' },
   ]);
   handle('ocr:detectScannedPages', ({ documentId }) => {
     return detectScannedPages(Number(documentId));

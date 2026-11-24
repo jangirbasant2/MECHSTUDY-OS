@@ -1,7 +1,7 @@
-import { get } from '../../db';
+import { get, run } from '../../db';
 import { addMessage, getConversationMessages, getConversationDocuments } from './chat';
 import { decrementTemporaryScreenshots } from './temporaryScreenshots';
-import { chatStreamGemini } from './gemini';
+import { chatStreamGemini, normalizeGeminiModel } from './gemini';
 import { getAiSettings } from './settings';
 import { formatMemoriesForPrompt } from './memory';
 import { ToolRegistry } from './toolRegistry';
@@ -271,7 +271,18 @@ export async function processUserMessage(
   const signal = currentAbortController.signal;
 
   const settings = getAiSettings();
-  const model = req.model || settings.selectedModel;
+  const convRow = get<{ id: number; model: string | null }>('SELECT id, model FROM ai_conversations WHERE id = ?', req.conversationId);
+  const rawModel = req.model || convRow?.model || settings.selectedModel;
+  const model = normalizeGeminiModel(rawModel);
+
+  // Self-heal and keep conversation model updated with active model
+  if (convRow && convRow.model !== model) {
+    try {
+      run('UPDATE ai_conversations SET model = ? WHERE id = ?', model, req.conversationId);
+    } catch {
+      // non-fatal
+    }
+  }
 
   // 1. Save user message to database
   const userMsg = addMessage({
@@ -675,14 +686,33 @@ You MUST ground your response in the provided document content and citations abo
         done: true,
       });
     } else {
-      const errMsg = err instanceof Error ? err.message : String(err);
-      let userNotice = `⚠️ **AI Tutor Notice:** ${errMsg}`;
-      if (errMsg.includes('not configured') || errMsg.includes('empty')) {
+      const rawErrMsg = err instanceof Error ? err.message : String(err);
+      let cleanMsg = rawErrMsg;
+      try {
+        const jsonMatch = rawErrMsg.match(/\{[\s\S]*\}/);
+        if (jsonMatch) {
+          const parsed = JSON.parse(jsonMatch[0]);
+          if (parsed?.error?.message) {
+            cleanMsg = typeof parsed.error.message === 'string' ? parsed.error.message : JSON.stringify(parsed.error.message);
+          } else if (parsed?.message) {
+            cleanMsg = parsed.message;
+          }
+        }
+      } catch {
+        // use rawErrMsg
+      }
+
+      let userNotice = `⚠️ **AI Tutor Notice:** ${cleanMsg}`;
+      if (cleanMsg.includes('not configured') || cleanMsg.includes('empty')) {
         userNotice = `⚠️ **Google AI Studio API Key Required**\n\nTo chat with the AI Tutor, please add your Google AI Studio API key in the top header menu or Settings.\n\n*You can get a free API key at [aistudio.google.com](https://aistudio.google.com/app/apikey).*`;
-      } else if (errMsg.includes('API key not valid') || errMsg.includes('API_KEY_INVALID')) {
-        userNotice = `⚠️ **Invalid API Key**\n\nGoogle AI Studio reported that your API key is invalid. Please verify or re-enter your key in the top header menu.\n\n*Error details:* \`${errMsg}\``;
-      } else if (errMsg.includes('429') || errMsg.includes('quota') || errMsg.includes('RESOURCE_EXHAUSTED')) {
-        userNotice = `⚠️ **Rate Limit / Quota Exceeded**\n\nGoogle AI Studio rate limit reached. Please wait a few seconds before trying again, or switch models in Settings.\n\n*Error details:* \`${errMsg}\``;
+      } else if (cleanMsg.includes('API key not valid') || cleanMsg.includes('API_KEY_INVALID')) {
+        userNotice = `⚠️ **Invalid API Key**\n\nGoogle AI Studio reported that your API key is invalid. Please verify or re-enter your key in the top header menu.\n\n*Error details:* \`${cleanMsg}\``;
+      } else if (cleanMsg.includes('429') || cleanMsg.includes('quota') || cleanMsg.includes('RESOURCE_EXHAUSTED')) {
+        userNotice = `⚠️ **Rate Limit / Quota Exceeded**\n\nGoogle AI Studio rate limit reached. Please wait a few seconds before trying again, or switch models in the header menu.\n\n*Error details:* \`${cleanMsg}\``;
+      } else if (cleanMsg.includes('503') || cleanMsg.includes('high demand') || cleanMsg.includes('UNAVAILABLE')) {
+        userNotice = `⚠️ **Temporary High Demand (503)**\n\nGoogle AI Studio is experiencing temporary peak traffic. The system attempted automatic model fallback, but servers are momentarily congested. Please wait a few seconds and send your question again.`;
+      } else if (cleanMsg.includes('404') || cleanMsg.includes('no longer available') || cleanMsg.includes('NOT_FOUND')) {
+        userNotice = `⚠️ **Model Auto-Migrated**\n\nThe previous model has been retired by Google. MECHSTUDY-OS has automatically migrated your conversation to **gemini-2.5-flash**. Please try sending your message again!`;
       }
 
       const errorMsg = addMessage({
@@ -697,7 +727,7 @@ You MUST ground your response in the provided document content and citations abo
         messageId: finalMessageId,
         delta: userNotice,
         done: true,
-        error: errMsg,
+        error: cleanMsg,
       });
       return { messageId: finalMessageId };
     }

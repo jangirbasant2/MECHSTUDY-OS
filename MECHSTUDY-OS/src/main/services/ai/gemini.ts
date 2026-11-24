@@ -36,9 +36,11 @@ export interface ChatStreamGeminiResult {
 export function normalizeGeminiModel(model?: string): string {
   if (!model) return 'gemini-2.5-flash';
   const m = model.trim().toLowerCase();
-  if (m === 'gemini-2.5-pro' || m.includes('carbon') || m.includes('pro')) return 'gemini-2.5-pro';
-  if (m === 'gemini-2.0-flash') return 'gemini-2.0-flash';
+  if (m === 'gemini-2.5-pro' || m.includes('2.5-pro') || m.includes('carbon')) return 'gemini-2.5-pro';
+  if (m === 'gemini-1.5-pro') return 'gemini-1.5-pro';
   if (m === 'gemini-1.5-flash') return 'gemini-1.5-flash';
+  // Note: gemini-2.0-flash has been discontinued by Google. All 2.0 references MUST map to active gemini-2.5-flash.
+  if (m.includes('2.0')) return 'gemini-2.5-flash';
   if (m === 'gemini-2.5-flash' || m.includes('flash') || m.includes('hydrogen') || m.includes('lite')) return 'gemini-2.5-flash';
   return 'gemini-2.5-flash';
 }
@@ -167,50 +169,79 @@ export async function chatStreamGemini(
   let fullContent = '';
   const detectedToolCalls: AiToolCall[] = [];
 
-  try {
-    const responseStream = await ai.models.generateContentStream({
-      model,
-      contents,
-      config,
-    });
+  const candidateModels = [
+    model,
+    model !== 'gemini-2.5-flash' ? 'gemini-2.5-flash' : 'gemini-1.5-flash',
+    'gemini-1.5-flash',
+    'gemini-2.5-pro',
+  ].filter((m, i, arr) => Boolean(m) && arr.indexOf(m) === i);
 
-    for await (const chunk of responseStream) {
-      if (options.signal?.aborted) {
-        throw new Error('AI request was aborted by user.');
-      }
+  let lastError: any = null;
 
-      const textDelta = chunk.text || '';
-      if (textDelta) {
-        fullContent += textDelta;
-        options.onChunk({ delta: textDelta });
-      }
+  for (let attempt = 0; attempt < candidateModels.length; attempt++) {
+    const currentModel = candidateModels[attempt];
+    try {
+      fullContent = '';
+      detectedToolCalls.length = 0;
 
-      // Check for function calls in chunk
-      const functionCalls = chunk.functionCalls;
-      if (functionCalls && functionCalls.length > 0) {
-        for (const fc of functionCalls) {
-          const callId = `call_${Date.now()}_${Math.random().toString(36).slice(2, 7)}`;
-          const toolCall: AiToolCall = {
-            id: callId,
-            name: fc.name || '',
-            arguments: (fc.args as Record<string, unknown>) || {},
-          };
-          detectedToolCalls.push(toolCall);
-          options.onChunk({ delta: '', toolCalls: [toolCall] });
+      const responseStream = await ai.models.generateContentStream({
+        model: currentModel,
+        contents,
+        config,
+      });
+
+      for await (const chunk of responseStream) {
+        if (options.signal?.aborted) {
+          throw new Error('AI request was aborted by user.');
+        }
+
+        const textDelta = chunk.text || '';
+        if (textDelta) {
+          fullContent += textDelta;
+          options.onChunk({ delta: textDelta });
+        }
+
+        // Check for function calls in chunk
+        const functionCalls = chunk.functionCalls;
+        if (functionCalls && functionCalls.length > 0) {
+          for (const fc of functionCalls) {
+            const callId = `call_${Date.now()}_${Math.random().toString(36).slice(2, 7)}`;
+            const toolCall: AiToolCall = {
+              id: callId,
+              name: fc.name || '',
+              arguments: (fc.args as Record<string, unknown>) || {},
+            };
+            detectedToolCalls.push(toolCall);
+            options.onChunk({ delta: '', toolCalls: [toolCall] });
+          }
         }
       }
+
+      // Succeeded! Return accumulated content
+      return {
+        content: fullContent,
+        toolCalls: detectedToolCalls.length > 0 ? detectedToolCalls : undefined,
+      };
+    } catch (err: any) {
+      if (options.signal?.aborted) {
+        throw new Error('Generation aborted');
+      }
+      lastError = err;
+      const errMsg = (err instanceof Error ? err.message : String(err)).toLowerCase();
+      const isTransient = errMsg.includes('503') || errMsg.includes('404') || errMsg.includes('429') ||
+        errMsg.includes('high demand') || errMsg.includes('unavailable') || errMsg.includes('not found') ||
+        errMsg.includes('no longer available') || errMsg.includes('rate limit');
+
+      if (isTransient && attempt < candidateModels.length - 1) {
+        console.warn(`[Gemini] Model ${currentModel} error: ${err.message}. Retrying with fallback model ${candidateModels[attempt + 1]}...`);
+        await new Promise(r => setTimeout(r, 1000));
+        continue;
+      }
+      throw err;
     }
-  } catch (err: any) {
-    if (options.signal?.aborted) {
-      throw new Error('Generation aborted');
-    }
-    throw err;
   }
 
-  return {
-    content: fullContent,
-    toolCalls: detectedToolCalls.length > 0 ? detectedToolCalls : undefined,
-  };
+  throw lastError;
 }
 
 /**

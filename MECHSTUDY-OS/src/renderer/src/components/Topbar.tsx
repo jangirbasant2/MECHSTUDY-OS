@@ -353,8 +353,8 @@ export function Topbar() {
                   >
                     <option value="gemini-2.5-flash">gemini-2.5-flash (Fast &amp; Responsive - Default)</option>
                     <option value="gemini-2.5-pro">gemini-2.5-pro (Deep STEM &amp; Reasoning)</option>
-                    <option value="gemini-2.0-flash">gemini-2.0-flash (High Speed)</option>
-                    <option value="gemini-1.5-flash">gemini-1.5-flash (Lightweight)</option>
+                    <option value="gemini-1.5-flash">gemini-1.5-flash (Fast Fallback)</option>
+                    <option value="gemini-1.5-pro">gemini-1.5-pro (Comprehensive)</option>
                   </select>
                 </div>
 
