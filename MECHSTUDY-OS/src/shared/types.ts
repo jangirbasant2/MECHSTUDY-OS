@@ -998,5 +998,77 @@ export interface BackupArchiveResult {
   manifest: any;
 }
 
+export interface EmailSettings {
+  enabled: boolean;
+  recipientEmail: string;
+  studentName: string;
+  dispatchTime: string; // e.g. "07:30"
+  smtpHost: string;
+  smtpPort: number;
+  smtpSecure: boolean;
+  smtpUser: string;
+  smtpPass: string;
+  lastSentDate?: string;
+}
+
+export interface TodayPlanEmailContent {
+  recipientEmail: string;
+  studentName: string;
+  examName: string;
+  examDate: string;
+  examTime: string;
+  daysRemaining: number;
+  currentPhase: string;
+  tasks: Array<{
+    id: number;
+    title: string;
+    estMinutes: number;
+    priority: string;
+    notes: string | null;
+    subjectName?: string | null;
+  }>;
+  totalEstimatedMinutes: number;
+  htmlBody: string;
+  textBody: string;
+}
+
+export interface ExamHalvingPlanRequest {
+  examName: string;
+  examDate: string; // "YYYY-MM-DD"
+  examTime?: string; // "10:00 AM" or "10:00"
+  subjectName?: string;
+  subjectId?: number;
+  professorTopics: string;
+  dailyMinutes?: number;
+  examPattern?: 'RTU_MIDTERM' | 'RTU_ENDSEM' | 'GATE';
+}
+
+export interface ExamHalvingPlanDaySchedule {
+  dayNumber: number;
+  plannedDate: string;
+  phase: 'PHASE_1' | 'PHASE_2';
+  phaseTitle: string;
+  focusTitle: string;
+  tasks: Array<{
+    title: string;
+    priority: 'HIGH' | 'MEDIUM' | 'LOW';
+    estMinutes: number;
+    notes: string;
+  }>;
+}
+
+export interface ExamHalvingPlanResult {
+  examName: string;
+  examDate: string;
+  examTime: string;
+  totalDays: number;
+  phase1Days: number;
+  phase2Days: number;
+  tasksCreated: number;
+  totalEstimatedMinutes: number;
+  schedule: ExamHalvingPlanDaySchedule[];
+  aiGenerated: boolean;
+}
+
 
 

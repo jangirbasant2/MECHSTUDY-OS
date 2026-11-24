@@ -82,8 +82,11 @@ import {
 } from './services/gamification';
 import {
   generateMasteryQuizWithGemini, generateFormulaPracticeNumerical, coachExamQuestionWithGemini,
-  startVivaSessionWithGemini, evaluateVivaAnswerWithGemini,
+  startVivaSessionWithGemini, evaluateVivaAnswerWithGemini, generateExamHalvingPlanWithGemini,
 } from './services/ai/gemini';
+import {
+  getEmailSettings, updateEmailSettings, sendTodayPlanEmail, testSmtpConnection,
+} from './services/emailService';
 import {
   listFlashcards, createFlashcard, updateFlashcard, deleteFlashcard, reviewFlashcard,
   autoSyncMistakeFlashcards, autoSyncWeakTopicFlashcards, completeFlashcardSession,
@@ -409,6 +412,7 @@ export function registerIpc(): void {
   handle('tasks:update', ({ id, patch }) => { updateTask(Number(id), patch ?? {}); return true; });
   handle('tasks:delete', ({ id }) => { deleteTask(Number(id)); return true; });
   handle('tasks:generateAdaptivePlan', (opts) => generateAdaptiveDailyPlan(opts));
+  handle('tasks:generateHalvingPlan', (opts) => generateExamHalvingPlanWithGemini(opts));
 
   /* ---------------- sessions ---------------- */
   handle('sessions:start', (s) => startSession({
@@ -740,6 +744,14 @@ export function registerIpc(): void {
     return true;
   });
   handle('reminders:test', () => triggerTestReminder());
+
+  /* Daily Study Email Dispatch & Notifications */
+  handle('email:getSettings', () => getEmailSettings());
+  handle('email:updateSettings', ({ patch }) => {
+    return updateEmailSettings(patch ?? {});
+  });
+  handle('email:sendTodayPlan', ({ force }) => sendTodayPlanEmail(force ?? false));
+  handle('email:testConnection', () => testSmtpConnection());
 
   /* PDF Reader Defaults */
   handle('reader:getSettings', () => getReaderSettings());

@@ -1,5 +1,6 @@
 import { Notification, BrowserWindow } from 'electron';
 import { all, get, getSetting, setSetting } from '../db';
+import { checkAndDispatchDailyEmail } from './emailService';
 
 export interface ReminderSettings {
   enabled: boolean;
@@ -217,11 +218,17 @@ export function startReminderScheduler(getWin: () => BrowserWindow | null): void
   // Initial check after 5 seconds
   setTimeout(() => {
     checkAndTriggerReminder();
+    void checkAndDispatchDailyEmail().catch((err) => {
+      console.warn('[MECHSTUDY OS] Daily email initial dispatch error:', err);
+    });
   }, 5000);
 
   // Check every 10 minutes
   reminderInterval = setInterval(() => {
     checkAndTriggerReminder();
+    void checkAndDispatchDailyEmail().catch((err) => {
+      console.warn('[MECHSTUDY OS] Daily email periodic dispatch error:', err);
+    });
   }, 10 * 60 * 1000);
 }
 

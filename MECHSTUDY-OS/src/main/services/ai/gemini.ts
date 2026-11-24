@@ -1,7 +1,14 @@
 import { GoogleGenAI } from '@google/genai';
 import { getAiSettings } from './settings';
 import type { ToolDefinition } from './toolRegistry';
-import type { AiToolCall } from '../../../shared/types';
+import type {
+  AiToolCall,
+  ExamHalvingPlanRequest,
+  ExamHalvingPlanResult,
+  ExamHalvingPlanDaySchedule
+} from '../../../shared/types';
+import { setSetting, tx } from '../../db';
+import { createTask } from '../study';
 
 export interface ChatStreamGeminiOptions {
   apiKey?: string;
@@ -972,6 +979,280 @@ Return STRICT JSON matching:
     if (match) return JSON.parse(match[0]);
     throw new Error('Failed to parse Viva-Voce evaluation from AI.');
   }
+}
+
+/**
+ * Generates an intensive Exam Halving Study Plan using Gemini AI (with robust offline fallback).
+ * Divides the remaining days until the exam date in half:
+ * - Phase 1: Deep, complete coverage of the professor's syllabus & topics
+ * - Phase 2: Exam pattern focus, daily midterm papers, timed mocks, and mistake review drills.
+ */
+export async function generateExamHalvingPlanWithGemini(
+  req: ExamHalvingPlanRequest,
+  apiKey?: string,
+  model?: string
+): Promise<ExamHalvingPlanResult> {
+  const now = new Date();
+  const targetDateStr = req.examDate;
+  const targetTimestamp = new Date(targetDateStr).getTime();
+  const diffMs = targetTimestamp - now.getTime();
+  const totalDays = Math.max(2, Math.round(diffMs / 86400000));
+  const phase1Days = Math.ceil(totalDays / 2);
+  const phase2Days = totalDays - phase1Days;
+
+  const examName = req.examName?.trim() || 'RTU Midterm Exam';
+  const examTime = req.examTime?.trim() || '10:00 AM';
+  const dailyMinutes = Math.max(60, req.dailyMinutes || 150);
+  const pattern = req.examPattern || 'RTU_MIDTERM';
+
+  // Persist target exam metadata for email dispatches & countdown widgets
+  setSetting('exam.targetName', examName);
+  setSetting('exam.targetDate', targetDateStr);
+  setSetting('exam.targetTime', examTime);
+
+  // Parse professor topics (strictly excluding Technical Communication)
+  const rawTopics = (req.professorTopics || '')
+    .split(/[\n;]+/)
+    .map(t => t.trim().replace(/^[-*•\d.)\s]+/, ''))
+    .filter(t => t.length > 2)
+    .filter(t => !t.toLowerCase().includes('technical communication'));
+
+  const parsedTopics = rawTopics.length > 0 ? rawTopics : [
+    'Unit 1: Stresses, Strains & Elastic Constants',
+    'Unit 2: Shear Force and Bending Moment Diagrams (SFD & BMD)',
+    'Unit 3: Bending & Shear Stresses in Beams',
+    'Unit 4: Torsion of Circular Shafts & Springs',
+    'Unit 5: Deflection of Beams & Euler Column Buckling',
+  ];
+
+  const key = getEffectiveApiKey(apiKey);
+  let schedule: ExamHalvingPlanDaySchedule[] = [];
+  let aiGenerated = false;
+
+  if (key) {
+    try {
+      const selectedModel = normalizeGeminiModel(model || getAiSettings().selectedModel);
+      const ai = getGeminiClient(key);
+
+      const prompt = `You are an expert Academic Advisor and Mechanical Engineering Professor creating an intensive exam preparation timetable for a university student.
+
+Exam: "${examName}"
+Subject: "${req.subjectName || 'Mechanical Engineering'}"
+Exam Date: ${targetDateStr} at ${examTime}
+Total Days Remaining: ${totalDays} days.
+Daily Study Budget: ${dailyMinutes} minutes/day.
+Exam Pattern: ${pattern === 'RTU_MIDTERM' ? 'RTU Midterm Exam (1 Hour: Part A short concept questions 2 marks each, Part B analytical/numerical problems 4 marks each)' : pattern === 'RTU_ENDSEM' ? 'RTU End-Semester Exam (3 Hours: Part A, Part B, Part C)' : 'GATE Examination (Objective & NAT)'}
+
+SYLLABUS / TOPICS PROVIDED BY PROFESSOR:
+${parsedTopics.map((t, i) => `${i + 1}. ${t}`).join('\n')}
+
+MANDATORY TIMETABLE HALVING STRATEGY:
+1. Divide the ${totalDays} days into exactly two halves:
+   - Phase 1 (First ${phase1Days} days, Day 1 to Day ${phase1Days}): DEEP SYLLABUS COVERAGE.
+     Distribute all the professor's topics/units across these ${phase1Days} days so the student thoroughly completes the required theory, derivations, formulas, and standard textbook numericals.
+   - Phase 2 (Second ${phase2Days} days, Day ${phase1Days + 1} to Day ${totalDays}): EXAM PATTERN & MIDTERM PAPERS.
+     Focus strictly on test-taking skills, daily midterm papers/mock drills (e.g. 1-hour RTU timed tests, Part A 2-mark speed runs, Part B 4-mark numericals, mistake analysis, and formula memorization). The final day should be a comprehensive exam rehearsal.
+2. Note: Technical Communication is completely excluded. Do NOT mention it.
+3. Every day must have 2 to 3 actionable, high-yield tasks with realistic estMinutes summing close to ${dailyMinutes} minutes.
+
+Return STRICT JSON matching this schema:
+{
+  "schedule": [
+    {
+      "dayNumber": 1,
+      "phase": "PHASE_1",
+      "phaseTitle": "Phase 1: Syllabus & Concept Deep-Dive",
+      "focusTitle": "Topic name or unit focus for today",
+      "tasks": [
+        {
+          "title": "[Midterm Sprint - Phase 1] Theory & Derivations: ...",
+          "priority": "HIGH",
+          "estMinutes": 60,
+          "notes": "Actionable notes on what concepts, derivations, and textbook chapters to master"
+        },
+        {
+          "title": "[Midterm Sprint - Phase 1] Numerical Problem Solving: ...",
+          "priority": "MEDIUM",
+          "estMinutes": 50,
+          "notes": "Solve 3-5 standard problems from notes/textbooks"
+        },
+        {
+          "title": "[Midterm Sprint - Phase 1] Formula Recall & Flashcards: ...",
+          "priority": "MEDIUM",
+          "estMinutes": 40,
+          "notes": "Verify formulas in Formula Vault and review flashcards"
+        }
+      ]
+    }
+  ]
+}`;
+
+      const res = await ai.models.generateContent({
+        model: selectedModel,
+        contents: [{ role: 'user', parts: [{ text: prompt }] }],
+        config: {
+          temperature: 0.2,
+          maxOutputTokens: 8192,
+          responseMimeType: 'application/json',
+        },
+      });
+
+      const raw = res.text?.trim() || '{}';
+      const parsed = JSON.parse(raw);
+      if (Array.isArray(parsed.schedule) && parsed.schedule.length > 0) {
+        schedule = parsed.schedule.map((day: any, idx: number) => {
+          const plannedDate = new Date(now.getTime() + idx * 86400000).toISOString().slice(0, 10);
+          const isPhase1 = idx < phase1Days;
+          return {
+            dayNumber: idx + 1,
+            plannedDate,
+            phase: isPhase1 ? 'PHASE_1' : 'PHASE_2',
+            phaseTitle: isPhase1 ? 'Phase 1: Syllabus & Concept Mastery' : 'Phase 2: Exam Pattern & Midterm Papers',
+            focusTitle: day.focusTitle || (isPhase1 ? parsedTopics[idx % parsedTopics.length] : `Midterm Mock Paper ${idx - phase1Days + 1}`),
+            tasks: Array.isArray(day.tasks) ? day.tasks : [],
+          };
+        });
+        aiGenerated = true;
+      }
+    } catch {
+      // Fall through to algorithmic generation
+    }
+  }
+
+  // Algorithmic Fallback if AI not available or returned empty
+  if (schedule.length === 0) {
+    const slot1Min = Math.round(dailyMinutes * 0.45);
+    const slot2Min = Math.round(dailyMinutes * 0.35);
+    const slot3Min = Math.max(20, dailyMinutes - slot1Min - slot2Min);
+
+    for (let dayIdx = 0; dayIdx < totalDays; dayIdx++) {
+      const plannedDate = new Date(now.getTime() + dayIdx * 86400000).toISOString().slice(0, 10);
+      const isPhase1 = dayIdx < phase1Days;
+
+      if (isPhase1) {
+        // Phase 1: Syllabus Coverage
+        const topic = parsedTopics[dayIdx % parsedTopics.length];
+        schedule.push({
+          dayNumber: dayIdx + 1,
+          plannedDate,
+          phase: 'PHASE_1',
+          phaseTitle: 'Phase 1: Syllabus & Concept Mastery',
+          focusTitle: topic,
+          tasks: [
+            {
+              title: `[Midterm Sprint - Phase 1] Theory & Derivations: ${topic}`,
+              priority: 'HIGH',
+              estMinutes: slot1Min,
+              notes: `Master governing equations, assumptions, and physical derivations from handwritten notes.`,
+            },
+            {
+              title: `[Midterm Sprint - Phase 1] Numerical Problem Solving: ${topic}`,
+              priority: 'MEDIUM',
+              estMinutes: slot2Min,
+              notes: `Solve 4-6 textbook numerical problems and verify calculations with the Virtual Calculator.`,
+            },
+            {
+              title: `[Midterm Sprint - Phase 1] Formula Vault & Flashcards: ${topic}`,
+              priority: 'MEDIUM',
+              estMinutes: slot3Min,
+              notes: `Review formula definitions and test active recall with Flashcards.`,
+            },
+          ],
+        });
+      } else {
+        // Phase 2: Exam Pattern & Midterm Papers
+        const mockNum = dayIdx - phase1Days + 1;
+        const isFinalDay = dayIdx === totalDays - 1;
+
+        if (isFinalDay) {
+          schedule.push({
+            dayNumber: dayIdx + 1,
+            plannedDate,
+            phase: 'PHASE_2',
+            phaseTitle: 'Phase 2: Exam Pattern & Midterm Papers',
+            focusTitle: 'Final Pre-Exam Rehearsal & Formula Blitz',
+            tasks: [
+              {
+                title: `[Midterm Sprint - Phase 2] Full-Length Mock Exam Rehearsal`,
+                priority: 'HIGH',
+                estMinutes: slot1Min + slot2Min,
+                notes: `Simulate the exact ${pattern} test environment under strict time constraints.`,
+              },
+              {
+                title: `[Midterm Sprint - Phase 2] High-Yield Formula Blitz & Exam Pack Check`,
+                priority: 'HIGH',
+                estMinutes: slot3Min,
+                notes: `Quickly review all high-yield formulas, unit conversion traps, and stationery.`,
+              },
+            ],
+          });
+        } else {
+          schedule.push({
+            dayNumber: dayIdx + 1,
+            plannedDate,
+            phase: 'PHASE_2',
+            phaseTitle: 'Phase 2: Exam Pattern & Midterm Papers',
+            focusTitle: `Midterm Mock Paper #${mockNum} & RTU PYQ Drill`,
+            tasks: [
+              {
+                title: `[Midterm Sprint - Phase 2] Timed Mock Paper #${mockNum} (${pattern === 'RTU_MIDTERM' ? 'Part A 2M + Part B 4M' : 'Full Exam'})`,
+                priority: 'HIGH',
+                estMinutes: slot1Min,
+                notes: `Simulate real exam timing. Practice concise step-by-step presentation for maximum marks.`,
+              },
+              {
+                title: `[Midterm Sprint - Phase 2] Post-Exam Error Log & Mistake Notebook Fix`,
+                priority: 'MEDIUM',
+                estMinutes: slot2Min,
+                notes: `Analyze every calculation slip, missed boundary condition, and unit trap.`,
+              },
+              {
+                title: `[Midterm Sprint - Phase 2] RTU High-Frequency PYQ Speed Run`,
+                priority: 'MEDIUM',
+                estMinutes: slot3Min,
+                notes: `Speed-solve repeated previous year questions from the last 5 years.`,
+              },
+            ],
+          });
+        }
+      }
+    }
+  }
+
+  // Insert generated tasks into SQLite study_tasks table inside a transaction
+  let tasksCreated = 0;
+  let totalEstimatedMinutes = 0;
+
+  tx(() => {
+    for (const day of schedule) {
+      for (const t of day.tasks) {
+        createTask({
+          title: t.title,
+          subjectId: req.subjectId,
+          plannedDate: day.plannedDate,
+          priority: t.priority,
+          estMinutes: t.estMinutes,
+          notes: `📅 ${day.phaseTitle} · Day ${day.dayNumber}/${totalDays} (${day.focusTitle})\n${t.notes}`,
+          examTarget: pattern === 'GATE' ? 'GATE' : 'RTU',
+        });
+        tasksCreated++;
+        totalEstimatedMinutes += t.estMinutes;
+      }
+    }
+  });
+
+  return {
+    examName,
+    examDate: targetDateStr,
+    examTime,
+    totalDays,
+    phase1Days,
+    phase2Days,
+    tasksCreated,
+    totalEstimatedMinutes,
+    schedule,
+    aiGenerated,
+  };
 }
 
 

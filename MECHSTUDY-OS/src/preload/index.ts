@@ -117,6 +117,7 @@ const api: MechStudyApi = {
     update: (id, patch) => invoke('tasks:update', { id, patch }),
     remove: (id) => invoke('tasks:delete', { id }),
     generateAdaptivePlan: (opts) => invoke('tasks:generateAdaptivePlan', opts),
+    generateHalvingPlan: (opts: any) => invoke('tasks:generateHalvingPlan', opts),
     onRefresh: (cb) => subscribe('planner:refresh', cb),
   },
 
@@ -315,6 +316,12 @@ const api: MechStudyApi = {
     updateSettings: (patch: any) => invoke('reminders:updateSettings', { patch }),
     test: () => invoke('reminders:test'),
     onStartSession: (cb: (payload: any) => void) => subscribe('reminder:startSession', cb),
+  },
+  email: {
+    getSettings: () => invoke('email:getSettings'),
+    updateSettings: (patch: any) => invoke('email:updateSettings', { patch }),
+    sendTodayPlan: (force?: boolean) => invoke('email:sendTodayPlan', { force }),
+    testConnection: () => invoke('email:testConnection'),
   },
   reader: {
     getSettings: () => invoke('reader:getSettings'),

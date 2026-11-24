@@ -24,12 +24,14 @@
   },
   "dependencies": {
     "@google/genai": "^3.6.1",
+    "nodemailer": "^10.6.1",
     "pdf-lib": "^1.17.1",
     "pdfjs-dist": "^5.4.149"
   },
   "devDependencies": {
     "@tailwindcss/vite": "^4.1.14",
     "@types/node": "^22.18.9",
+    "@types/nodemailer": "^8.0.2",
     "@types/react": "^19.2.2",
     "@types/react-dom": "^19.2.1",
     "@vitejs/plugin-react": "^5.0.4",

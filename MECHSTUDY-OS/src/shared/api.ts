@@ -16,7 +16,7 @@ import type {
   UserProfile, UserTrophy, TopicQuizResult, RtuPyq, GatePyq, ExamPaperRecord, IngestPyqResult,
   PyqIngestProgress, GateMistakeRecord, RtuEvaluationResult, DueRevisionTopic,
   FlashcardItem, FlashcardSourceType, FormulaPracticeNumerical, CheatSheetOptions, CheatSheetResult, BackupArchiveResult,
-  DocumentSyllabusLink,
+  DocumentSyllabusLink, EmailSettings, ExamHalvingPlanRequest, ExamHalvingPlanResult,
 } from './types';
 
 export type Unsubscribe = () => void;
@@ -121,6 +121,7 @@ export interface MechStudyApi {
         numericalPracticeTasks: number;
       };
     }>;
+    generateHalvingPlan(opts: ExamHalvingPlanRequest): Promise<ExamHalvingPlanResult>;
     onRefresh(cb: () => void): Unsubscribe;
   };
   sessions: {
@@ -295,6 +296,12 @@ export interface MechStudyApi {
     updateSettings(patch: Partial<ReminderSettings>): Promise<boolean>;
     test(): Promise<{ success: boolean; payload: ReminderNotificationPayload }>;
     onStartSession(cb: (payload: ReminderNotificationPayload) => void): Unsubscribe;
+  };
+  email: {
+    getSettings(): Promise<EmailSettings>;
+    updateSettings(patch: Partial<EmailSettings>): Promise<EmailSettings>;
+    sendTodayPlan(force?: boolean): Promise<{ success: boolean; message: string; recipient?: string; previewOnly?: boolean }>;
+    testConnection(): Promise<{ success: boolean; message: string }>;
   };
   reader: {
     getSettings(): Promise<ReaderSettings>;

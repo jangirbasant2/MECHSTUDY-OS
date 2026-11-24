@@ -3,7 +3,7 @@ import {
   Plus, Play, Check, Trash2, Clock, CalendarDays, Timer, Square, Pause,
   ChevronDown, ChevronRight, AlertTriangle, FileText, Coffee, BookOpen,
   Sparkles, CheckCircle2, MoreVertical, Edit3, Eye, History, ListTodo,
-  Filter, CheckCircle,
+  Filter, CheckCircle, Mail, Send, Calendar,
 } from 'lucide-react';
 import { api } from '../lib/api';
 import { useApp } from '../store';
@@ -450,6 +450,25 @@ export function PlannerPage() {
 
               {viewMode === 'planner' && (
                 <div className="flex items-center gap-2">
+                  <button
+                    className="btn btn-sm btn-ghost gap-1.5 text-xs border border-[var(--color-border)]"
+                    onClick={async () => {
+                      try {
+                        const res = await api.email.sendTodayPlan(true);
+                        if (res.previewOnly) {
+                          toast(`📧 ${res.message}`, 'info');
+                        } else {
+                          toast(`✅ Today's plan emailed to ${res.recipient}!`, 'success');
+                        }
+                      } catch (err: any) {
+                        toast(`Email dispatch failed: ${err?.message}`, 'error');
+                      }
+                    }}
+                    title="Send Today's Study Plan directly to your registered email address"
+                  >
+                    <Mail size={13} className="text-blue-400" />
+                    <span>Email Today's Plan</span>
+                  </button>
                   <button
                     className="btn btn-sm btn-secondary gap-1.5 text-xs"
                     onClick={() => setAiPlanModalOpen(true)}
@@ -2048,6 +2067,37 @@ function AiAdaptivePlanModal({
   onGenerated: () => void;
 }) {
   const toast = useApp(s => s.toast);
+  const [plannerTab, setPlannerTab] = React.useState<'HALVING' | 'STANDARD'>('HALVING');
+
+  // Halving Planner States
+  const [halvingExamName, setHalvingExamName] = React.useState('RTU Midterm Exam');
+  const [halvingExamDate, setHalvingExamDate] = React.useState(() => {
+    const d = new Date(Date.now() + 16 * 86400000);
+    return d.toISOString().slice(0, 10);
+  });
+  const [halvingExamTime, setHalvingExamTime] = React.useState('10:00');
+  const [halvingSubject, setHalvingSubject] = React.useState('Mechanics of Solids (SOM)');
+  const [halvingPattern, setHalvingPattern] = React.useState<'RTU_MIDTERM' | 'RTU_ENDSEM' | 'GATE'>('RTU_MIDTERM');
+  const [halvingDailyMinutes, setHalvingDailyMinutes] = React.useState(150);
+  const [professorTopics, setProfessorTopics] = React.useState(
+`Unit 1: Stresses and Strains, Hooke's Law, Mohr's Circle of Stress & Strain
+Unit 2: Shear Force and Bending Moment Diagrams (SFD & BMD) for Simply Supported & Cantilever Beams
+Unit 3: Bending Stresses and Shear Stresses in Beams
+Unit 4: Torsion of Circular Shafts, Power Transmission & Helical Springs`
+  );
+
+  // Live Halving Day Breakdown
+  const halvingCalculation = React.useMemo(() => {
+    const now = new Date();
+    const targetTimestamp = new Date(halvingExamDate).getTime();
+    const diffMs = targetTimestamp - now.getTime();
+    const totalDays = Math.max(2, Math.round(diffMs / 86400000));
+    const phase1Days = Math.ceil(totalDays / 2);
+    const phase2Days = totalDays - phase1Days;
+    return { totalDays, phase1Days, phase2Days };
+  }, [halvingExamDate]);
+
+  // Standard Adaptive Sprint States
   const [examMode, setExamMode] = React.useState<'RTU' | 'GATE'>(activeExamMode === 'GATE' ? 'GATE' : 'RTU');
   const [semester, setSemester] = React.useState<number>(3);
   const [targetDate, setTargetDate] = React.useState<string>(() => {
@@ -2068,7 +2118,7 @@ function AiAdaptivePlanModal({
     return Math.max(1, Math.round(diff / 86400000));
   }, [targetDate]);
 
-  const handleGenerate = async () => {
+  const handleGenerateStandard = async () => {
     setBusy(true);
     try {
       const res = await api.tasks.generateAdaptivePlan({
@@ -2088,138 +2138,322 @@ function AiAdaptivePlanModal({
     }
   };
 
+  const handleGenerateHalving = async () => {
+    if (!professorTopics.trim()) {
+      toast('Please enter the syllabus topics provided by your professor.', 'error');
+      return;
+    }
+    setBusy(true);
+    try {
+      const res = await api.tasks.generateHalvingPlan({
+        examName: halvingExamName,
+        examDate: halvingExamDate,
+        examTime: halvingExamTime,
+        subjectName: halvingSubject,
+        professorTopics,
+        dailyMinutes: halvingDailyMinutes,
+        examPattern: halvingPattern,
+      });
+      toast(`🎉 Exam Halving Plan Created! ${res.tasksCreated} sessions scheduled over ${res.totalDays} days. Phase 1 (${res.phase1Days}d): Syllabus; Phase 2 (${res.phase2Days}d): Exam Papers & Mocks.`, 'success');
+      onGenerated();
+      onClose();
+    } catch (err: any) {
+      toast(`Failed to generate halving plan: ${err?.message}`, 'error');
+    } finally {
+      setBusy(false);
+    }
+  };
+
   return (
     <Modal
       open={open}
       onClose={onClose}
-      title="Adaptive AI Daily Study Planner"
-      width={520}
+      title="AI Exam Study Planner & Schedule Generator"
+      width={560}
       footer={
         <>
           <button className="btn" onClick={onClose} disabled={busy}>Cancel</button>
-          <button className="btn btn-primary gap-1.5" onClick={handleGenerate} disabled={busy}>
-            {busy ? <Spinner size={13} /> : <Sparkles size={13} />}
-            <span>{busy ? 'Computing Roadmap…' : 'Generate Adaptive Schedule'}</span>
-          </button>
+          {plannerTab === 'HALVING' ? (
+            <button className="btn btn-primary gap-1.5" onClick={handleGenerateHalving} disabled={busy}>
+              {busy ? <Spinner size={13} /> : <Sparkles size={13} />}
+              <span>{busy ? 'Computing Halving Plan…' : 'Generate 50/50 Halving Timetable'}</span>
+            </button>
+          ) : (
+            <button className="btn btn-primary gap-1.5" onClick={handleGenerateStandard} disabled={busy}>
+              {busy ? <Spinner size={13} /> : <Sparkles size={13} />}
+              <span>{busy ? 'Computing Roadmap…' : 'Generate Adaptive Schedule'}</span>
+            </button>
+          )}
         </>
       }
     >
       <div className="space-y-4 text-xs">
-        <div className="rounded-xl border p-3 bg-[var(--color-panel2)] border-[var(--color-border)] flex items-start gap-2.5">
-          <Sparkles size={16} className="text-purple-400 shrink-0 mt-0.5" />
-          <p className="text-[11.5px] leading-relaxed text-[var(--color-muted)]">
-            Our Adaptive Planner balances your daily study timetable by automatically synchronizing <strong>unreviewed mistake book pitfalls</strong>, <strong>high-weightage syllabus topics</strong>, and <strong>handwritten lecture notes</strong> into structured 3-part daily sprints.
-          </p>
+        {/* Planner Mode Tabs */}
+        <div className="flex rounded-lg border p-1 bg-[var(--color-panel2)] border-[var(--color-border)]">
+          <button
+            type="button"
+            className={`flex-1 py-1.5 rounded-md font-semibold text-xs transition-all ${
+              plannerTab === 'HALVING'
+                ? 'bg-blue-600 text-white shadow'
+                : 'text-[var(--color-muted)] hover:text-[var(--color-text)]'
+            }`}
+            onClick={() => setPlannerTab('HALVING')}
+          >
+            ✨ Gemini Midterm Halving Planner (50/50 Split)
+          </button>
+          <button
+            type="button"
+            className={`flex-1 py-1.5 rounded-md font-semibold text-xs transition-all ${
+              plannerTab === 'STANDARD'
+                ? 'bg-purple-600 text-white shadow'
+                : 'text-[var(--color-muted)] hover:text-[var(--color-text)]'
+            }`}
+            onClick={() => setPlannerTab('STANDARD')}
+          >
+            Adaptive Study Roadmap
+          </button>
         </div>
 
-        {/* Target Track */}
-        <div>
-          <label className="block text-[11px] font-semibold mb-1 text-[var(--color-text)]">Exam Objective:</label>
-          <div className="grid grid-cols-2 gap-2">
-            <button
-              type="button"
-              className={`rounded-lg p-2.5 border text-left transition-all ${
-                examMode === 'RTU'
-                  ? 'border-blue-500 bg-blue-500/10 text-[var(--color-text)] font-semibold'
-                  : 'border-[var(--color-border)] bg-[var(--color-panel)] text-[var(--color-muted)]'
-              }`}
-              onClick={() => {
-                setExamMode('RTU');
-                const d = new Date(Date.now() + 60 * 86400000);
-                setTargetDate(d.toISOString().slice(0, 10));
-              }}
-            >
-              <div className="font-bold text-xs text-blue-400">RTU Engineering</div>
-              <div className="text-[10px] text-[var(--color-muted)]">Semester end-sem & mid-terms</div>
-            </button>
-            <button
-              type="button"
-              className={`rounded-lg p-2.5 border text-left transition-all ${
-                examMode === 'GATE'
-                  ? 'border-purple-500 bg-purple-500/10 text-[var(--color-text)] font-semibold'
-                  : 'border-[var(--color-border)] bg-[var(--color-panel)] text-[var(--color-muted)]'
-              }`}
-              onClick={() => {
-                setExamMode('GATE');
-                const yr = new Date().getMonth() >= 2 ? new Date().getFullYear() + 1 : new Date().getFullYear();
-                setTargetDate(`${yr}-02-07`);
-              }}
-            >
-              <div className="font-bold text-xs text-purple-400">GATE Mechanical</div>
-              <div className="text-[10px] text-[var(--color-muted)]">CBT numericals & AIR targeting</div>
-            </button>
-          </div>
-        </div>
+        {plannerTab === 'HALVING' ? (
+          <div className="space-y-3.5">
+            <div className="rounded-xl border p-3 bg-blue-500/10 border-blue-500/20 text-[11.5px] leading-relaxed text-[var(--color-text)]">
+              <strong>Smart 50/50 Exam Halving Strategy:</strong> Specify your upcoming exam date and the topics your professor gave. MECHSTUDY OS and Gemini split the days exactly in half:
+              <strong> Phase 1</strong> covers all syllabus topics in depth, and <strong>Phase 2</strong> trains you on the exact exam pattern with timed papers and mistake analysis!
+            </div>
 
-        {/* RTU Semester if RTU */}
-        {examMode === 'RTU' && (
-          <div>
-            <label className="block text-[11px] font-semibold mb-1 text-[var(--color-text)]">Select RTU Semester:</label>
-            <div className="flex items-center gap-1.5 flex-wrap">
-              {[1, 2, 3, 4, 5, 6, 7, 8].map(s => (
-                <button
-                  key={s}
-                  type="button"
-                  onClick={() => setSemester(s)}
-                  className={`px-3 py-1 text-xs rounded-md border ${
-                    semester === s
-                      ? 'bg-blue-600 text-white font-bold border-blue-500'
-                      : 'bg-[var(--color-panel)] text-[var(--color-muted)] border-[var(--color-border)]'
-                  }`}
+            <div className="grid grid-cols-2 gap-2.5">
+              <div>
+                <label className="block text-[11px] font-semibold mb-1 text-[var(--color-text)]">Exam Name:</label>
+                <input
+                  type="text"
+                  className="input w-full"
+                  value={halvingExamName}
+                  onChange={e => setHalvingExamName(e.target.value)}
+                  placeholder="e.g. RTU Midterm 1"
+                />
+              </div>
+              <div>
+                <label className="block text-[11px] font-semibold mb-1 text-[var(--color-text)]">Subject:</label>
+                <input
+                  type="text"
+                  className="input w-full"
+                  value={halvingSubject}
+                  onChange={e => setHalvingSubject(e.target.value)}
+                  placeholder="e.g. Mechanics of Solids"
+                />
+              </div>
+            </div>
+
+            <div className="grid grid-cols-2 gap-2.5">
+              <div>
+                <label className="block text-[11px] font-semibold mb-1 text-[var(--color-text)]">Exam Date:</label>
+                <input
+                  type="date"
+                  className="input w-full"
+                  value={halvingExamDate}
+                  onChange={e => setHalvingExamDate(e.target.value)}
+                />
+              </div>
+              <div>
+                <label className="block text-[11px] font-semibold mb-1 text-[var(--color-text)]">Exam Time:</label>
+                <input
+                  type="text"
+                  className="input w-full"
+                  value={halvingExamTime}
+                  onChange={e => setHalvingExamTime(e.target.value)}
+                  placeholder="10:00 AM"
+                />
+              </div>
+            </div>
+
+            <div className="grid grid-cols-2 gap-2.5">
+              <div>
+                <label className="block text-[11px] font-semibold mb-1 text-[var(--color-text)]">Exam Pattern:</label>
+                <select
+                  className="input w-full"
+                  value={halvingPattern}
+                  onChange={e => setHalvingPattern(e.target.value as any)}
                 >
-                  Sem {s}
+                  <option value="RTU_MIDTERM">RTU Midterm (1h: Part A 2M + Part B 4M)</option>
+                  <option value="RTU_ENDSEM">RTU End-Semester (3 Hours)</option>
+                  <option value="GATE">GATE Mechanical (CBT NAT &amp; MCQ)</option>
+                </select>
+              </div>
+              <div>
+                <label className="block text-[11px] font-semibold mb-1 text-[var(--color-text)]">Daily Study Time:</label>
+                <select
+                  className="input w-full"
+                  value={halvingDailyMinutes}
+                  onChange={e => setHalvingDailyMinutes(Number(e.target.value))}
+                >
+                  <option value={90}>1.5 Hours / day</option>
+                  <option value={120}>2.0 Hours / day</option>
+                  <option value={150}>2.5 Hours / day (Recommended)</option>
+                  <option value={180}>3.0 Hours / day</option>
+                  <option value={240}>4.0 Hours / day (Intensive)</option>
+                </select>
+              </div>
+            </div>
+
+            <div>
+              <label className="block text-[11px] font-semibold mb-1 text-[var(--color-text)]">
+                Syllabus Topics Given by Professor:
+              </label>
+              <textarea
+                className="input w-full text-xs font-mono"
+                rows={4}
+                value={professorTopics}
+                onChange={e => setProfessorTopics(e.target.value)}
+                placeholder="Enter topics, chapters, or units given by your professor..."
+              />
+            </div>
+
+            {/* Live 50/50 Breakdown Card */}
+            <div className="rounded-xl border p-3 bg-[var(--color-panel2)] border-[var(--color-border)] space-y-2">
+              <div className="flex items-center justify-between font-bold text-xs">
+                <span className="text-[var(--color-text)]">⏳ {halvingCalculation.totalDays} Days Left until Exam ({halvingExamDate} at {halvingExamTime})</span>
+                <span className="text-blue-400 bg-blue-500/10 px-2 py-0.5 rounded border border-blue-500/20">
+                  50/50 Timetable Split
+                </span>
+              </div>
+              <div className="grid grid-cols-2 gap-2 text-[11px]">
+                <div className="p-2 rounded-lg border border-blue-500/30 bg-blue-500/5">
+                  <div className="font-bold text-blue-400 mb-1">📘 Phase 1: Days 1 to {halvingCalculation.phase1Days} ({halvingCalculation.phase1Days} Days)</div>
+                  <div className="text-[var(--color-muted)] leading-relaxed">
+                    Deep coverage of all professor syllabus topics, theory derivations, formulas &amp; standard numericals.
+                  </div>
+                </div>
+                <div className="p-2 rounded-lg border border-purple-500/30 bg-purple-500/5">
+                  <div className="font-bold text-purple-400 mb-1">🎯 Phase 2: Days {halvingCalculation.phase1Days + 1} to {halvingCalculation.totalDays} ({halvingCalculation.phase2Days} Days)</div>
+                  <div className="text-[var(--color-muted)] leading-relaxed">
+                    Exam pattern focus: daily timed midterm papers (Part A 2M + Part B 4M), mistake notebook fix &amp; speed-runs.
+                  </div>
+                </div>
+              </div>
+              <p className="text-[10.5px] text-[var(--color-muted)] m-0 pt-1">
+                📬 <strong>Automated Daily Email:</strong> Every morning at your scheduled time, MECHSTUDY OS will dispatch today's plan, exam countdown, and targets to your email.
+              </p>
+            </div>
+          </div>
+        ) : (
+          <div className="space-y-4">
+            <div className="rounded-xl border p-3 bg-[var(--color-panel2)] border-[var(--color-border)] flex items-start gap-2.5">
+              <Sparkles size={16} className="text-purple-400 shrink-0 mt-0.5" />
+              <p className="text-[11.5px] leading-relaxed text-[var(--color-muted)]">
+                Our Adaptive Planner balances your daily study timetable by automatically synchronizing <strong>unreviewed mistake book pitfalls</strong>, <strong>high-weightage syllabus topics</strong>, and <strong>handwritten lecture notes</strong> into structured 3-part daily sprints.
+              </p>
+            </div>
+
+            {/* Target Track */}
+            <div>
+              <label className="block text-[11px] font-semibold mb-1 text-[var(--color-text)]">Exam Objective:</label>
+              <div className="grid grid-cols-2 gap-2">
+                <button
+                  type="button"
+                  className={`rounded-lg p-2.5 border text-left transition-all ${
+                    examMode === 'RTU'
+                      ? 'border-blue-500 bg-blue-500/10 text-[var(--color-text)] font-semibold'
+                      : 'border-[var(--color-border)] bg-[var(--color-panel)] text-[var(--color-muted)]'
+                  }`}
+                  onClick={() => {
+                    setExamMode('RTU');
+                    const d = new Date(Date.now() + 60 * 86400000);
+                    setTargetDate(d.toISOString().slice(0, 10));
+                  }}
+                >
+                  <div className="font-bold text-xs text-blue-400">RTU Engineering</div>
+                  <div className="text-[10px] text-[var(--color-muted)]">Semester end-sem &amp; mid-terms</div>
                 </button>
-              ))}
+                <button
+                  type="button"
+                  className={`rounded-lg p-2.5 border text-left transition-all ${
+                    examMode === 'GATE'
+                      ? 'border-purple-500 bg-purple-500/10 text-[var(--color-text)] font-semibold'
+                      : 'border-[var(--color-border)] bg-[var(--color-panel)] text-[var(--color-muted)]'
+                  }`}
+                  onClick={() => {
+                    setExamMode('GATE');
+                    const yr = new Date().getMonth() >= 2 ? new Date().getFullYear() + 1 : new Date().getFullYear();
+                    setTargetDate(`${yr}-02-07`);
+                  }}
+                >
+                  <div className="font-bold text-xs text-purple-400">GATE Mechanical</div>
+                  <div className="text-[10px] text-[var(--color-muted)]">CBT numericals &amp; AIR targeting</div>
+                </button>
+              </div>
+            </div>
+
+            {/* RTU Semester if RTU */}
+            {examMode === 'RTU' && (
+              <div>
+                <label className="block text-[11px] font-semibold mb-1 text-[var(--color-text)]">Select RTU Semester:</label>
+                <div className="flex items-center gap-1.5 flex-wrap">
+                  {[1, 2, 3, 4, 5, 6, 7, 8].map(s => (
+                    <button
+                      key={s}
+                      type="button"
+                      onClick={() => setSemester(s)}
+                      className={`px-3 py-1 text-xs rounded-md border ${
+                        semester === s
+                          ? 'bg-blue-600 text-white font-bold border-blue-500'
+                          : 'bg-[var(--color-panel)] text-[var(--color-muted)] border-[var(--color-border)]'
+                      }`}
+                    >
+                      Sem {s}
+                    </button>
+                  ))}
+                </div>
+              </div>
+            )}
+
+            {/* Exam Countdown & Target Date */}
+            <div>
+              <div className="flex items-center justify-between mb-1">
+                <label className="text-[11px] font-semibold text-[var(--color-text)]">Target Exam Date:</label>
+                <span className="text-[11px] font-bold text-emerald-400 bg-emerald-500/10 px-2 py-0.5 rounded border border-emerald-500/20">
+                  ⏳ {daysRemaining} days remaining
+                </span>
+              </div>
+              <input
+                type="date"
+                className="input w-full"
+                value={targetDate}
+                onChange={e => setTargetDate(e.target.value)}
+              />
+            </div>
+
+            {/* Plan Duration & Daily Budget */}
+            <div className="grid grid-cols-2 gap-3">
+              <div>
+                <label className="block text-[11px] font-semibold mb-1 text-[var(--color-text)]">Schedule Horizon:</label>
+                <select
+                  className="input w-full"
+                  value={daysCount}
+                  onChange={e => setDaysCount(Number(e.target.value))}
+                >
+                  <option value={7}>Next 7 Days (Sprint)</option>
+                  <option value={14}>Next 14 Days (Fortnight)</option>
+                  <option value={21}>Next 21 Days (3 Weeks)</option>
+                  <option value={30}>Next 30 Days (Month Roadmap)</option>
+                </select>
+              </div>
+
+              <div>
+                <label className="block text-[11px] font-semibold mb-1 text-[var(--color-text)]">Daily Study Time:</label>
+                <select
+                  className="input w-full"
+                  value={dailyMinutes}
+                  onChange={e => setDailyMinutes(Number(e.target.value))}
+                >
+                  <option value={90}>1.5 Hours / day</option>
+                  <option value={120}>2.0 Hours / day (Recommended)</option>
+                  <option value={180}>3.0 Hours / day</option>
+                  <option value={240}>4.0 Hours / day (Intensive)</option>
+                </select>
+              </div>
             </div>
           </div>
         )}
-
-        {/* Exam Countdown & Target Date */}
-        <div>
-          <div className="flex items-center justify-between mb-1">
-            <label className="text-[11px] font-semibold text-[var(--color-text)]">Target Exam Date:</label>
-            <span className="text-[11px] font-bold text-emerald-400 bg-emerald-500/10 px-2 py-0.5 rounded border border-emerald-500/20">
-              ⏳ {daysRemaining} days remaining
-            </span>
-          </div>
-          <input
-            type="date"
-            className="input w-full"
-            value={targetDate}
-            onChange={e => setTargetDate(e.target.value)}
-          />
-        </div>
-
-        {/* Plan Duration & Daily Budget */}
-        <div className="grid grid-cols-2 gap-3">
-          <div>
-            <label className="block text-[11px] font-semibold mb-1 text-[var(--color-text)]">Schedule Horizon:</label>
-            <select
-              className="input w-full"
-              value={daysCount}
-              onChange={e => setDaysCount(Number(e.target.value))}
-            >
-              <option value={7}>Next 7 Days (Sprint)</option>
-              <option value={14}>Next 14 Days (Fortnight)</option>
-              <option value={21}>Next 21 Days (3 Weeks)</option>
-              <option value={30}>Next 30 Days (Month Roadmap)</option>
-            </select>
-          </div>
-
-          <div>
-            <label className="block text-[11px] font-semibold mb-1 text-[var(--color-text)]">Daily Study Time:</label>
-            <select
-              className="input w-full"
-              value={dailyMinutes}
-              onChange={e => setDailyMinutes(Number(e.target.value))}
-            >
-              <option value={90}>1.5 Hours / day</option>
-              <option value={120}>2.0 Hours / day (Recommended)</option>
-              <option value={180}>3.0 Hours / day</option>
-              <option value={240}>4.0 Hours / day (Intensive)</option>
-            </select>
-          </div>
-        </div>
       </div>
     </Modal>
   );
