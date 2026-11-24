@@ -278,10 +278,13 @@ export interface ReviewRow {
 }
 
 export interface SearchHit {
-  kind: 'page' | 'note' | 'document' | 'topic' | 'bookmark' | 'subject';
+  kind: 'page' | 'note' | 'document' | 'topic' | 'bookmark' | 'subject' | 'formula' | 'pyq';
   title: string; subtitle?: string; snippet?: string;
   documentId?: number; page?: number; refId?: number; source?: string;
   examType?: string;
+  score?: number;
+  isSemantic?: boolean;
+  matchedConcept?: string;
 }
 
 export interface AnalyticsSummary {

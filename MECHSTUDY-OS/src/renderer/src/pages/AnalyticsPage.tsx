@@ -4,7 +4,7 @@ import {
 } from 'recharts';
 import {
   TrendingUp, Flame, Clock, Target, BookOpen, AlertTriangle, GraduationCap,
-  CalendarDays, CheckCircle2, BarChart3, RefreshCw,
+  CalendarDays, CheckCircle2, BarChart3, RefreshCw, Award, Sparkles, Sliders, Check,
 } from 'lucide-react';
 import { api } from '../lib/api';
 import { useApp } from '../store';
@@ -144,6 +144,110 @@ export function AnalyticsPage() {
   const practised = React.useMemo(() => {
     return topics.filter(t => t.attempted > 0);
   }, [topics]);
+
+  // RTU SGPA Estimator State
+  const [rtuMt1, setRtuMt1] = React.useState<number>(24);
+  const [rtuMt2, setRtuMt2] = React.useState<number>(26);
+  const [rtuEndSem, setRtuEndSem] = React.useState<number>(95);
+
+  // GATE Rank Estimator State
+  const [gateSimMarks, setGateSimMarks] = React.useState<number>(68);
+
+  const projectedRtu = React.useMemo(() => {
+    const iaScaled = ((rtuMt1 + rtuMt2) / 60) * 30;
+    const endSemScaled = (rtuEndSem / 120) * 70;
+    const totalPct = Math.min(100, Math.max(0, iaScaled + endSemScaled));
+
+    let grade = 'F';
+    let gradePoints = 0;
+    if (totalPct >= 90) { grade = 'O (Outstanding)'; gradePoints = 10.0; }
+    else if (totalPct >= 85) { grade = 'A+ (Excellent)'; gradePoints = 9.0; }
+    else if (totalPct >= 75) { grade = 'A (Very Good)'; gradePoints = 8.5; }
+    else if (totalPct >= 65) { grade = 'B+ (Good)'; gradePoints = 7.5; }
+    else if (totalPct >= 55) { grade = 'B (Above Average)'; gradePoints = 6.5; }
+    else if (totalPct >= 45) { grade = 'C (Average)'; gradePoints = 5.5; }
+    else if (totalPct >= 40) { grade = 'P (Pass)'; gradePoints = 4.0; }
+
+    const isHonours = gradePoints >= 7.5;
+    return {
+      totalPct: totalPct.toFixed(1),
+      grade,
+      gradePoints: gradePoints.toFixed(2),
+      isHonours,
+      iaScaled: iaScaled.toFixed(1),
+      endSemScaled: endSemScaled.toFixed(1),
+    };
+  }, [rtuMt1, rtuMt2, rtuEndSem]);
+
+  const projectedGate = React.useMemo(() => {
+    const marks = gateSimMarks;
+    let gateScore = 0;
+    let airRange = '';
+    let percentile = 0;
+    let opportunities: string[] = [];
+
+    if (marks >= 85) {
+      gateScore = Math.min(1000, Math.round(920 + ((marks - 85) / 15) * 80));
+      airRange = 'AIR 1 – 60';
+      percentile = 99.95;
+      opportunities = [
+        'Direct PSU Interview Calls (IOCL, ONGC, NTPC, BHEL, GAIL, HPCL)',
+        'IISc Bangalore & IIT Bombay M.Tech Direct Admit',
+        'BARC OCES / DGFS Scientist Trainee Shortlist',
+      ];
+    } else if (marks >= 75) {
+      gateScore = Math.round(800 + ((marks - 75) / 10) * 115);
+      airRange = 'AIR 61 – 350';
+      percentile = 99.65;
+      opportunities = [
+        'Top Maharatna PSUs (NTPC, PowerGrid, Coal India, BEL)',
+        'IIT Delhi, IIT Madras, IIT Kharagpur, IIT Kanpur M.Tech',
+        'NIT Trichy & NIT Surathkal top branch selections',
+      ];
+    } else if (marks >= 65) {
+      gateScore = Math.round(680 + ((marks - 65) / 10) * 115);
+      airRange = 'AIR 351 – 1,200';
+      percentile = 98.8;
+      opportunities = [
+        'Navratna PSUs (NALCO, NMDC, MRPL)',
+        'IIT Roorkee, IIT Guwahati, IIT BHU & top NITs',
+        'State Engineering PSU recruitment drives',
+      ];
+    } else if (marks >= 55) {
+      gateScore = Math.round(560 + ((marks - 55) / 10) * 115);
+      airRange = 'AIR 1,201 – 3,200';
+      percentile = 96.5;
+      opportunities = [
+        'Top NITs (Warangal, Calicut, Rourkela)',
+        'Newer IITs (IIT Gandhinagar, IIT Ropar, IIT Mandi)',
+        'State Govt AE/JE technical eligibility',
+      ];
+    } else if (marks >= 32) {
+      gateScore = Math.round(350 + ((marks - 32) / 23) * 200);
+      airRange = 'AIR 3,201 – 9,500';
+      percentile = 91.0;
+      opportunities = [
+        'Qualified GATE Score Card (Valid for 3 years)',
+        'State University Masters & Private PSU eligibility',
+      ];
+    } else {
+      gateScore = Math.round((marks / 32) * 340);
+      airRange = 'Below Qualifying Cut-off';
+      percentile = Math.max(10, Math.round((marks / 32) * 80));
+      opportunities = [
+        'Focus on high-yield formulas & mistake notebook gaps to reach qualifying 32+ marks.',
+      ];
+    }
+
+    return {
+      marks,
+      gateScore,
+      airRange,
+      percentile,
+      opportunities,
+      isQualified: marks >= 30,
+    };
+  }, [gateSimMarks]);
 
   // Early returns are ONLY after all hooks have been called
   if (loading) return <Loading label="Crunching your study data…" />;
@@ -524,6 +628,166 @@ export function AnalyticsPage() {
                 </tbody>
               </table>
             )}
+          </div>
+        </div>
+
+        {/* Exam Performance & Projection Center */}
+        <div className="mt-5 space-y-4">
+          <div className="flex items-center gap-2">
+            <Sparkles size={16} className="text-purple-400" />
+            <h3 className="text-sm font-bold text-[var(--color-text)]">
+              Exam Performance & Projection Center
+            </h3>
+            <span className="text-[10.5px] text-[var(--color-muted)]">
+              · RTU SGPA / Honours Estimator & GATE AIR Rank Predictor
+            </span>
+          </div>
+
+          <div className="grid grid-cols-1 lg:grid-cols-2 gap-4">
+            {/* RTU Kota SGPA Estimator */}
+            <div className="card p-4 space-y-3.5">
+              <div className="flex items-center justify-between">
+                <div className="flex items-center gap-2">
+                  <GraduationCap size={16} className="text-blue-400" />
+                  <span className="text-[13px] font-bold text-[var(--color-text)]">
+                    RTU Kota B.Tech SGPA Estimator
+                  </span>
+                </div>
+                <span className="px-2 py-0.5 rounded text-[10.5px] font-bold bg-blue-500/10 text-blue-400 border border-blue-500/20">
+                  {projectedRtu.isHonours ? '🎖️ Honours Track' : 'Standard Pass'}
+                </span>
+              </div>
+
+              <div className="grid grid-cols-3 gap-2 text-center p-3 rounded-xl bg-[var(--color-panel2)] border border-[var(--color-border)]">
+                <div>
+                  <div className="text-[10px] text-[var(--color-muted)]">Projected SGPA</div>
+                  <div className="text-xl font-black text-blue-400">{projectedRtu.gradePoints}</div>
+                </div>
+                <div>
+                  <div className="text-[10px] text-[var(--color-muted)]">Letter Grade</div>
+                  <div className="text-xs font-bold text-[var(--color-text)] mt-1">{projectedRtu.grade}</div>
+                </div>
+                <div>
+                  <div className="text-[10px] text-[var(--color-muted)]">Total Score</div>
+                  <div className="text-xl font-black text-emerald-400">{projectedRtu.totalPct}%</div>
+                </div>
+              </div>
+
+              {/* Simulation Sliders */}
+              <div className="space-y-2.5 text-xs">
+                <div>
+                  <div className="flex justify-between text-[11px] mb-1">
+                    <span className="text-[var(--color-muted)]">Mid-Term 1 (out of 30):</span>
+                    <strong className="text-[var(--color-text)] font-mono">{rtuMt1} / 30</strong>
+                  </div>
+                  <input
+                    type="range"
+                    min={0}
+                    max={30}
+                    value={rtuMt1}
+                    onChange={e => setRtuMt1(Number(e.target.value))}
+                    className="w-full accent-blue-500"
+                  />
+                </div>
+
+                <div>
+                  <div className="flex justify-between text-[11px] mb-1">
+                    <span className="text-[var(--color-muted)]">Mid-Term 2 (out of 30):</span>
+                    <strong className="text-[var(--color-text)] font-mono">{rtuMt2} / 30</strong>
+                  </div>
+                  <input
+                    type="range"
+                    min={0}
+                    max={30}
+                    value={rtuMt2}
+                    onChange={e => setRtuMt2(Number(e.target.value))}
+                    className="w-full accent-blue-500"
+                  />
+                </div>
+
+                <div>
+                  <div className="flex justify-between text-[11px] mb-1">
+                    <span className="text-[var(--color-muted)]">Projected End-Sem Score (out of 120):</span>
+                    <strong className="text-[var(--color-text)] font-mono">{rtuEndSem} / 120</strong>
+                  </div>
+                  <input
+                    type="range"
+                    min={0}
+                    max={120}
+                    value={rtuEndSem}
+                    onChange={e => setRtuEndSem(Number(e.target.value))}
+                    className="w-full accent-blue-500"
+                  />
+                </div>
+              </div>
+
+              <div className="text-[10.5px] text-[var(--color-muted)] leading-relaxed pt-1 border-t border-[var(--color-border)]">
+                ℹ️ Computed according to RTU Kota CBCS scheme (30% Internal Assessment + 70% End-Term University exam). Minimum 7.50 SGPA required across all semesters for First Class with Distinction (Honours).
+              </div>
+            </div>
+
+            {/* GATE Mechanical AIR Estimator */}
+            <div className="card p-4 space-y-3.5">
+              <div className="flex items-center justify-between">
+                <div className="flex items-center gap-2">
+                  <Award size={16} className="text-purple-400" />
+                  <span className="text-[13px] font-bold text-[var(--color-text)]">
+                    GATE Mechanical AIR Rank Estimator
+                  </span>
+                </div>
+                <span className="px-2 py-0.5 rounded text-[10.5px] font-bold bg-purple-500/10 text-purple-400 border border-purple-500/20">
+                  {projectedGate.isQualified ? '✅ Qualified' : 'Needs Work'}
+                </span>
+              </div>
+
+              <div className="grid grid-cols-3 gap-2 text-center p-3 rounded-xl bg-[var(--color-panel2)] border border-[var(--color-border)]">
+                <div>
+                  <div className="text-[10px] text-[var(--color-muted)]">Simulated Marks</div>
+                  <div className="text-xl font-black text-purple-400">{projectedGate.marks}/100</div>
+                </div>
+                <div>
+                  <div className="text-[10px] text-[var(--color-muted)]">Estimated AIR</div>
+                  <div className="text-xs font-bold text-amber-400 mt-1">{projectedGate.airRange}</div>
+                </div>
+                <div>
+                  <div className="text-[10px] text-[var(--color-muted)]">GATE Score</div>
+                  <div className="text-xl font-black text-emerald-400">{projectedGate.gateScore}</div>
+                </div>
+              </div>
+
+              {/* Slider for Simulated Marks */}
+              <div className="space-y-1 text-xs">
+                <div className="flex justify-between text-[11px] mb-1">
+                  <span className="text-[var(--color-muted)]">Simulate Full Mock / Practice Score:</span>
+                  <strong className="text-[var(--color-text)] font-mono">{gateSimMarks} Marks ({projectedGate.percentile} %ile)</strong>
+                </div>
+                <input
+                  type="range"
+                  min={0}
+                  max={100}
+                  value={gateSimMarks}
+                  onChange={e => setGateSimMarks(Number(e.target.value))}
+                  className="w-full accent-purple-500"
+                />
+              </div>
+
+              {/* Admission / PSU Eligibility Opportunities */}
+              <div className="space-y-1.5 pt-1">
+                <span className="text-[11px] font-bold text-[var(--color-text)]">Target Opportunities:</span>
+                <ul className="space-y-1 text-[10.5px] text-[var(--color-muted)]">
+                  {projectedGate.opportunities.map((opp, idx) => (
+                    <li key={idx} className="flex items-baseline gap-1.5">
+                      <span className="text-purple-400">▸</span>
+                      <span>{opp}</span>
+                    </li>
+                  ))}
+                </ul>
+              </div>
+
+              <div className="text-[10.5px] text-[var(--color-muted)] leading-relaxed pt-1 border-t border-[var(--color-border)]">
+                ℹ️ Empirical normalization curve based on recent GATE Mechanical candidate mark distributions. General category qualifying cutoff is typically 28–33 marks.
+              </div>
+            </div>
           </div>
         </div>
 

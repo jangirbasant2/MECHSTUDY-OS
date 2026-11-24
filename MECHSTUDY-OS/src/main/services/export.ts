@@ -738,4 +738,189 @@ export async function compileCheatSheetPdf(opts: {
   return { outPath: opts.outPath, pages: totalPages, formulaCount, mistakeCount };
 }
 
+/**
+ * 2-Column A4 Print-Ready Pocket Revision Booklet Generator.
+ * Compiles syllabus topics, high-yield formulas, and error pitfalls into an A4 printable leaflet.
+ */
+export async function compilePocketBookletPdf(opts: {
+  title?: string;
+  examTrack: 'RTU' | 'GATE';
+  semester?: number;
+  subjectName?: string;
+  outPath: string;
+}): Promise<{ outPath: string; pages: number; itemsCount: number }> {
+  const doc = await PDFDocument.create();
+  const fontRegular = await doc.embedFont(StandardFonts.Helvetica);
+  const fontBold = await doc.embedFont(StandardFonts.HelveticaBold);
+
+  let page = doc.addPage([595.28, 841.89]); // A4 Portrait
+  const { width, height } = page.getSize();
+  const margin = 28;
+  const colGap = 16;
+  const colWidth = (width - margin * 2 - colGap) / 2;
+  let colIndex = 0; // 0: left column, 1: right column
+  let y = height - margin - 40;
+
+  // Header banner on first page
+  const title = opts.title || `${opts.examTrack === 'RTU' ? 'RTU Kota B.Tech' : 'GATE Mechanical'} Pocket Revision Booklet`;
+  page.drawRectangle({
+    x: margin,
+    y: height - margin - 32,
+    width: width - margin * 2,
+    height: 32,
+    color: rgb(0.08, 0.12, 0.22),
+  });
+  page.drawText(sanitize(title), {
+    x: margin + 10,
+    y: height - margin - 18,
+    size: 11,
+    font: fontBold,
+    color: rgb(1, 1, 1),
+  });
+  page.drawText(sanitize('A4 Print-Ready Foldable Booklet · 2-Column Ink-Saving Layout · MECHSTUDY OS'), {
+    x: margin + 10,
+    y: height - margin - 28,
+    size: 6.5,
+    font: fontRegular,
+    color: rgb(0.7, 0.8, 1),
+  });
+
+  const nextColumn = () => {
+    if (colIndex === 0) {
+      colIndex = 1;
+      y = height - margin - (doc.getPageCount() === 1 ? 40 : 10);
+    } else {
+      page = doc.addPage([595.28, 841.89]);
+      colIndex = 0;
+      y = height - margin - 10;
+    }
+  };
+
+  const ensureSpace = (needed: number) => {
+    if (y - needed < margin + 20) {
+      nextColumn();
+    }
+  };
+
+  // Fetch topics from database
+  let sql = `
+    SELECT t.title as topic_title, u.title as unit_title, u.number as unit_number, s.name as subject_name
+    FROM topics t
+    JOIN units u ON u.id = t.unit_id
+    JOIN subjects s ON s.id = u.subject_id
+    JOIN syllabus_versions sv ON sv.id = s.syllabus_version_id
+    WHERE sv.exam_type = ?
+      AND s.name NOT LIKE '%Technical Communication%'
+  `;
+  const params: any[] = [opts.examTrack];
+  if (opts.semester && opts.semester > 0) {
+    sql += ' AND s.semester = ?';
+    params.push(opts.semester);
+  }
+  if (opts.subjectName && opts.subjectName !== 'All Subjects') {
+    sql += ' AND s.name = ?';
+    params.push(opts.subjectName);
+  }
+  sql += ' ORDER BY s.semester ASC, u.number ASC, t.sort_order ASC LIMIT 120';
+
+  const topics = all<any>(sql, ...params);
+  let itemsCount = 0;
+
+  let lastSubject = '';
+  let lastUnit = -1;
+
+  for (const t of topics) {
+    if (t.subject_name !== lastSubject) {
+      lastSubject = t.subject_name;
+      lastUnit = -1;
+      ensureSpace(28);
+      const colX = margin + colIndex * (colWidth + colGap);
+      page.drawRectangle({
+        x: colX,
+        y: y - 16,
+        width: colWidth,
+        height: 16,
+        color: rgb(0.2, 0.35, 0.6),
+      });
+      page.drawText(sanitize(t.subject_name.toUpperCase()), {
+        x: colX + 6,
+        y: y - 12,
+        size: 7.5,
+        font: fontBold,
+        color: rgb(1, 1, 1),
+      });
+      y -= 22;
+    }
+
+    if (t.unit_number !== lastUnit) {
+      lastUnit = t.unit_number;
+      ensureSpace(18);
+      const colX = margin + colIndex * (colWidth + colGap);
+      page.drawText(sanitize(`UNIT ${t.unit_number}: ${t.unit_title}`), {
+        x: colX,
+        y: y - 10,
+        size: 7,
+        font: fontBold,
+        color: rgb(0.1, 0.45, 0.2),
+      });
+      y -= 14;
+    }
+
+    ensureSpace(18);
+    const colX = margin + colIndex * (colWidth + colGap);
+    itemsCount++;
+
+    // Draw check box
+    page.drawRectangle({
+      x: colX,
+      y: y - 8,
+      width: 6,
+      height: 6,
+      borderColor: rgb(0.5, 0.5, 0.5),
+      borderWidth: 0.5,
+    });
+
+    const topicLines = wrapLines(sanitize(t.topic_title), fontRegular, 6.5, colWidth - 12);
+    let lineY = y - 8;
+    for (const l of topicLines.slice(0, 2)) {
+      page.drawText(l, {
+        x: colX + 10,
+        y: lineY,
+        size: 6.5,
+        font: fontRegular,
+        color: rgb(0.15, 0.15, 0.15),
+      });
+      lineY -= 8;
+    }
+    y -= topicLines.slice(0, 2).length * 8 + 3;
+  }
+
+  // Draw Page Footers & Center Fold Guide
+  const totalPages = doc.getPageCount();
+  for (let i = 0; i < totalPages; i++) {
+    const p = doc.getPage(i);
+    // Draw subtle vertical folding line guide in the middle
+    p.drawLine({
+      start: { x: width / 2, y: margin },
+      end: { x: width / 2, y: height - margin },
+      color: rgb(0.85, 0.85, 0.85),
+      dashArray: [3, 4],
+      thickness: 0.5,
+    });
+
+    const footer = `Page ${i + 1} of ${totalPages} · Fold along center dashed line for pocket booklet · MECHSTUDY OS`;
+    p.drawText(footer, {
+      x: margin + (width - margin * 2 - fontRegular.widthOfTextAtSize(footer, 6.5)) / 2,
+      y: 12,
+      size: 6.5,
+      font: fontRegular,
+      color: rgb(0.5, 0.5, 0.5),
+    });
+  }
+
+  await mkdir(dirname(opts.outPath), { recursive: true });
+  await writeFile(opts.outPath, await doc.save());
+  return { outPath: opts.outPath, pages: totalPages, itemsCount };
+}
+
 

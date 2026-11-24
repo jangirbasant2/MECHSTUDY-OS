@@ -25,12 +25,12 @@ import {
   listTasks, createTask, updateTask, deleteTask,
   startSession, endSession, tickSession, listSessions, deleteSession, updateSession, getSession,
   setTopicProgress, topicProgressMap, dueReviews, allReviews, gradeReview,
-  analyticsSummary, practiceAccuracyByTopic,
+  analyticsSummary, practiceAccuracyByTopic, generateAdaptiveDailyPlan,
 } from './services/study';
 import { search, indexPageText } from './services/search';
 import { indexTextLayer, indexAllTextLayers, searchInDocument } from './services/indexer';
 import { inspectPdf, extractPages } from './services/pdf';
-import { exportAnnotatedPdf, exportNotesMarkdown, pageOperations, defaultExportPath, compileCheatSheetPdf } from './services/export';
+import { exportAnnotatedPdf, exportNotesMarkdown, pageOperations, defaultExportPath, compileCheatSheetPdf, compilePocketBookletPdf } from './services/export';
 import {
   createBackup, listBackups, restoreBackup, deleteBackup, databaseInfo, scanBackupFolder,
   exportEncryptedBackup, importEncryptedBackup,
@@ -80,11 +80,14 @@ import {
   getUserProfile, getUserTrophies, awardXp, recordMasteryQuizResult, getDueRevisions, completeRevisionDrill,
   updateUsername
 } from './services/gamification';
-import { generateMasteryQuizWithGemini, generateFormulaPracticeNumerical, coachExamQuestionWithGemini } from './services/ai/gemini';
+import {
+  generateMasteryQuizWithGemini, generateFormulaPracticeNumerical, coachExamQuestionWithGemini,
+  startVivaSessionWithGemini, evaluateVivaAnswerWithGemini,
+} from './services/ai/gemini';
 import {
   listFlashcards, createFlashcard, updateFlashcard, deleteFlashcard, reviewFlashcard,
   autoSyncMistakeFlashcards, autoSyncWeakTopicFlashcards, completeFlashcardSession,
-  generateSyllabusDeck
+  generateSyllabusDeck, exportAnkiDeck
 } from './services/flashcards';
 import { manualLinkDocument, autoMatchAllDocuments, getDocumentSyllabusLinks } from './services/syllabusMatcher';
 import {
@@ -405,6 +408,7 @@ export function registerIpc(): void {
   }));
   handle('tasks:update', ({ id, patch }) => { updateTask(Number(id), patch ?? {}); return true; });
   handle('tasks:delete', ({ id }) => { deleteTask(Number(id)); return true; });
+  handle('tasks:generateAdaptivePlan', (opts) => generateAdaptiveDailyPlan(opts));
 
   /* ---------------- sessions ---------------- */
   handle('sessions:start', (s) => startSession({
@@ -830,6 +834,10 @@ export function registerIpc(): void {
     generateFormulaPracticeNumerical(formulaTitle, latex, subject, variables)
   );
 
+  /* ---------------- AI Viva-Voce & Technical Interview Simulator ---------------- */
+  handle('viva:startSession', (req) => startVivaSessionWithGemini(req));
+  handle('viva:evaluateAnswer', (req) => evaluateVivaAnswerWithGemini(req));
+
   /* ---------------- Flashcards & Active Recall ---------------- */
   handle('flashcard:list', (filter) => listFlashcards(filter));
   handle('flashcard:create', (card) => createFlashcard(card));
@@ -840,8 +848,20 @@ export function registerIpc(): void {
   handle('flashcard:syncWeakTopics', () => autoSyncWeakTopicFlashcards());
   handle('flashcard:generateSyllabusDeck', (options) => generateSyllabusDeck(options ?? { examType: 'RTU' }));
   handle('flashcard:completeSession', ({ cardsReviewed }) => completeFlashcardSession(Number(cardsReviewed)));
+  handle('flashcard:exportAnki', (opts) => exportAnkiDeck(opts));
+  handle('flashcard:pickAnkiPath', async ({ defaultName }) => {
+    const res = await dialog.showSaveDialog(mainWindow ?? undefined as any, {
+      title: 'Export Anki Flashcard Deck (.tsv)',
+      defaultPath: defaultName || 'MECHSTUDY_Anki_Deck.tsv',
+      filters: [
+        { name: 'Anki Import TSV', extensions: ['tsv', 'txt'] },
+        { name: 'All Files', extensions: ['*'] }
+      ],
+    });
+    return res.canceled || !res.filePath ? null : res.filePath;
+  });
 
-  /* ---------------- Cheat-Sheet PDF Compiler ---------------- */
+  /* ---------------- Cheat-Sheet & Pocket Booklet PDF Compiler ---------------- */
   handle('export:compileCheatSheet', ({ title, examTrack, formulas, outPath }) =>
     compileCheatSheetPdf({ title, examTrack, formulas, outPath })
   );
@@ -849,6 +869,15 @@ export function registerIpc(): void {
     const res = await dialog.showSaveDialog(mainWindow ?? undefined as any, {
       title: 'Save Exam-Eve Rapid Revision Cheat Sheet PDF',
       defaultPath: defaultName || 'MECHSTUDY_Exam_Eve_CheatSheet.pdf',
+      filters: [{ name: 'PDF Document', extensions: ['pdf'] }],
+    });
+    return res.canceled || !res.filePath ? null : res.filePath;
+  });
+  handle('export:compilePocketBooklet', (opts) => compilePocketBookletPdf(opts));
+  handle('export:pickPocketBookletPath', async ({ defaultName }) => {
+    const res = await dialog.showSaveDialog(mainWindow ?? undefined as any, {
+      title: 'Export A4 Pocket Revision Booklet PDF',
+      defaultPath: defaultName || 'MECHSTUDY_Pocket_Revision_Booklet.pdf',
       filters: [{ name: 'PDF Document', extensions: ['pdf'] }],
     });
     return res.canceled || !res.filePath ? null : res.filePath;

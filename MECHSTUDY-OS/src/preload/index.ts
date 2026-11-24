@@ -116,6 +116,7 @@ const api: MechStudyApi = {
     create: (t) => invoke('tasks:create', t),
     update: (id, patch) => invoke('tasks:update', { id, patch }),
     remove: (id) => invoke('tasks:delete', { id }),
+    generateAdaptivePlan: (opts) => invoke('tasks:generateAdaptivePlan', opts),
     onRefresh: (cb) => subscribe('planner:refresh', cb),
   },
 
@@ -345,6 +346,8 @@ const api: MechStudyApi = {
     syncWeakTopics: () => invoke('flashcard:syncWeakTopics'),
     generateSyllabusDeck: (options: any) => invoke('flashcard:generateSyllabusDeck', options),
     completeSession: (cardsReviewed: number) => invoke('flashcard:completeSession', { cardsReviewed }),
+    exportAnki: (params: any) => invoke('flashcard:exportAnki', params),
+    pickAnkiPath: (defaultName?: string) => invoke('flashcard:pickAnkiPath', { defaultName }),
   },
   backupArchive: {
     export: (savePath: string, password?: string) => invoke('backup:exportArchive', { savePath, password }),
@@ -355,6 +358,12 @@ const api: MechStudyApi = {
   cheatSheet: {
     compile: (params: any) => invoke('export:compileCheatSheet', params),
     pickSavePath: (defaultName?: string) => invoke('export:pickCheatSheetPath', { defaultName }),
+    compilePocketBooklet: (params: any) => invoke('export:compilePocketBooklet', params),
+    pickPocketBookletPath: (defaultName?: string) => invoke('export:pickPocketBookletPath', { defaultName }),
+  },
+  viva: {
+    startSession: (req: any) => invoke('viva:startSession', req),
+    evaluateAnswer: (req: any) => invoke('viva:evaluateAnswer', req),
   },
   window: {
     setFullScreen: (flag: boolean) => invoke('window:setFullScreen', { flag }),

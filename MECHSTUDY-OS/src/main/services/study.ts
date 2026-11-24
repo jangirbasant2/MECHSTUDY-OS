@@ -401,3 +401,254 @@ export function practiceAccuracyByTopic() {
     JOIN question_attempts qa ON qa.question_id = q.id
     GROUP BY t.id ORDER BY attempted DESC`);
 }
+
+/* ---------------- Adaptive AI Daily Study Planner ---------------- */
+
+export interface AdaptivePlanOptions {
+  examMode: 'RTU' | 'GATE';
+  targetDate?: string;
+  daysCount?: number;
+  dailyMinutes?: number;
+  semester?: number;
+  subjectId?: number;
+}
+
+export interface AdaptivePlanResult {
+  examMode: 'RTU' | 'GATE';
+  targetDate: string;
+  daysRemaining: number;
+  daysCount: number;
+  tasksCreated: number;
+  totalEstimatedMinutes: number;
+  summary: {
+    mistakeReviewTasks: number;
+    conceptStudyTasks: number;
+    numericalPracticeTasks: number;
+  };
+}
+
+export function generateAdaptiveDailyPlan(opts: AdaptivePlanOptions): AdaptivePlanResult {
+  return tx(() => {
+    const examMode = opts.examMode || 'RTU';
+    const now = new Date();
+
+    // 1. Calculate Target Date and Days Remaining
+    let targetDateStr = opts.targetDate;
+    if (!targetDateStr) {
+      if (examMode === 'RTU') {
+        const d = new Date(now.getTime() + 60 * 86400000);
+        targetDateStr = d.toISOString().slice(0, 10);
+      } else {
+        const nextYear = now.getMonth() >= 2 ? now.getFullYear() + 1 : now.getFullYear();
+        targetDateStr = `${nextYear}-02-07`;
+      }
+    }
+    const targetTimestamp = new Date(targetDateStr).getTime();
+    const daysRemaining = Math.max(1, Math.round((targetTimestamp - now.getTime()) / 86400000));
+    const daysCount = Math.min(30, Math.max(1, opts.daysCount ?? 7));
+    const dailyMinutes = Math.max(60, opts.dailyMinutes ?? 120);
+
+    // 2. Query Unreviewed Mistake Gaps
+    const mistakeGaps: Array<{ subject_name: string; detail: string; source: string }> = [];
+    if (examMode === 'GATE') {
+      const gMistakes = all<{ subject_name: string; question_text: string }>(`
+        SELECT subject_name, question_text FROM gate_mistakes
+        WHERE reviewed = 0
+        ORDER BY id DESC LIMIT 15
+      `);
+      for (const m of gMistakes) {
+        mistakeGaps.push({
+          subject_name: m.subject_name || 'GATE Core Mechanical',
+          detail: m.question_text?.slice(0, 70) || 'Unresolved GATE Question Mistake',
+          source: 'GATE Mistake Notebook',
+        });
+      }
+    }
+    const qMistakes = all<{ subject_name: string; prompt: string }>(`
+      SELECT s.name AS subject_name, q.prompt
+      FROM mistakes m
+      JOIN questions q ON q.id = m.question_id
+      LEFT JOIN subjects s ON s.id = q.subject_id
+      WHERE m.is_resolved = 0
+        AND (s.name IS NULL OR s.name NOT LIKE '%Technical Communication%')
+      ORDER BY m.id DESC LIMIT 15
+    `);
+    for (const m of qMistakes) {
+      mistakeGaps.push({
+        subject_name: m.subject_name || 'Engineering Subject',
+        detail: m.prompt?.slice(0, 70) || 'Question Mistake',
+        source: 'Practice Mistake Book',
+      });
+    }
+
+    // 3. Query High Priority & Uncompleted Syllabus Topics (strictly excluding Technical Communication)
+    const topicWhere: string[] = [
+      `v.exam_type = ?`,
+      `s.name NOT LIKE '%Technical Communication%'`,
+      `s.code NOT LIKE '%3ME1-02%'`,
+      `s.code NOT LIKE '%4ME1-02%'`,
+    ];
+    const topicParams: unknown[] = [examMode];
+
+    if (examMode === 'RTU' && opts.semester) {
+      topicWhere.push('s.semester = ?');
+      topicParams.push(opts.semester);
+    }
+    if (opts.subjectId) {
+      topicWhere.push('s.id = ?');
+      topicParams.push(opts.subjectId);
+    }
+
+    const availableTopics = all<{
+      topic_id: number;
+      topic_title: string;
+      unit_id: number;
+      unit_title: string;
+      subject_id: number;
+      subject_name: string;
+      status: string | null;
+      confidence: number | null;
+      document_id: number | null;
+    }>(`
+      SELECT t.id AS topic_id, t.title AS topic_title,
+             u.id AS unit_id, u.title AS unit_title,
+             s.id AS subject_id, s.name AS subject_name,
+             tp.status, tp.confidence,
+             dsl.document_id
+      FROM topics t
+      JOIN units u ON u.id = t.unit_id
+      JOIN subjects s ON s.id = u.subject_id
+      JOIN syllabus_versions v ON v.id = s.version_id
+      LEFT JOIN topic_progress tp ON tp.topic_id = t.id
+      LEFT JOIN document_syllabus_links dsl ON dsl.topic_id = t.id
+      WHERE ${topicWhere.join(' AND ')}
+      ORDER BY 
+        CASE 
+          WHEN tp.status = 'needs_revision' THEN 0
+          WHEN tp.confidence <= 2 THEN 1
+          WHEN tp.status = 'learning' THEN 2
+          WHEN tp.status IS NULL OR tp.status = 'not_started' THEN 3
+          ELSE 4
+        END,
+        s.id ASC, u.sort_order ASC, t.sort_order ASC
+      LIMIT 80
+    `, ...topicParams);
+
+    // Fallback if no specific topics found
+    const topicsPool = availableTopics.length > 0 ? availableTopics : [
+      {
+        topic_id: 1,
+        topic_title: 'Core Fundamentals & Formulations',
+        unit_id: 1,
+        unit_title: 'Unit 1',
+        subject_id: 1,
+        subject_name: examMode === 'RTU' ? 'Engineering Thermodynamics' : 'Thermodynamics & Heat Transfer',
+        status: 'learning',
+        confidence: 3,
+        document_id: null,
+      }
+    ];
+
+    let tasksCreated = 0;
+    let totalEstMin = 0;
+    let mistakeTasks = 0;
+    let conceptTasks = 0;
+    let practiceTasks = 0;
+
+    let topicIdx = 0;
+    let mistakeIdx = 0;
+
+    // Time budget allocation per day:
+    // Slot 1: Concept Study (~45% of daily budget)
+    // Slot 2: Numerical / PYQ Drill (~35% of daily budget)
+    // Slot 3: Active Recall / Mistake Fix (~20% of daily budget)
+    const slot1Min = Math.round(dailyMinutes * 0.45);
+    const slot2Min = Math.round(dailyMinutes * 0.35);
+    const slot3Min = Math.max(15, dailyMinutes - slot1Min - slot2Min);
+
+    for (let dayOffset = 0; dayOffset < daysCount; dayOffset++) {
+      const plannedDate = new Date(now.getTime() + dayOffset * 86400000).toISOString().slice(0, 10);
+      const currTopic = topicsPool[topicIdx % topicsPool.length];
+      topicIdx++;
+
+      // Slot 1: Concept Mastery
+      const isWeak = currTopic.status === 'needs_revision' || (currTopic.confidence && currTopic.confidence <= 2);
+      createTask({
+        title: `[AI Plan] Concept Deep-Dive: ${currTopic.topic_title}`,
+        subjectId: currTopic.subject_id,
+        unitId: currTopic.unit_id,
+        topicId: currTopic.topic_id,
+        examTarget: examMode,
+        plannedDate,
+        priority: isWeak ? 'HIGH' : 'MEDIUM',
+        estMinutes: slot1Min,
+        notes: `🤖 AI Adaptive Plan · Focus on fundamental concepts, derivations & handwritten notes. ${daysRemaining} days remaining for ${examMode}.`,
+        documentId: currTopic.document_id ?? undefined,
+      });
+      tasksCreated++;
+      totalEstMin += slot1Min;
+      conceptTasks++;
+
+      // Slot 2: Numerical & PYQ Practice
+      createTask({
+        title: `[AI Plan] PYQ & Numerical Drill: ${currTopic.subject_name} (${currTopic.unit_title})`,
+        subjectId: currTopic.subject_id,
+        unitId: currTopic.unit_id,
+        topicId: currTopic.topic_id,
+        examTarget: examMode,
+        plannedDate,
+        priority: 'MEDIUM',
+        estMinutes: slot2Min,
+        notes: `🤖 AI Adaptive Plan · Solve at least 3-5 standard ${examMode} numerical problems and verify results using the Virtual Calculator.`,
+      });
+      tasksCreated++;
+      totalEstMin += slot2Min;
+      practiceTasks++;
+
+      // Slot 3: Mistake Log / Active Recall
+      if (mistakeGaps.length > 0 && mistakeIdx < mistakeGaps.length) {
+        const mistake = mistakeGaps[mistakeIdx];
+        mistakeIdx++;
+        createTask({
+          title: `[AI Plan] Mistake Log Analysis: ${mistake.subject_name}`,
+          examTarget: examMode,
+          plannedDate,
+          priority: 'HIGH',
+          estMinutes: slot3Min,
+          notes: `🤖 AI Adaptive Plan · Review identified exam pitfall: "${mistake.detail}" from ${mistake.source}. Retest without hints.`,
+        });
+        tasksCreated++;
+        totalEstMin += slot3Min;
+        mistakeTasks++;
+      } else {
+        createTask({
+          title: `[AI Plan] Active Recall & Formula Vault Drill: ${currTopic.subject_name}`,
+          subjectId: currTopic.subject_id,
+          unitId: currTopic.unit_id,
+          examTarget: examMode,
+          plannedDate,
+          priority: 'LOW',
+          estMinutes: slot3Min,
+          notes: `🤖 AI Adaptive Plan · Rapidly review key formulas and flip active recall cards in KaTeX Formula Vault.`,
+        });
+        tasksCreated++;
+        totalEstMin += slot3Min;
+        practiceTasks++;
+      }
+    }
+
+    return {
+      examMode,
+      targetDate: targetDateStr,
+      daysRemaining,
+      daysCount,
+      tasksCreated,
+      totalEstimatedMinutes: totalEstMin,
+      summary: {
+        mistakeReviewTasks: mistakeTasks,
+        conceptStudyTasks: conceptTasks,
+        numericalPracticeTasks: practiceTasks,
+      },
+    };
+  });
+}

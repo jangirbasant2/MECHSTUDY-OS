@@ -2,7 +2,7 @@ import React, { useState, useEffect, useCallback } from 'react';
 import {
   Layers, RotateCw, Check, AlertCircle, Sparkles, Plus, Award,
   BookOpen, Brain, RefreshCw, ChevronLeft, ChevronRight, CheckCircle2,
-  Bookmark, ShieldAlert, Zap, Filter
+  Bookmark, ShieldAlert, Zap, Filter, Download
 } from 'lucide-react';
 import { api } from '../lib/api';
 import { useApp } from '../store';
@@ -60,6 +60,7 @@ export function FlashcardDeck() {
   const [reviewedInSession, setReviewedInSession] = useState(0);
   const [sessionXpEarned, setSessionXpEarned] = useState(0);
   const [syncing, setSyncing] = useState(false);
+  const [exportingAnki, setExportingAnki] = useState(false);
 
   // Modal for new custom flashcard
   const [createModalOpen, setCreateModalOpen] = useState(false);
@@ -174,6 +175,30 @@ export function FlashcardDeck() {
     }
   };
 
+  const handleExportAnki = async () => {
+    setExportingAnki(true);
+    try {
+      const defaultName = `MECHSTUDY_${examType}_Anki_Deck.tsv`;
+      const savePath = await api.flashcards.pickAnkiPath(defaultName);
+      if (!savePath) return;
+
+      const res = await api.flashcards.exportAnki({
+        examType,
+        semester: examType === 'RTU' && semester !== 'ALL' ? semester : undefined,
+        subjectName: subjectName !== 'ALL' ? subjectName : undefined,
+        unitNumber: unitNumber !== 'ALL' ? unitNumber : undefined,
+        sourceType: filterType === 'ALL' ? undefined : filterType,
+        outPath: savePath,
+      });
+
+      toast(`Exported ${res.cardCount} cards to Anki format (.tsv)!`, 'success');
+    } catch (e: any) {
+      toast(`Failed to export Anki deck: ${e?.message}`, 'error');
+    } finally {
+      setExportingAnki(false);
+    }
+  };
+
   const handleCreateCustom = async () => {
     if (!newTitle.trim() || !newFront.trim() || !newBack.trim()) {
       toast('Please fill in title, front prompt, and back answer.', 'info');
@@ -240,6 +265,17 @@ export function FlashcardDeck() {
             >
               <RefreshCw size={12} className={syncing ? 'animate-spin' : ''} />
               <span>Auto-Sync Gaps</span>
+            </button>
+
+            <button
+              type="button"
+              disabled={exportingAnki || cards.length === 0}
+              onClick={handleExportAnki}
+              className="btn btn-sm btn-secondary text-xs flex items-center gap-1.5"
+              title="Export current cards to Anki import format (.tsv with MathJax)"
+            >
+              <Download size={12} className={exportingAnki ? 'animate-spin' : ''} />
+              <span>{exportingAnki ? 'Exporting Anki…' : 'Export Anki (.tsv)'}</span>
             </button>
 
             <button

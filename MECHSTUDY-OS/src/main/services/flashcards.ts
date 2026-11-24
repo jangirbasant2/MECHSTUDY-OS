@@ -1,3 +1,4 @@
+import * as fs from 'node:fs';
 import { all, get, run } from '../db';
 import type { FlashcardItem, FlashcardSourceType } from '../../shared/types';
 import { awardXp } from './gamification';
@@ -350,4 +351,60 @@ export function generateSyllabusDeck(options: {
   }
 
   return { created, total: topics.length };
+}
+
+/**
+ * Export active-recall flashcards to standard Anki TSV format with MathJax tags.
+ */
+export async function exportAnkiDeck(opts: {
+  examType?: 'RTU' | 'GATE';
+  semester?: number;
+  subjectName?: string;
+  unitNumber?: number;
+  sourceType?: FlashcardSourceType;
+  outPath: string;
+}): Promise<{ outPath: string; cardCount: number }> {
+  const cards = listFlashcards({
+    examType: opts.examType,
+    semester: opts.semester,
+    subjectName: opts.subjectName,
+    unitNumber: opts.unitNumber,
+    sourceType: opts.sourceType,
+  });
+
+  const formatAnkiMath = (text: string): string => {
+    if (!text) return '';
+    let formatted = text
+      .replace(/\$\$([\s\S]+?)\$\$/g, ' \\[$1\\] ')
+      .replace(/\$([^\$]+?)\$/g, ' \\($1\\) ');
+    formatted = formatted
+      .replace(/\r\n/g, '\n')
+      .replace(/\n/g, '<br>')
+      .replace(/\t/g, '    ');
+    return formatted;
+  };
+
+  const lines: string[] = [
+    '#separator:tab',
+    '#html:true',
+    '#tags column:4',
+  ];
+
+  for (const c of cards) {
+    const front = formatAnkiMath(`<h3>${c.title}</h3><br>${c.front}`);
+    const back = formatAnkiMath(c.back);
+    const deck = `MECHSTUDY::${c.exam_type || 'General'}::${(c.subject_name || 'Mechanical').replace(/::/g, '_')}`;
+    const tags = [
+      c.exam_type || 'MECHSTUDY',
+      c.semester ? `Sem_${c.semester}` : null,
+      c.unit_number ? `Unit_${c.unit_number}` : null,
+      c.source_type,
+    ].filter(Boolean).join(' ');
+
+    lines.push(`${front}\t${back}\t${deck}\t${tags}`);
+  }
+
+  const content = lines.join('\n');
+  fs.writeFileSync(opts.outPath, content, 'utf8');
+  return { outPath: opts.outPath, cardCount: cards.length };
 }

@@ -1,7 +1,7 @@
 import React from 'react';
 import {
   Search, FileText, StickyNote, Bookmark, GraduationCap, FolderOpen, ArrowRight,
-  X, Loader2, Command, BookOpen, Filter,
+  X, Loader2, Command, BookOpen, Filter, Sparkles,
 } from 'lucide-react';
 import { api } from '../lib/api';
 import { useApp } from '../store';
@@ -18,12 +18,15 @@ const KIND_META: Record<Kind, { label: string; color: string; icon: React.ReactN
   topic: { label: 'Syllabus topic', color: 'var(--color-accent)', icon: <GraduationCap size={13} /> },
   bookmark: { label: 'Bookmark', color: 'var(--color-warn)', icon: <Bookmark size={13} /> },
   subject: { label: 'Subject', color: 'var(--color-accent)', icon: <BookOpen size={13} /> },
+  pyq: { label: 'PYQ Exam Paper', color: '#10b981', icon: <FileText size={13} /> },
+  formula: { label: 'Formula', color: 'var(--color-accent)', icon: <BookOpen size={13} /> },
 };
 
 const FILTERS: { id: 'all' | Kind; label: string }[] = [
   { id: 'all', label: 'Everything' },
   { id: 'page', label: 'PDF pages' },
   { id: 'document', label: 'Documents' },
+  { id: 'pyq', label: 'PYQs' },
   { id: 'note', label: 'Notes' },
   { id: 'topic', label: 'Syllabus' },
   { id: 'bookmark', label: 'Bookmarks' },
@@ -94,6 +97,12 @@ export function SearchPage() {
         break;
       case 'subject':
         setPage('rtu');
+        break;
+      case 'pyq':
+        setPage('practice');
+        break;
+      case 'formula':
+        setPage('formulas');
         break;
       default:
         break;
@@ -262,6 +271,12 @@ function HitRow({ hit, onOpen }: { hit: SearchHit; onOpen: () => void }) {
         <div className="min-w-0 flex-1">
           <div className="flex flex-wrap items-center gap-1.5">
             <span className="truncate text-[12.5px] font-medium">{hit.title}</span>
+            {hit.isSemantic && hit.matchedConcept && (
+              <span className="inline-flex items-center gap-1 px-1.5 py-0.2 rounded text-[9.5px] font-bold bg-purple-500/10 text-purple-400 border border-purple-500/20">
+                <Sparkles size={9} />
+                {hit.matchedConcept}
+              </span>
+            )}
             {hit.source && <Badge color={hit.source === 'OCR text' ? 'var(--color-warn)' : 'var(--color-accent2)'}>{hit.source}</Badge>}
             {hit.examType && <Badge color={hit.examType === 'GATE' ? 'var(--color-accent2)' : 'var(--color-accent)'}>{hit.examType}</Badge>}
           </div>

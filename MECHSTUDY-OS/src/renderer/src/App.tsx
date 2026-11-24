@@ -4,6 +4,7 @@ import { Sidebar } from './components/Sidebar';
 import { Topbar } from './components/Topbar';
 import { CommandPalette } from './components/CommandPalette';
 import { QuickNoteDialog } from './components/QuickNote';
+import { GateCalculator } from './components/GateCalculator';
 import { ErrorBoundary } from './components/ErrorBoundary';
 import { useApp } from './store';
 import { useGlobalTimer } from './hooks/useTimer';
@@ -33,6 +34,7 @@ export function App() {
   const boot = useApp(s => s.boot);
   const setPage = useApp(s => s.setPage);
   const setPaletteOpen = useApp(s => s.setPaletteOpen);
+  const toggleGateCalc = useApp(s => s.toggleGateCalc);
   const openQuickNote = useApp(s => s.openQuickNote);
   const toasts = useApp(s => s.toasts);
   const dismissToast = useApp(s => s.dismissToast);
@@ -74,6 +76,13 @@ export function App() {
       if (e.key === 'Escape') {
         if (readerFocus) { e.preventDefault(); setReaderFocus(false); return; }
         if (paletteOpen) { setPaletteOpen(false); return; }
+        return;
+      }
+
+      // Alt+C toggles TCS-iON GATE Virtual Calculator anywhere in the app
+      if (e.altKey && e.key.toLowerCase() === 'c') {
+        e.preventDefault();
+        toggleGateCalc();
         return;
       }
 
@@ -238,6 +247,7 @@ export function App() {
 
       <CommandPalette />
       <QuickNoteDialog />
+      <GateCalculator />
 
       {!examActive && (
         <div className="pointer-events-none fixed bottom-4 right-4 z-[70] flex w-[340px] flex-col gap-2">

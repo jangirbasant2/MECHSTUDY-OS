@@ -26,6 +26,7 @@ export function PlannerPage() {
   const timer = useApp(s => s.timer);
   const setTimer = useApp(s => s.setTimer);
   const resetTimer = useApp(s => s.resetTimer);
+  const activeExamMode = useApp(s => s.activeExamMode);
 
   const [viewMode, setViewMode] = React.useState<ViewMode>('planner');
   const [tasks, setTasks] = React.useState<TaskRow[] | null>(null);
@@ -34,6 +35,7 @@ export function PlannerPage() {
   const [tree, setTree] = React.useState<TreeSubject[]>([]);
   const [error, setError] = React.useState<string | null>(null);
   const [group, setGroup] = React.useState<GroupKey>('today');
+  const [aiPlanModalOpen, setAiPlanModalOpen] = React.useState(false);
 
   // History filtering
   const [historyRange, setHistoryRange] = React.useState<HistoryRange>('today');
@@ -447,9 +449,19 @@ export function PlannerPage() {
               </div>
 
               {viewMode === 'planner' && (
-                <button className="btn btn-sm btn-primary" onClick={() => setEditor({ open: true, task: null })}>
-                  <Plus size={13} /> New task
-                </button>
+                <div className="flex items-center gap-2">
+                  <button
+                    className="btn btn-sm btn-secondary gap-1.5 text-xs"
+                    onClick={() => setAiPlanModalOpen(true)}
+                    title="Generate Adaptive AI Study Schedule based on RTU/GATE exam countdown, notes, and mistake gaps"
+                  >
+                    <Sparkles size={13} className="text-purple-400" />
+                    <span>AI Adaptive Plan</span>
+                  </button>
+                  <button className="btn btn-sm btn-primary" onClick={() => setEditor({ open: true, task: null })}>
+                    <Plus size={13} /> New task
+                  </button>
+                </div>
               )}
             </div>
           </div>
@@ -934,6 +946,13 @@ export function PlannerPage() {
         task={rescheduleTask}
         onClose={() => setRescheduleTask(null)}
         onRescheduled={() => { setRescheduleTask(null); void load(); }}
+      />
+
+      <AiAdaptivePlanModal
+        open={aiPlanModalOpen}
+        onClose={() => setAiPlanModalOpen(false)}
+        activeExamMode={activeExamMode === 'GATE' ? 'GATE' : 'RTU'}
+        onGenerated={() => void load()}
       />
 
       <ConfirmDialog
@@ -2011,6 +2030,195 @@ function TaskEditor({
         <div className="flex items-start gap-2 rounded-lg px-2.5 py-2 text-[10.5px]" style={{ background: 'var(--color-panel2)', color: 'var(--color-muted)' }}>
           <AlertTriangle size={11} style={{ flexShrink: 0, marginTop: 1 }} />
           A task is a reminder, not a claim about syllabus coverage. Topic links use the transcribed syllabus.
+        </div>
+      </div>
+    </Modal>
+  );
+}
+
+function AiAdaptivePlanModal({
+  open,
+  onClose,
+  activeExamMode,
+  onGenerated,
+}: {
+  open: boolean;
+  onClose: () => void;
+  activeExamMode: 'RTU' | 'GATE';
+  onGenerated: () => void;
+}) {
+  const toast = useApp(s => s.toast);
+  const [examMode, setExamMode] = React.useState<'RTU' | 'GATE'>(activeExamMode === 'GATE' ? 'GATE' : 'RTU');
+  const [semester, setSemester] = React.useState<number>(3);
+  const [targetDate, setTargetDate] = React.useState<string>(() => {
+    if (activeExamMode === 'GATE') {
+      const yr = new Date().getMonth() >= 2 ? new Date().getFullYear() + 1 : new Date().getFullYear();
+      return `${yr}-02-07`;
+    }
+    const d = new Date(Date.now() + 60 * 86400000);
+    return d.toISOString().slice(0, 10);
+  });
+  const [daysCount, setDaysCount] = React.useState<number>(7);
+  const [dailyMinutes, setDailyMinutes] = React.useState<number>(120);
+  const [busy, setBusy] = React.useState<boolean>(false);
+
+  const daysRemaining = React.useMemo(() => {
+    if (!targetDate) return 0;
+    const diff = new Date(targetDate).getTime() - Date.now();
+    return Math.max(1, Math.round(diff / 86400000));
+  }, [targetDate]);
+
+  const handleGenerate = async () => {
+    setBusy(true);
+    try {
+      const res = await api.tasks.generateAdaptivePlan({
+        examMode,
+        targetDate,
+        daysCount,
+        dailyMinutes,
+        semester: examMode === 'RTU' ? semester : undefined,
+      });
+      toast(`Adaptive Roadmap Created! ${res.tasksCreated} daily sessions scheduled across ${res.daysCount} days (${res.daysRemaining} days until ${res.examMode}).`, 'success');
+      onGenerated();
+      onClose();
+    } catch (err: any) {
+      toast(`Failed to generate adaptive plan: ${err?.message}`, 'error');
+    } finally {
+      setBusy(false);
+    }
+  };
+
+  return (
+    <Modal
+      open={open}
+      onClose={onClose}
+      title="Adaptive AI Daily Study Planner"
+      width={520}
+      footer={
+        <>
+          <button className="btn" onClick={onClose} disabled={busy}>Cancel</button>
+          <button className="btn btn-primary gap-1.5" onClick={handleGenerate} disabled={busy}>
+            {busy ? <Spinner size={13} /> : <Sparkles size={13} />}
+            <span>{busy ? 'Computing Roadmap…' : 'Generate Adaptive Schedule'}</span>
+          </button>
+        </>
+      }
+    >
+      <div className="space-y-4 text-xs">
+        <div className="rounded-xl border p-3 bg-[var(--color-panel2)] border-[var(--color-border)] flex items-start gap-2.5">
+          <Sparkles size={16} className="text-purple-400 shrink-0 mt-0.5" />
+          <p className="text-[11.5px] leading-relaxed text-[var(--color-muted)]">
+            Our Adaptive Planner balances your daily study timetable by automatically synchronizing <strong>unreviewed mistake book pitfalls</strong>, <strong>high-weightage syllabus topics</strong>, and <strong>handwritten lecture notes</strong> into structured 3-part daily sprints.
+          </p>
+        </div>
+
+        {/* Target Track */}
+        <div>
+          <label className="block text-[11px] font-semibold mb-1 text-[var(--color-text)]">Exam Objective:</label>
+          <div className="grid grid-cols-2 gap-2">
+            <button
+              type="button"
+              className={`rounded-lg p-2.5 border text-left transition-all ${
+                examMode === 'RTU'
+                  ? 'border-blue-500 bg-blue-500/10 text-[var(--color-text)] font-semibold'
+                  : 'border-[var(--color-border)] bg-[var(--color-panel)] text-[var(--color-muted)]'
+              }`}
+              onClick={() => {
+                setExamMode('RTU');
+                const d = new Date(Date.now() + 60 * 86400000);
+                setTargetDate(d.toISOString().slice(0, 10));
+              }}
+            >
+              <div className="font-bold text-xs text-blue-400">RTU Engineering</div>
+              <div className="text-[10px] text-[var(--color-muted)]">Semester end-sem & mid-terms</div>
+            </button>
+            <button
+              type="button"
+              className={`rounded-lg p-2.5 border text-left transition-all ${
+                examMode === 'GATE'
+                  ? 'border-purple-500 bg-purple-500/10 text-[var(--color-text)] font-semibold'
+                  : 'border-[var(--color-border)] bg-[var(--color-panel)] text-[var(--color-muted)]'
+              }`}
+              onClick={() => {
+                setExamMode('GATE');
+                const yr = new Date().getMonth() >= 2 ? new Date().getFullYear() + 1 : new Date().getFullYear();
+                setTargetDate(`${yr}-02-07`);
+              }}
+            >
+              <div className="font-bold text-xs text-purple-400">GATE Mechanical</div>
+              <div className="text-[10px] text-[var(--color-muted)]">CBT numericals & AIR targeting</div>
+            </button>
+          </div>
+        </div>
+
+        {/* RTU Semester if RTU */}
+        {examMode === 'RTU' && (
+          <div>
+            <label className="block text-[11px] font-semibold mb-1 text-[var(--color-text)]">Select RTU Semester:</label>
+            <div className="flex items-center gap-1.5 flex-wrap">
+              {[1, 2, 3, 4, 5, 6, 7, 8].map(s => (
+                <button
+                  key={s}
+                  type="button"
+                  onClick={() => setSemester(s)}
+                  className={`px-3 py-1 text-xs rounded-md border ${
+                    semester === s
+                      ? 'bg-blue-600 text-white font-bold border-blue-500'
+                      : 'bg-[var(--color-panel)] text-[var(--color-muted)] border-[var(--color-border)]'
+                  }`}
+                >
+                  Sem {s}
+                </button>
+              ))}
+            </div>
+          </div>
+        )}
+
+        {/* Exam Countdown & Target Date */}
+        <div>
+          <div className="flex items-center justify-between mb-1">
+            <label className="text-[11px] font-semibold text-[var(--color-text)]">Target Exam Date:</label>
+            <span className="text-[11px] font-bold text-emerald-400 bg-emerald-500/10 px-2 py-0.5 rounded border border-emerald-500/20">
+              ⏳ {daysRemaining} days remaining
+            </span>
+          </div>
+          <input
+            type="date"
+            className="input w-full"
+            value={targetDate}
+            onChange={e => setTargetDate(e.target.value)}
+          />
+        </div>
+
+        {/* Plan Duration & Daily Budget */}
+        <div className="grid grid-cols-2 gap-3">
+          <div>
+            <label className="block text-[11px] font-semibold mb-1 text-[var(--color-text)]">Schedule Horizon:</label>
+            <select
+              className="input w-full"
+              value={daysCount}
+              onChange={e => setDaysCount(Number(e.target.value))}
+            >
+              <option value={7}>Next 7 Days (Sprint)</option>
+              <option value={14}>Next 14 Days (Fortnight)</option>
+              <option value={21}>Next 21 Days (3 Weeks)</option>
+              <option value={30}>Next 30 Days (Month Roadmap)</option>
+            </select>
+          </div>
+
+          <div>
+            <label className="block text-[11px] font-semibold mb-1 text-[var(--color-text)]">Daily Study Time:</label>
+            <select
+              className="input w-full"
+              value={dailyMinutes}
+              onChange={e => setDailyMinutes(Number(e.target.value))}
+            >
+              <option value={90}>1.5 Hours / day</option>
+              <option value={120}>2.0 Hours / day (Recommended)</option>
+              <option value={180}>3.0 Hours / day</option>
+              <option value={240}>4.0 Hours / day (Intensive)</option>
+            </select>
+          </div>
         </div>
       </div>
     </Modal>

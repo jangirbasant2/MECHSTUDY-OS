@@ -40,6 +40,10 @@ interface AppState {
   readerDocId: number | null;
   readerPage: number | null;
   paletteOpen: boolean;
+  gateCalcOpen: boolean;
+  splitViewOpen: boolean;
+  splitDocId: number | null;
+  splitPage: number | null;
   activeExamMode: 'RTU' | 'GATE' | 'IIT';
   pendingTopicId: number | null;
   quickNote: { open: boolean; documentId?: number; page?: number } | null;
@@ -72,6 +76,10 @@ interface AppState {
 
   setTheme(theme: 'dark' | 'light' | 'system'): void;
   setPaletteOpen(open: boolean): void;
+  setGateCalcOpen(open: boolean): void;
+  toggleGateCalc(): void;
+  setSplitView(open: boolean, docId?: number | null, page?: number | null): void;
+  toggleSplitView(): void;
   openQuickNote(ctx?: { documentId?: number; page?: number }): void;
   closeQuickNote(): void;
   toast(message: string, kind?: Toast['kind']): void;
@@ -137,6 +145,10 @@ export const useApp = create<AppState>((set, get) => ({
   readerDocId: read<number | null>(LS.readerDoc, null),
   readerPage: null,
   paletteOpen: false,
+  gateCalcOpen: false,
+  splitViewOpen: false,
+  splitDocId: null,
+  splitPage: null,
   activeExamMode: read<'RTU' | 'GATE' | 'IIT'>(LS.activeExamMode, 'RTU'),
   pendingTopicId: null,
   quickNote: null,
@@ -292,6 +304,22 @@ export const useApp = create<AppState>((set, get) => ({
 
   setPaletteOpen(open) {
     set({ paletteOpen: open });
+  },
+
+  setGateCalcOpen(open) {
+    set({ gateCalcOpen: open });
+  },
+
+  toggleGateCalc() {
+    set(s => ({ gateCalcOpen: !s.gateCalcOpen }));
+  },
+
+  setSplitView(open, docId = null, page = null) {
+    set({ splitViewOpen: open, splitDocId: docId, splitPage: page });
+  },
+
+  toggleSplitView() {
+    set(s => ({ splitViewOpen: !s.splitViewOpen }));
   },
 
   openQuickNote(ctx) {

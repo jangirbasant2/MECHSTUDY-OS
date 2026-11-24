@@ -43,7 +43,8 @@ export function GateCbtEngine() {
   const [secondsRemaining, setSecondsRemaining] = React.useState(10800); // 180 min
   const [answers, setAnswers] = React.useState<Record<number, string>>({});
   const [statuses, setStatuses] = React.useState<Record<number, QuestionStatus>>({});
-  const [showCalculator, setShowCalculator] = React.useState(false);
+  const toggleGateCalc = useApp(s => s.toggleGateCalc);
+  const gateCalcOpen = useApp(s => s.gateCalcOpen);
   const [showSubmitModal, setShowSubmitModal] = React.useState(false);
   const [preExamModalOpen, setPreExamModalOpen] = React.useState(false);
   const [showMistakesModal, setShowMistakesModal] = React.useState(false);
@@ -676,12 +677,17 @@ export function GateCbtEngine() {
         <div className="flex items-center gap-4">
           <button
             type="button"
-            className="flex items-center gap-1.5 rounded-lg border px-2.5 py-1 text-xs font-semibold text-cyan-400 hover:bg-cyan-950/20 transition-all"
+            className={`flex items-center gap-1.5 rounded-lg border px-2.5 py-1 text-xs font-semibold transition-all ${
+              gateCalcOpen
+                ? 'bg-cyan-500/20 text-cyan-300 border-cyan-500/50 shadow-xs'
+                : 'text-cyan-400 hover:bg-cyan-950/20'
+            }`}
             style={{ borderColor: 'var(--color-border)' }}
-            onClick={() => setShowCalculator(!showCalculator)}
+            onClick={() => toggleGateCalc()}
+            title="Toggle TCS-iON GATE Virtual Calculator (Alt+C)"
           >
             <Calculator size={14} />
-            <span>Virtual Calculator</span>
+            <span>Virtual Calculator (Alt+C)</span>
           </button>
 
           <div className="flex items-center gap-2 rounded-lg bg-neutral-900/80 px-3 py-1 border border-neutral-700">
@@ -955,24 +961,6 @@ export function GateCbtEngine() {
           </div>
         </div>
       </div>
-
-      {/* Calculator Modal */}
-      {showCalculator && (
-        <div
-          className="fixed bottom-14 right-14 z-50 w-72 rounded-xl border p-3 shadow-2xl backdrop-blur-md"
-          style={{ background: 'var(--color-panel)', borderColor: 'var(--color-border)' }}
-        >
-          <div className="flex items-center justify-between pb-2 border-b" style={{ borderColor: 'var(--color-border)' }}>
-            <span className="text-xs font-semibold flex items-center gap-1.5 text-cyan-400">
-              <Calculator size={14} /> GATE Scientific Calculator
-            </span>
-            <button onClick={() => setShowCalculator(false)} className="text-xs text-[var(--color-muted)] hover:text-white">✕</button>
-          </div>
-          <div className="p-2 text-xs text-[var(--color-muted)] text-center">
-            Official GATE virtual calculator active.
-          </div>
-        </div>
-      )}
 
       {/* Confirmation Modal */}
       {showSubmitModal && (

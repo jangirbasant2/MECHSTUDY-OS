@@ -765,5 +765,214 @@ Return strictly valid JSON matching this schema:
   }
 }
 
+/* ---------------- AI Viva-Voce & Technical Interview Simulator ---------------- */
+
+export interface VivaStartRequest {
+  track: 'RTU_LAB' | 'GATE_PSU_INTERVIEW';
+  subjectOrLab: string;
+  difficulty?: 'basic' | 'moderate' | 'rigorous';
+}
+
+export interface VivaStartResult {
+  openingGreeting: string;
+  initialQuestion: string;
+  contextNotes: string;
+}
+
+export interface VivaEvaluationRequest {
+  track: 'RTU_LAB' | 'GATE_PSU_INTERVIEW';
+  subjectOrLab: string;
+  questionHistory: Array<{ question: string; studentAnswer: string; score?: number }>;
+  currentQuestion: string;
+  studentAnswer: string;
+}
+
+export interface VivaEvaluationResult {
+  score: number;
+  verdict: 'Excellent' | 'Good' | 'Needs Improvement' | 'Incorrect';
+  strengths: string[];
+  missedConcepts: string[];
+  modelAnswer: string;
+  examinerFeedback: string;
+  followUpQuestion: string;
+  isSessionFinished?: boolean;
+}
+
+const FALLBACK_VIVA_STARTERS: Record<string, { greeting: string; question: string; notes: string }> = {
+  'Materials Testing Lab': {
+    greeting: "Good morning candidate. Welcome to the Materials Testing practical examination. Let us begin with experimental fundamentals.",
+    question: "During a standard tensile test on a Mild Steel specimen on a UTM, why does the stress-strain curve exhibit distinct Upper and Lower Yield Points, and what physical dislocation phenomenon causes this?",
+    notes: "Focus on Cottrell atmosphere, interstitial carbon/nitrogen pin-up of dislocations, and Lüders band formation."
+  },
+  'Fluid Mechanics Lab': {
+    greeting: "Welcome to the Fluid Mechanics and Hydraulic Machines viva panel. Let us start with flow measurement devices.",
+    question: "Between an Orifice Meter and a Venturi Meter, why is the coefficient of discharge (Cd) of a Venturi meter (~0.98) significantly higher than that of an Orifice meter (~0.62)?",
+    notes: "Explain gradual divergent cone preventing boundary layer separation vs sudden contraction/expansion with vena contracta and eddy dissipation."
+  },
+  'Heat Transfer Lab': {
+    greeting: "Welcome to the Thermal Engineering and Heat Transfer practical examination.",
+    question: "In transient heat conduction, what is the physical significance of the Biot Number, and why must Bi < 0.1 for lumped capacitance heat transfer analysis to be valid?",
+    notes: "Biot number is the ratio of internal conduction resistance to external convection resistance. Bi < 0.1 means internal temperature gradients are negligible."
+  },
+  'Engineering Thermodynamics': {
+    greeting: "Welcome to the PSU / BARC Mechanical Engineering technical interview panel.",
+    question: "Can entropy of a closed system decrease during an actual process? Differentiate clearly between entropy change of the system (dS), entropy transfer across boundaries (dQ/T), and entropy generation (S_gen).",
+    notes: "dS = dQ/T + S_gen. For heat rejection, dQ/T < 0; if |dQ/T| > S_gen, system entropy decreases, while total entropy of the universe always increases."
+  },
+  'Mechanics of Solids': {
+    greeting: "Welcome to the Technical Interview panel. Let us evaluate your structural mechanics foundation.",
+    question: "What is the physical meaning of Mohr's Circle pole point? How does the state of pure shear relate to equal and opposite principal stresses inclined at 45 degrees?",
+    notes: "Pure shear on orthogonal planes corresponds to a Mohr's circle centered at the origin (sigma_avg = 0), yielding sigma1 = tau and sigma2 = -tau at 45 deg."
+  }
+};
+
+export async function startVivaSessionWithGemini(
+  req: VivaStartRequest,
+  apiKey?: string,
+  model?: string
+): Promise<VivaStartResult> {
+  const key = getEffectiveApiKey(apiKey);
+  if (!key) {
+    const fallback = FALLBACK_VIVA_STARTERS[req.subjectOrLab] || FALLBACK_VIVA_STARTERS['Engineering Thermodynamics'];
+    return {
+      openingGreeting: fallback.greeting,
+      initialQuestion: fallback.question,
+      contextNotes: fallback.notes,
+    };
+  }
+
+  const selectedModel = normalizeGeminiModel(model || getAiSettings().selectedModel);
+  const ai = getGeminiClient(key);
+
+  const persona = req.track === 'RTU_LAB'
+    ? 'Strict, authoritative RTU External Practical Examiner conducting an engineering laboratory viva-voce'
+    : 'Senior Scientist / Director on a BARC / PSU / IIT M.Tech Technical Interview Board';
+
+  const prompt = `You are a ${persona} for Mechanical Engineering.
+Topic/Subject/Lab: "${req.subjectOrLab}".
+Difficulty Level: ${req.difficulty || 'moderate'}.
+
+Generate an opening formal greeting and ONE sharp, fundamental technical question to test the student's core conceptual and practical understanding.
+
+Return STRICT JSON with schema:
+{
+  "openingGreeting": "Formal examiner greeting welcoming student to practical viva/interview...",
+  "initialQuestion": "The first technical question testing deep physical understanding or experiment principle...",
+  "contextNotes": "Key physical concepts, formulas, or standard assumptions expected in an ideal answer..."
+}`;
+
+  try {
+    const res = await ai.models.generateContent({
+      model: selectedModel,
+      contents: [{ role: 'user', parts: [{ text: prompt }] }],
+      config: {
+        temperature: 0.3,
+        maxOutputTokens: 1024,
+        responseMimeType: 'application/json',
+      },
+    });
+    const raw = res.text?.trim() || '{}';
+    return JSON.parse(raw);
+  } catch {
+    const fallback = FALLBACK_VIVA_STARTERS[req.subjectOrLab] || FALLBACK_VIVA_STARTERS['Engineering Thermodynamics'];
+    return {
+      openingGreeting: fallback.greeting,
+      initialQuestion: fallback.question,
+      contextNotes: fallback.notes,
+    };
+  }
+}
+
+export async function evaluateVivaAnswerWithGemini(
+  req: VivaEvaluationRequest,
+  apiKey?: string,
+  model?: string
+): Promise<VivaEvaluationResult> {
+  const key = getEffectiveApiKey(apiKey);
+  if (!key) {
+    // Offline heuristic fallback evaluation
+    const len = req.studentAnswer?.trim().length || 0;
+    const score = len > 80 ? 7.5 : len > 30 ? 5.5 : 3.0;
+    return {
+      score,
+      verdict: score >= 7 ? 'Good' : 'Needs Improvement',
+      strengths: ['Identified main parameters', 'Direct attempt to answer question'],
+      missedConcepts: ['Missing rigorous thermodynamic / experimental assumptions', 'Could state relevant governing equations or units'],
+      modelAnswer: 'A comprehensive answer should define the fundamental physical mechanism, state all governing assumptions, and cite the governing equation or experimental standard.',
+      examinerFeedback: 'Satisfactory attempt, but clarify your physical reasoning and ensure unit consistency.',
+      followUpQuestion: 'Can you state the primary assumptions made in deriving this relationship, and what happens when those assumptions break down in practice?',
+      isSessionFinished: req.questionHistory.length >= 4,
+    };
+  }
+
+  const selectedModel = normalizeGeminiModel(model || getAiSettings().selectedModel);
+  const ai = getGeminiClient(key);
+
+  const persona = req.track === 'RTU_LAB'
+    ? 'RTU Kota B.Tech Mechanical External Practical Lab Examiner'
+    : 'Senior Scientist / Professor on a GATE / PSU / BARC Mechanical Interview Board';
+
+  const historyText = req.questionHistory.map((h, i) =>
+    `[Q${i + 1}]: ${h.question}\n[Student A${i + 1}]: ${h.studentAnswer}`
+  ).join('\n\n');
+
+  const isFinalRound = req.questionHistory.length >= 4;
+
+  const prompt = `You are a ${persona} for Mechanical Engineering.
+Track: ${req.track === 'RTU_LAB' ? 'RTU Practical Lab Viva-Voce' : 'PSU / BARC Technical Interview'}.
+Subject / Lab: "${req.subjectOrLab}".
+
+Prior Q&A History:
+${historyText || 'None (First question)'}
+
+Current Question: "${req.currentQuestion}"
+Student's Verbal Answer: "${req.studentAnswer}"
+
+Evaluate the student's answer strictly yet constructively on:
+1. Technical correctness & physical intuition
+2. Identification of governing assumptions & boundary conditions
+3. Mathematical precision (equations, units, signs)
+
+Then provide:
+- Score (1.0 to 10.0)
+- Verdict: 'Excellent' | 'Good' | 'Needs Improvement' | 'Incorrect'
+- Strengths (1-2 bullet points)
+- Missed Concepts / Pitfalls (1-2 bullet points)
+- Model Answer (Concise, accurate ideal response in 2-3 sentences)
+- Examiner's spoken feedback (as if speaking directly to the candidate in the viva)
+- A sharp Follow-Up Question probing deeper into the candidate's understanding (or conclusion if final round)
+
+Return STRICT JSON matching:
+{
+  "score": 8.0,
+  "verdict": "Good",
+  "strengths": ["...", "..."],
+  "missedConcepts": ["..."],
+  "modelAnswer": "...",
+  "examinerFeedback": "...",
+  "followUpQuestion": "...",
+  "isSessionFinished": ${isFinalRound}
+}`;
+
+  const res = await ai.models.generateContent({
+    model: selectedModel,
+    contents: [{ role: 'user', parts: [{ text: prompt }] }],
+    config: {
+      temperature: 0.2,
+      maxOutputTokens: 2048,
+      responseMimeType: 'application/json',
+    },
+  });
+
+  const raw = res.text?.trim() || '{}';
+  try {
+    return JSON.parse(raw);
+  } catch {
+    const match = raw.match(/\{[\s\S]*\}/);
+    if (match) return JSON.parse(match[0]);
+    throw new Error('Failed to parse Viva-Voce evaluation from AI.');
+  }
+}
+
 
 

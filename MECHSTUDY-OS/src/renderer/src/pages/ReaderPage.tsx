@@ -6,8 +6,10 @@ import {
   ArrowLeft, AlertTriangle, Check, Type, Eraser, PanelLeft, PanelLeftOpen,
   PanelTopClose, GripHorizontal, PenLine, Scaling, Save,
   Crop, Hand, Minus, Lightbulb, Camera, Sparkles, Brain, Cpu, Loader2, Layers,
+  Columns2,
 } from 'lucide-react';
 import { ReaderAiPanel } from './reader/ReaderAiPanel';
+import { SplitSecondaryPane } from '../components/SplitSecondaryPane';
 import { api } from '../lib/api';
 import { useApp } from '../store';
 import { openDocument, renderPage, renderTextLayer, type PdfDoc } from '../lib/pdf';
@@ -104,6 +106,13 @@ export function ReaderPage() {
   const sidebarVisible = useApp(s => s.sidebarVisible);
   const setSidebarVisible = useApp(s => s.setSidebarVisible);
   const restoreLayout = useApp(s => s.restoreLayout);
+  const splitViewOpen = useApp(s => s.splitViewOpen);
+  const splitDocId = useApp(s => s.splitDocId);
+  const splitPage = useApp(s => s.splitPage);
+  const toggleSplitView = useApp(s => s.toggleSplitView);
+  const setSplitView = useApp(s => s.setSplitView);
+
+  const [penThickness, setPenThickness] = React.useState<number>(2.6);
 
   const [doc, setDoc] = React.useState<DocumentRow | null>(null);
   const [pdf, setPdf] = React.useState<PdfDoc | null>(null);
@@ -573,7 +582,7 @@ export function ReaderPage() {
           type: 'ink',
           color: 'red',
           dataJson: JSON.stringify({
-            strokes: [{ points, color: HEX[color] ?? '#ef4444', width: 2.6, opacity: 0.95 }],
+            strokes: [{ points, color: HEX[color] ?? '#ef4444', width: penThickness, opacity: 0.95 }],
           }),
         });
         await loadPageData();
@@ -807,6 +816,23 @@ export function ReaderPage() {
       toast('Annotation erased', 'success');
     } catch (e) {
       toast((e as Error).message, 'error');
+    }
+  };
+
+  const clearCurrentPageInk = async () => {
+    const pageInks = anns.filter(a => a.type === 'ink');
+    if (pageInks.length === 0) {
+      toast('No ink strokes on this page to clear', 'info');
+      return;
+    }
+    try {
+      for (const ink of pageInks) {
+        await api.annotations.remove(ink.id);
+      }
+      setAnns(as => as.filter(a => a.type !== 'ink'));
+      toast(`Cleared ${pageInks.length} ink strokes on page ${pageNum}`, 'success');
+    } catch (e: any) {
+      toast(`Failed to clear ink: ${e?.message}`, 'error');
     }
   };
 
@@ -1103,6 +1129,38 @@ export function ReaderPage() {
             ))}
           </div>
 
+          {tool === 'pen' && (
+            <div className="flex items-center gap-1 pl-1 bg-[var(--color-panel2)] px-1.5 py-0.5 rounded-md border border-[var(--color-border)]">
+              <span className="text-[10px] text-[var(--color-muted)] font-medium">Width:</span>
+              {[
+                { label: 'Fine', w: 1.6 },
+                { label: 'Med', w: 2.8 },
+                { label: 'Bold', w: 5.0 },
+              ].map(opt => (
+                <button
+                  key={opt.label}
+                  type="button"
+                  onClick={() => setPenThickness(opt.w)}
+                  className={`px-1.5 py-0.2 rounded text-[10px] ${
+                    penThickness === opt.w
+                      ? 'bg-[var(--color-accent)] text-white font-bold'
+                      : 'text-[var(--color-muted)] hover:text-[var(--color-text)]'
+                  }`}
+                >
+                  {opt.label}
+                </button>
+              ))}
+              <button
+                type="button"
+                onClick={clearCurrentPageInk}
+                className="text-[10px] text-red-400 hover:text-red-300 ml-1 px-1 py-0.2 rounded hover:bg-red-500/10"
+                title="Clear all ink drawings on this page"
+              >
+                Clear Ink
+              </button>
+            </div>
+          )}
+
           <div className="mx-1 h-5 w-px" style={{ background: 'var(--color-border)' }} />
 
           {/* AI Tools group */}
@@ -1157,6 +1215,13 @@ export function ReaderPage() {
             <button className="btn btn-sm" onClick={() => setExportOpen(true)}>
               <Download size={12} /> Export
             </button>
+
+            <ToolButton
+              active={splitViewOpen}
+              onClick={toggleSplitView}
+              title="Split-Screen Multi-Document View (Dual PDF)"
+              icon={<Columns2 size={15} />}
+            />
 
             <span className="mx-1 h-5 w-px" style={{ background: 'var(--color-border)' }} />
 
@@ -1959,7 +2024,7 @@ export function ReaderPage() {
                       points={penPoints.map(p => `${p.x * pageDims.w},${p.y * pageDims.h}`).join(' ')}
                       fill="none"
                       stroke={HEX[color]}
-                      strokeWidth={2.6}
+                      strokeWidth={penThickness}
                       strokeLinecap="round"
                       strokeLinejoin="round"
                       opacity={0.95}
@@ -1990,6 +2055,15 @@ export function ReaderPage() {
             </button>
           </div>
         </div>
+
+        {/* Split-Screen Dual Document Pane */}
+        {splitViewOpen && (
+          <SplitSecondaryPane
+            initialDocId={splitDocId}
+            initialPage={splitPage ?? 1}
+            onClose={() => setSplitView(false)}
+          />
+        )}
 
         {/* side panel */}
         {panelOpen ? (

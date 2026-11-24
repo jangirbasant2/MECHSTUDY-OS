@@ -15,7 +15,7 @@ import type {
   TemporaryScreenshotRecord, ReminderSettings, ReminderNotificationPayload, ReaderSettings,
   UserProfile, UserTrophy, TopicQuizResult, RtuPyq, GatePyq, ExamPaperRecord, IngestPyqResult,
   PyqIngestProgress, GateMistakeRecord, RtuEvaluationResult, DueRevisionTopic,
-  FlashcardItem, FormulaPracticeNumerical, CheatSheetOptions, CheatSheetResult, BackupArchiveResult,
+  FlashcardItem, FlashcardSourceType, FormulaPracticeNumerical, CheatSheetOptions, CheatSheetResult, BackupArchiveResult,
   DocumentSyllabusLink,
 } from './types';
 
@@ -101,6 +101,26 @@ export interface MechStudyApi {
     create(t: Record<string, unknown>): Promise<number>;
     update(id: number, patch: Record<string, unknown>): Promise<boolean>;
     remove(id: number): Promise<boolean>;
+    generateAdaptivePlan(opts: {
+      examMode: 'RTU' | 'GATE';
+      targetDate?: string;
+      daysCount?: number;
+      dailyMinutes?: number;
+      semester?: number;
+      subjectId?: number;
+    }): Promise<{
+      examMode: 'RTU' | 'GATE';
+      targetDate: string;
+      daysRemaining: number;
+      daysCount: number;
+      tasksCreated: number;
+      totalEstimatedMinutes: number;
+      summary: {
+        mistakeReviewTasks: number;
+        conceptStudyTasks: number;
+        numericalPracticeTasks: number;
+      };
+    }>;
     onRefresh(cb: () => void): Unsubscribe;
   };
   sessions: {
@@ -346,6 +366,15 @@ export interface MechStudyApi {
     syncWeakTopics(): Promise<number>;
     generateSyllabusDeck(options: { examType: 'RTU' | 'GATE'; semester?: number; subjectName?: string; unitNumber?: number }): Promise<{ created: number; total: number }>;
     completeSession(cardsReviewed: number): Promise<{ xpAwarded: number }>;
+    exportAnki(params: {
+      examType?: 'RTU' | 'GATE';
+      semester?: number;
+      subjectName?: string;
+      unitNumber?: number;
+      sourceType?: FlashcardSourceType;
+      outPath: string;
+    }): Promise<{ outPath: string; cardCount: number }>;
+    pickAnkiPath(defaultName?: string): Promise<string | null>;
   };
   backupArchive: {
     export(savePath: string, password?: string): Promise<BackupArchiveResult>;
@@ -361,6 +390,41 @@ export interface MechStudyApi {
       outPath: string;
     }): Promise<CheatSheetResult>;
     pickSavePath(defaultName?: string): Promise<string | null>;
+    compilePocketBooklet(params: {
+      title?: string;
+      examTrack: 'RTU' | 'GATE';
+      semester?: number;
+      subjectName?: string;
+      outPath: string;
+    }): Promise<{ outPath: string; pages: number; itemsCount: number }>;
+    pickPocketBookletPath(defaultName?: string): Promise<string | null>;
+  };
+  viva: {
+    startSession(req: {
+      track: 'RTU_LAB' | 'GATE_PSU_INTERVIEW';
+      subjectOrLab: string;
+      difficulty?: 'basic' | 'moderate' | 'rigorous';
+    }): Promise<{
+      openingGreeting: string;
+      initialQuestion: string;
+      contextNotes: string;
+    }>;
+    evaluateAnswer(req: {
+      track: 'RTU_LAB' | 'GATE_PSU_INTERVIEW';
+      subjectOrLab: string;
+      questionHistory: Array<{ question: string; studentAnswer: string; score?: number }>;
+      currentQuestion: string;
+      studentAnswer: string;
+    }): Promise<{
+      score: number;
+      verdict: 'Excellent' | 'Good' | 'Needs Improvement' | 'Incorrect';
+      strengths: string[];
+      missedConcepts: string[];
+      modelAnswer: string;
+      examinerFeedback: string;
+      followUpQuestion: string;
+      isSessionFinished?: boolean;
+    }>;
   };
   window: {
     setFullScreen(flag: boolean): Promise<boolean>;

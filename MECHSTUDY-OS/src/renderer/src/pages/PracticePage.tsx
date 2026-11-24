@@ -1,7 +1,7 @@
 import React from 'react';
 import {
   Plus, Check, X, Trash2, CircleHelp, BookOpen, AlertTriangle, Target, Pencil,
-  ChevronRight, Lightbulb, RotateCcw, Filter, Award, Upload,
+  ChevronRight, Lightbulb, RotateCcw, Filter, Award, Upload, Mic,
 } from 'lucide-react';
 import { api } from '../lib/api';
 import { useApp } from '../store';
@@ -10,6 +10,7 @@ import {
   SectionHeader, Spinner, Stat, Tabs,
 } from '../components/ui';
 import { PyqUploaderModal } from '../components/PyqUploaderModal';
+import { VivaSimulatorModal } from '../components/VivaSimulatorModal';
 import { dateLabel, pct, truncate } from '../lib/format';
 import { ANSWER_STATUS_LABEL, gradeAnswer } from '../lib/grade';
 import type { MistakeRow, QuestionRow, SubjectRow, TreeSubject } from '../../../shared/types';
@@ -69,6 +70,7 @@ export function PracticePage() {
   const [confirmDelete, setConfirmDelete] = React.useState<QuestionRow | null>(null);
   const [mistakeFor, setMistakeFor] = React.useState<QuestionRow | null>(null);
   const [pyqModalOpen, setPyqModalOpen] = React.useState(false);
+  const [vivaOpen, setVivaOpen] = React.useState(false);
 
   const load = React.useCallback(async () => {
     setError(null);
@@ -136,6 +138,14 @@ export function PracticePage() {
           description="Your question bank. Previous-year GATE papers are imported from your own PDF folder (Import → Previous-year papers); questions you write yourself live here too. Every answer says where it came from."
           action={
             <div className="flex items-center gap-2">
+              <button
+                className="btn btn-sm btn-secondary flex items-center gap-1.5"
+                onClick={() => setVivaOpen(true)}
+                title="Practice oral technical questions for RTU lab vivas & PSU/BARC technical interviews"
+              >
+                <Mic size={13} className="text-purple-400" />
+                <span>Viva &amp; Interview</span>
+              </button>
               <button
                 className="btn btn-sm btn-secondary flex items-center gap-1.5"
                 onClick={() => setPyqModalOpen(true)}
@@ -573,6 +583,12 @@ export function PracticePage() {
           }}
         />
       )}
+
+      <VivaSimulatorModal
+        open={vivaOpen}
+        onClose={() => setVivaOpen(false)}
+        defaultTrack={activeExamMode === 'GATE' ? 'GATE_PSU_INTERVIEW' : 'RTU_LAB'}
+      />
     </div>
   );
 }

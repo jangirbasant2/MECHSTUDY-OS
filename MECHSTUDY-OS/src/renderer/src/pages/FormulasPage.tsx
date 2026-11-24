@@ -1,7 +1,7 @@
 import React from 'react';
 import {
   Sigma, Search, Copy, Check, Sparkles, BookOpen, ExternalLink,
-  Filter, Award, Lightbulb, Info, ArrowRight, Calculator, FileText, Loader2,
+  Filter, Award, Lightbulb, Info, ArrowRight, Calculator, FileText, Loader2, Printer,
 } from 'lucide-react';
 import katex from 'katex';
 import 'katex/dist/katex.min.css';
@@ -52,6 +52,7 @@ export function FormulasPage() {
   const [copiedId, setCopiedId] = React.useState<string | null>(null);
   const [expandedSandboxId, setExpandedSandboxId] = React.useState<string | null>(null);
   const [exportingCheatSheet, setExportingCheatSheet] = React.useState<boolean>(false);
+  const [exportingBooklet, setExportingBooklet] = React.useState<boolean>(false);
 
   const activeSubjects = React.useMemo(() => {
     if (activeExamMode === 'RTU') {
@@ -102,6 +103,29 @@ export function FormulasPage() {
       toast(`Failed to export cheat-sheet: ${err?.message}`, 'error');
     } finally {
       setExportingCheatSheet(false);
+    }
+  };
+
+  const handleExportPocketBooklet = async () => {
+    setExportingBooklet(true);
+    try {
+      const defaultName = `MECHSTUDY_${activeExamMode}_Pocket_Revision_Booklet.pdf`;
+      const savePath = await api.cheatSheet.pickPocketBookletPath(defaultName);
+      if (!savePath) return;
+
+      const res = await api.cheatSheet.compilePocketBooklet({
+        title: `${activeExamMode === 'RTU' ? 'RTU Kota B.Tech III-Sem' : 'GATE Mechanical'} Pocket Revision Booklet`,
+        examTrack: activeExamMode === 'RTU' ? 'RTU' : 'GATE',
+        semester: activeExamMode === 'RTU' ? (selectedSemester === 3 ? 3 : selectedSemester) : undefined,
+        subjectName: selectedSubject === 'All Subjects' ? undefined : selectedSubject,
+        outPath: savePath,
+      });
+
+      toast(`Exported A4 Pocket Revision Booklet (${res.pages} pages, ${res.itemsCount} formulas with checkboxes)!`, 'success');
+    } catch (err: any) {
+      toast(`Failed to export booklet: ${err?.message}`, 'error');
+    } finally {
+      setExportingBooklet(false);
     }
   };
 
@@ -193,6 +217,15 @@ export function FormulasPage() {
           >
             {exportingCheatSheet ? <Loader2 size={13} className="animate-spin" /> : <FileText size={13} />}
             <span>Export Cheat Sheet (PDF)</span>
+          </button>
+          <button
+            className="btn btn-sm btn-secondary gap-1.5 text-xs"
+            disabled={exportingBooklet}
+            onClick={handleExportPocketBooklet}
+            title="Compile printable foldable 2-column A4 pocket revision leaflet with checkboxes"
+          >
+            {exportingBooklet ? <Loader2 size={13} className="animate-spin" /> : <Printer size={13} />}
+            <span>Pocket Booklet (A4)</span>
           </button>
           <button
             className="btn btn-sm btn-accent gap-1.5"
