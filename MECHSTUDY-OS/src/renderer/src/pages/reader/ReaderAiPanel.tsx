@@ -9,6 +9,7 @@ import {
 } from 'lucide-react';
 import { api } from '../../lib/api';
 import { Badge, Spinner } from '../../components/ui';
+import { VoiceInputButton } from '../../components/VoiceInputButton';
 import type {
   AiMessage,
   AiModelInfo,
@@ -423,6 +424,24 @@ export function ReaderAiPanel({
             }}
             disabled={streaming}
             rows={2}
+          />
+          <VoiceInputButton
+            disabled={streaming}
+            className="self-end px-2 py-1.5"
+            size={13}
+            showTimer={false}
+            onTranscript={(transcribedText) => {
+              setInput(prev => {
+                const trimmed = prev.trim();
+                return trimmed ? `${trimmed} ${transcribedText}` : transcribedText;
+              });
+            }}
+            onInterimTranscript={(interim) => {
+              setInput(prev => {
+                const trimmed = prev.trim();
+                return trimmed ? `${trimmed} ${interim}` : interim;
+              });
+            }}
           />
           {streaming ? (
             <button

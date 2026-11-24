@@ -268,6 +268,7 @@ export interface MechStudyApi {
     clearConversation(id: number): Promise<boolean>;
     sendMessage(req: SendMessageRequest): Promise<{ messageId: number }>;
     stopGeneration(): Promise<void>;
+    transcribeAudio(audioBase64: string, mimeType?: string): Promise<{ text: string }>;
     onStream(cb: (chunk: AiStreamChunk) => void): Unsubscribe;
     settings(): Promise<AiSettings>;
     updateSettings(patch: Partial<AiSettings>): Promise<void>;

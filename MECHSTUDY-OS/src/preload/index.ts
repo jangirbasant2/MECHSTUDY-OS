@@ -283,6 +283,7 @@ const api: MechStudyApi = {
     updateConversation: (id, patch) => invoke('ai:updateConversation', { id, patch }),
     deleteConversation: (id) => invoke('ai:deleteConversation', { id }),
     clearConversation: (id) => invoke('ai:clearConversation', { id }),
+    transcribeAudio: (audioBase64: string, mimeType?: string) => invoke('ai:transcribeAudio', { audioBase64, mimeType }),
     sendMessage: (req) => invoke('ai:sendMessage', req),
     stopGeneration: () => invoke('ai:stopGeneration'),
     onStream: (cb) => subscribe('ai:stream', cb),

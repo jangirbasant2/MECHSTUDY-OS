@@ -1255,5 +1255,68 @@ Return STRICT JSON matching this schema:
   };
 }
 
+/**
+ * Transcribes student spoken voice/audio into text using Google AI Studio (Gemini).
+ * Accurately recognizes engineering terms, formulas, thermodynamic cycles, and GATE/RTU nomenclature.
+ */
+export async function transcribeAudioWithGemini(
+  audioBase64: string,
+  mimeType: string = 'audio/webm',
+  apiKey?: string,
+  model?: string
+): Promise<{ text: string }> {
+  const key = getEffectiveApiKey(apiKey);
+  if (!key) {
+    throw new Error('Google AI Studio API Key is required for voice transcription. Please enter your API key in Settings -> AI.');
+  }
+
+  const selectedModel = normalizeGeminiModel(model || getAiSettings().selectedModel);
+  const ai = getGeminiClient(key);
+
+  const cleanBase64 = audioBase64.replace(/^data:audio\/[a-z0-9\-]+;base64,/, '').trim();
+  if (!cleanBase64) {
+    return { text: '' };
+  }
+
+  const cleanMime = mimeType.split(';')[0].trim() || 'audio/webm';
+
+  const prompt = `You are a speech-to-text audio transcriber for a Mechanical Engineering student talking to their AI Tutor.
+Transcribe the spoken audio question, doubt, or explanation accurately into clean text.
+Requirements:
+1. Preserve technical mechanical engineering terms and symbols (e.g. Mohr's circle, Euler buckling, Navier-Stokes, SFD/BMD, Rankine cycle, Brayton cycle, Otto cycle, enthalpy, entropy, MPa, kPa, N/m, rpm, rad/s).
+2. Do NOT add any preamble, conversational filler, or commentary (no "Here is the transcription:", no quotes).
+3. Return ONLY the exact transcribed text. If the audio is silent or unintelligible, return an empty string.`;
+
+  try {
+    const res = await ai.models.generateContent({
+      model: selectedModel,
+      contents: [
+        {
+          role: 'user',
+          parts: [
+            {
+              inlineData: {
+                mimeType: cleanMime,
+                data: cleanBase64,
+              },
+            },
+            { text: prompt },
+          ],
+        },
+      ],
+      config: {
+        temperature: 0.1,
+        maxOutputTokens: 2048,
+      },
+    });
+
+    const transcribed = res.text?.trim() || '';
+    return { text: transcribed };
+  } catch (err: any) {
+    console.warn('[Gemini] Audio transcription failed:', err);
+    throw new Error(`Voice transcription failed: ${err?.message || 'Unknown error'}`);
+  }
+}
+
 
 

@@ -83,6 +83,7 @@ import {
 import {
   generateMasteryQuizWithGemini, generateFormulaPracticeNumerical, coachExamQuestionWithGemini,
   startVivaSessionWithGemini, evaluateVivaAnswerWithGemini, generateExamHalvingPlanWithGemini,
+  transcribeAudioWithGemini,
 } from './services/ai/gemini';
 import {
   getEmailSettings, updateEmailSettings, sendTodayPlanEmail, testSmtpConnection,
@@ -671,6 +672,9 @@ export function registerIpc(): void {
   handle('ai:updateConversation', ({ id, patch }) => updateConversation(Number(id), patch ?? {}));
   handle('ai:deleteConversation', ({ id }) => deleteConversation(Number(id)));
   handle('ai:clearConversation', ({ id }) => clearConversation(Number(id)));
+  handle('ai:transcribeAudio', ({ audioBase64, mimeType }) =>
+    transcribeAudioWithGemini(audioBase64, mimeType)
+  );
   handle('ai:sendMessage', async (req) => {
     return processUserMessage(req, (chunk) => {
       send('ai:stream', chunk);

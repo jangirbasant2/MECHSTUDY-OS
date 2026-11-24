@@ -15,6 +15,7 @@ import { Badge, EmptyState, Loading, SectionHeader, Stat, Tabs } from '../../com
 import { StudyMaterialsBar } from './StudyMaterialsBar';
 import { StudyMaterialPicker } from './StudyMaterialPicker';
 import { OcrProgressModal } from './OcrProgressModal';
+import { VoiceInputButton } from '../../components/VoiceInputButton';
 import type {
   AttachedDocumentSummary,
   DocumentProcessingProgress,
@@ -826,16 +827,34 @@ export function AIPage() {
                       }}
                       placeholder={
                         tab === 'tutor'
-                          ? `Ask any mechanical engineering topic at ${tutorLevel} level... (Shift+Enter for newline)`
+                          ? `Ask any mechanical engineering topic at ${tutorLevel} level or click Mic to speak... (Shift+Enter for newline)`
                           : tab === 'planner'
-                            ? 'e.g. "Schedule thermodynamics tomorrow from 6 to 8 PM" or "Find a free 2h slot"'
-                            : 'Ask MECHSTUDY AI anything about your syllabus, notes, or schedule...'
+                            ? 'e.g. "Schedule thermodynamics tomorrow from 6 to 8 PM" or click Mic to speak...'
+                            : 'Ask MECHSTUDY AI anything about your syllabus, notes, or schedule (or click Mic)...'
                       }
                       rows={2}
                       className="input w-full resize-none p-2.5 text-xs leading-relaxed"
                       disabled={isGenerating}
                     />
                   </div>
+
+                  <VoiceInputButton
+                    disabled={isGenerating}
+                    className="h-[56px] px-3.5"
+                    size={15}
+                    onTranscript={(transcribedText) => {
+                      setInputMessage(prev => {
+                        const trimmed = prev.trim();
+                        return trimmed ? `${trimmed} ${transcribedText}` : transcribedText;
+                      });
+                    }}
+                    onInterimTranscript={(interim) => {
+                      setInputMessage(prev => {
+                        const trimmed = prev.trim();
+                        return trimmed ? `${trimmed} ${interim}` : interim;
+                      });
+                    }}
+                  />
 
                   {isGenerating ? (
                     <button
@@ -858,7 +877,7 @@ export function AIPage() {
                 </div>
 
                 <div className="mt-2 flex items-center justify-between text-[11px]" style={{ color: 'var(--color-muted)' }}>
-                  <span>Press <kbd className="rounded bg-black/20 px-1 py-0.5">Enter</kbd> to send, <kbd className="rounded bg-black/20 px-1 py-0.5">Shift+Enter</kbd> for newline</span>
+                  <span>Press <kbd className="rounded bg-black/20 px-1 py-0.5">Enter</kbd> to send, <kbd className="rounded bg-black/20 px-1 py-0.5">Shift+Enter</kbd> for newline · 🎙️ Click <strong>Mic</strong> to speak your question</span>
                   {activeConv && activeConv.messages.length > 0 && (
                     <button
                       onClick={handleClearConversation}
