@@ -6,6 +6,7 @@ import { all, get, run, tx } from '../db';
 import { inspectPdf } from './pdf';
 import { indexAllTextLayers } from './indexer';
 import { matchDocumentToSyllabus } from './syllabusMatcher';
+import { getCurrentSession } from './auth';
 
 export const SUPPORTED_EXT = new Set(['.pdf']);
 
@@ -160,6 +161,28 @@ export async function importFiles(
   return { added, updated, failed };
 }
 
+export function checkDocumentLock(d: any): { isLocked: boolean; requiresLifetimeNotes: boolean } {
+  if (!d) return { isLocked: false, requiresLifetimeNotes: false };
+  const mat = (d.material_type || '').toLowerCase();
+  const fn = (d.filename || '').toLowerCase();
+  const isFree = mat === 'assignment' || mat === 'syllabus' || mat === 'pyq' || mat === 'lab' || mat === 'practical'
+    || fn.includes('assignment') || fn.includes('lab') || fn.includes('practical') || fn.includes('syllabus');
+
+  if (isFree) {
+    return { isLocked: false, requiresLifetimeNotes: false };
+  }
+
+  // It's a handwritten note - requires lifetime notes pass
+  try {
+    const session = getCurrentSession();
+    if (session && (session.user.role === 'admin' || session.user.licenseType === 'lifetime_notes')) {
+      return { isLocked: false, requiresLifetimeNotes: true };
+    }
+  } catch {}
+
+  return { isLocked: true, requiresLifetimeNotes: true };
+}
+
 export function listDocuments(filter?: { subjectId?: number; q?: string; starred?: boolean; materialType?: string }) {
   const where: string[] = [];
   const params: unknown[] = [];
@@ -180,11 +203,12 @@ export function listDocuments(filter?: { subjectId?: number; q?: string; starred
     LEFT JOIN topics t ON t.id = d.topic_id
     ${where.length ? 'WHERE ' + where.join(' AND ') : ''}
     ORDER BY d.last_opened_at DESC NULLS LAST, d.filename`;
-  return all(sql, ...params);
+  const rows = all(sql, ...params);
+  return rows.map(r => ({ ...r, ...checkDocumentLock(r) }));
 }
 
 export function getDocument(id: number) {
-  return get(`SELECT d.*, s.name AS subject_name,
+  const doc = get(`SELECT d.*, s.name AS subject_name,
                 u.number AS unit_number, u.title AS unit_title,
                 t.title AS topic_title
               FROM documents d
@@ -192,6 +216,7 @@ export function getDocument(id: number) {
               LEFT JOIN units u ON u.id = d.unit_id
               LEFT JOIN topics t ON t.id = d.topic_id
               WHERE d.id = ?`, id);
+  return doc ? { ...doc, ...checkDocumentLock(doc) } : null;
 }
 
 export function setStarred(id: number, starred: boolean) {

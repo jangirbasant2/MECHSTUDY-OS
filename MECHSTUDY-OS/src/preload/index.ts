@@ -376,6 +376,22 @@ const api: MechStudyApi = {
   window: {
     setFullScreen: (flag: boolean) => invoke('window:setFullScreen', { flag }),
   },
+  auth: {
+    getSession: () => invoke('auth:getSession'),
+    login: (credentials: any) => invoke('auth:login', credentials),
+    register: (payload: any) => invoke('auth:register', payload),
+    logout: () => invoke('auth:logout'),
+    redeemLicense: (keyCode: string) => invoke('auth:redeemLicense', { keyCode }),
+  },
+  admin: {
+    getStats: () => invoke('admin:getStats'),
+    listUsers: (filter?: any) => invoke('admin:listUsers', filter ?? {}),
+    updateUserRole: (userId: number, role: string) => invoke('admin:updateUserRole', { userId, role }),
+    updateUserLicense: (userId: number, licenseType: string) => invoke('admin:updateUserLicense', { userId, licenseType }),
+    generateLicenseKeys: (count?: number, note?: string) => invoke('admin:generateLicenseKeys', { count, note }),
+    listLicenseKeys: () => invoke('admin:listLicenseKeys'),
+    revokeLicense: (userId: number) => invoke('admin:revokeLicense', { userId }),
+  },
 };
 
 contextBridge.exposeInMainWorld('api', api);

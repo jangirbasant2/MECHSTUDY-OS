@@ -47,6 +47,8 @@ export interface DocumentRow {
   annotation_count?: number;
   bookmark_count?: number;
   note_count?: number;
+  isLocked?: boolean;
+  requiresLifetimeNotes?: boolean;
 }
 
 export interface DocumentSyllabusLink {
@@ -1069,6 +1071,53 @@ export interface ExamHalvingPlanResult {
   schedule: ExamHalvingPlanDaySchedule[];
   aiGenerated: boolean;
 }
+
+/* ---------------- Authentication, Licensing & Admin ---------------- */
+
+export type UserRole = 'student' | 'admin';
+export type LicenseType = 'free' | 'lifetime_notes';
+
+export interface AppUser {
+  id: number;
+  email: string;
+  username: string;
+  role: UserRole;
+  licenseType: LicenseType;
+  licenseKey?: string | null;
+  isActive: boolean;
+  createdAt: string;
+  lastLoginAt: string | null;
+}
+
+export interface AuthSession {
+  token: string;
+  user: AppUser;
+  expiresAt: string;
+}
+
+export interface LicenseKeyRecord {
+  id: number;
+  keyCode: string;
+  licenseType: LicenseType;
+  isRedeemed: boolean;
+  redeemedByUserId?: number | null;
+  redeemedByEmail?: string | null;
+  redeemedAt?: string | null;
+  createdAt: string;
+  note?: string | null;
+}
+
+export interface AdminStats {
+  totalUsers: number;
+  activeUsers: number;
+  lifetimeSubscribers: number;
+  freeUsers: number;
+  conversionRate: number; // percentage (0 - 100)
+  totalRevenueInr: number;
+  redeemedKeysCount: number;
+  availableKeysCount: number;
+}
+
 
 
 

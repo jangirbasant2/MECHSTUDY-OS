@@ -3,6 +3,7 @@ import {
   Search, StickyNote, Sun, Moon, Settings, Play, Pause, Square, Timer,
   PanelLeftClose, PanelTopClose, GraduationCap, Sparkles, Bot, Eye, EyeOff,
   CheckCircle2, AlertCircle, Loader2, ChevronDown, ChevronRight, FileText, Cpu, Award,
+  Shield, LogIn, Lock,
 } from 'lucide-react';
 import { useApp } from '../store';
 import { pageTitle } from './Sidebar';
@@ -24,6 +25,8 @@ export function Topbar() {
   const toggleTopbarVisible = useApp(s => s.toggleTopbarVisible);
   const activeExamMode = useApp(s => s.activeExamMode);
   const setActiveExamMode = useApp(s => s.setActiveExamMode);
+  const currentUser = useApp(s => s.currentUser);
+  const setUpgradeModalOpen = useApp(s => s.setUpgradeModalOpen);
 
   // Google AI Studio Header Menu state
   const [aiMenuOpen, setAiMenuOpen] = React.useState(false);
@@ -476,6 +479,54 @@ export function Topbar() {
         >
           {theme === 'dark' ? <Sun size={16} /> : <Moon size={16} />}
         </button>
+
+        {/* Admin Governance Quick Link */}
+        {currentUser?.role === 'admin' && (
+          <button
+            className="flex h-8 items-center gap-1.5 rounded-lg border px-2.5 text-xs font-semibold transition-all border-amber-500/30 bg-amber-500/10 text-amber-400 hover:bg-amber-500/20"
+            onClick={() => setPage('admin')}
+            title="Administrator Governance Panel"
+          >
+            <Shield size={13} />
+            <span className="hidden md:inline">Admin</span>
+          </button>
+        )}
+
+        {/* Free Plan Upgrade Banner Button */}
+        {currentUser && currentUser.licenseType === 'free' && currentUser.role !== 'admin' && (
+          <button
+            className="flex h-8 items-center gap-1.5 rounded-lg border px-2.5 text-xs font-medium text-amber-400 bg-amber-500/10 border-amber-500/20 hover:bg-amber-500/20 transition-all"
+            onClick={() => setUpgradeModalOpen(true)}
+            title="Upgrade to Lifetime Notes Pass"
+          >
+            <Lock size={12} />
+            <span className="hidden lg:inline">Unlock Notes</span>
+          </button>
+        )}
+
+        {/* User Account / Sign In */}
+        {currentUser ? (
+          <button
+            className="flex h-8 items-center gap-1.5 rounded-lg border px-2 text-xs font-medium transition-all"
+            style={{ background: 'var(--color-panel2)', borderColor: 'var(--color-border)', color: 'var(--color-text)' }}
+            onClick={() => setPage('profile')}
+            title={`${currentUser.username} (${currentUser.role})`}
+          >
+            <span className="h-5 w-5 rounded-full bg-cyan-500/20 text-cyan-400 flex items-center justify-center font-bold text-[10px] border border-cyan-500/30">
+              {currentUser.username.charAt(0).toUpperCase()}
+            </span>
+            <span className="hidden xl:inline truncate max-w-[100px]">{currentUser.username}</span>
+          </button>
+        ) : (
+          <button
+            className="flex h-8 items-center gap-1.5 rounded-lg border px-2.5 text-xs font-medium border-cyan-500/30 bg-cyan-500/10 text-cyan-400 hover:bg-cyan-500/20 transition-all"
+            onClick={() => setPage('login')}
+            title="Sign In or Register"
+          >
+            <LogIn size={13} />
+            <span className="hidden sm:inline">Sign In</span>
+          </button>
+        )}
 
         <button
           className="btn btn-ghost btn-icon"

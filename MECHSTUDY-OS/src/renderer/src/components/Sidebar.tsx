@@ -2,7 +2,7 @@ import React from 'react';
 import {
   Home, Library, BookOpen, GraduationCap, CalendarDays, FileText, StickyNote,
   Repeat2, CircleHelp, Search, BarChart3, FolderInput, Settings, ChevronLeft,
-  ChevronRight, Star, Sparkles, Bot, Award, Sigma,
+  ChevronRight, Star, Sparkles, Bot, Award, Sigma, Shield, LogIn, LogOut,
 } from 'lucide-react';
 import { useApp, type PageId } from '../store';
 import { api } from '../lib/api';
@@ -55,6 +55,8 @@ export function Sidebar() {
   const toggle = useApp(s => s.toggleSidebar);
   const openDocument = useApp(s => s.openDocument);
   const activeExamMode = useApp(s => s.activeExamMode);
+  const currentUser = useApp(s => s.currentUser);
+  const logoutUser = useApp(s => s.logoutUser);
 
   const activeSyllabus = React.useMemo(() => {
     return SYLLABUS.filter(item => {
@@ -157,6 +159,12 @@ export function Sidebar() {
         <GroupLabel collapsed={collapsed}>System</GroupLabel>
         <nav aria-label="System" className="space-y-0.5">
           {SYSTEM.map(renderItem)}
+          {currentUser?.role === 'admin' && renderItem({
+            id: 'admin',
+            label: 'Admin Panel',
+            icon: Shield,
+            hint: 'User & Subscription Governance',
+          })}
         </nav>
 
         {!collapsed && starred.length > 0 && (
@@ -182,7 +190,49 @@ export function Sidebar() {
         )}
       </div>
 
-      <div className="border-t p-2" style={{ borderColor: 'var(--color-border)' }}>
+      <div className="border-t p-2 space-y-1.5" style={{ borderColor: 'var(--color-border)' }}>
+        {currentUser ? (
+          <div className="flex items-center justify-between rounded-lg p-1.5 border" style={{ borderColor: 'var(--color-border)', background: 'var(--color-panel2)' }}>
+            <button
+              onClick={() => setPage(currentUser.role === 'admin' ? 'admin' : 'profile')}
+              className="flex items-center gap-2 min-w-0 text-left flex-1"
+              title={`${currentUser.username} (${currentUser.role})`}
+            >
+              <div className="h-6 w-6 rounded-full bg-cyan-500/20 text-cyan-400 flex items-center justify-center font-bold text-[10px] shrink-0 border border-cyan-500/30">
+                {currentUser.username.charAt(0).toUpperCase()}
+              </div>
+              {!collapsed && (
+                <div className="min-w-0 flex-1">
+                  <div className="text-[11px] font-semibold text-[var(--color-text)] truncate">{currentUser.username}</div>
+                  <div className="text-[9px] text-[var(--color-faint)]">
+                    <span className={currentUser.role === 'admin' ? 'text-amber-400 font-semibold' : currentUser.licenseType === 'lifetime_notes' ? 'text-emerald-400 font-semibold' : 'text-neutral-400'}>
+                      {currentUser.role === 'admin' ? 'Admin' : currentUser.licenseType === 'lifetime_notes' ? 'Lifetime Scholar' : 'Free Plan'}
+                    </span>
+                  </div>
+                </div>
+              )}
+            </button>
+            {!collapsed && (
+              <button
+                onClick={() => logoutUser()}
+                className="p-1 text-neutral-400 hover:text-rose-400 rounded transition"
+                title="Sign Out"
+              >
+                <LogOut size={13} />
+              </button>
+            )}
+          </div>
+        ) : (
+          <button
+            onClick={() => setPage('login')}
+            className="btn btn-secondary w-full justify-start gap-2 text-xs py-1.5"
+            title="Sign In / Register"
+          >
+            <LogIn size={14} className="text-cyan-400" />
+            {!collapsed && <span>Sign In</span>}
+          </button>
+        )}
+
         <button
           className="btn btn-ghost w-full justify-start gap-2 text-xs"
           onClick={toggle}

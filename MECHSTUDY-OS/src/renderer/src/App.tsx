@@ -28,6 +28,9 @@ import { ImportPage } from './pages/ImportPage';
 import { SettingsPage } from './pages/SettingsPage';
 import { AIPage } from './pages/AI/AIPage';
 import { ProfilePage } from './pages/ProfilePage';
+import { LoginPage } from './pages/LoginPage';
+import { AdminPage } from './pages/AdminPage';
+import { UpgradeNotesModal } from './components/UpgradeNotesModal';
 
 export function App() {
   const page = useApp(s => s.page);
@@ -181,6 +184,8 @@ export function App() {
       case 'settings': return <SettingsPage />;
       case 'ai': return <AIPage />;
       case 'profile': return <ProfilePage />;
+      case 'login': return <LoginPage />;
+      case 'admin': return <AdminPage />;
       default: return <HomePage />;
     }
   };
@@ -194,6 +199,7 @@ export function App() {
           <ErrorBoundary resetKey={page}>{renderPage()}</ErrorBoundary>
         </main>
       </div>
+      <UpgradeNotesModal />
 
       {/* ---- layout recovery controls (always reachable) ---- */}
 

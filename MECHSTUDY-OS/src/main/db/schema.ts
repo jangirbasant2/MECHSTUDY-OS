@@ -833,5 +833,89 @@ CREATE INDEX IF NOT EXISTS idx_flashcards_sem ON flashcards(semester);
 ALTER TABLE mistakes ADD COLUMN exam_type TEXT DEFAULT 'RTU';
 ALTER TABLE mistakes ADD COLUMN subject_name TEXT;
 `
+  },
+  {
+    version: 16,
+    name: 'user_authentication_licensing_and_admin',
+    sql: `
+CREATE TABLE IF NOT EXISTS app_users (
+  id INTEGER PRIMARY KEY AUTOINCREMENT,
+  email TEXT NOT NULL UNIQUE COLLATE NOCASE,
+  username TEXT NOT NULL,
+  password_hash TEXT NOT NULL,
+  salt TEXT NOT NULL,
+  role TEXT NOT NULL DEFAULT 'student',         -- 'student' | 'admin'
+  license_type TEXT NOT NULL DEFAULT 'free',    -- 'free' | 'lifetime_notes'
+  license_key TEXT,
+  is_active INTEGER NOT NULL DEFAULT 1,
+  created_at TEXT NOT NULL DEFAULT (datetime('now')),
+  last_login_at TEXT
+);
+CREATE INDEX IF NOT EXISTS idx_app_users_email ON app_users(email);
+CREATE INDEX IF NOT EXISTS idx_app_users_role ON app_users(role);
+CREATE INDEX IF NOT EXISTS idx_app_users_license ON app_users(license_type);
+
+CREATE TABLE IF NOT EXISTS user_sessions (
+  id TEXT PRIMARY KEY,
+  user_id INTEGER NOT NULL REFERENCES app_users(id) ON DELETE CASCADE,
+  token_hash TEXT NOT NULL UNIQUE,
+  created_at TEXT NOT NULL DEFAULT (datetime('now')),
+  expires_at TEXT NOT NULL
+);
+CREATE INDEX IF NOT EXISTS idx_user_sessions_user ON user_sessions(user_id);
+CREATE INDEX IF NOT EXISTS idx_user_sessions_token ON user_sessions(token_hash);
+
+CREATE TABLE IF NOT EXISTS license_keys (
+  id INTEGER PRIMARY KEY AUTOINCREMENT,
+  key_code TEXT NOT NULL UNIQUE,
+  license_type TEXT NOT NULL DEFAULT 'lifetime_notes',
+  is_redeemed INTEGER NOT NULL DEFAULT 0,
+  redeemed_by_user_id INTEGER REFERENCES app_users(id) ON DELETE SET NULL,
+  redeemed_at TEXT,
+  created_at TEXT NOT NULL DEFAULT (datetime('now')),
+  note TEXT
+);
+CREATE INDEX IF NOT EXISTS idx_license_keys_code ON license_keys(key_code);
+CREATE INDEX IF NOT EXISTS idx_license_keys_redeemed ON license_keys(is_redeemed);
+
+CREATE TABLE IF NOT EXISTS auth_rate_limits (
+  id INTEGER PRIMARY KEY AUTOINCREMENT,
+  identifier TEXT NOT NULL,
+  attempt_time TEXT NOT NULL DEFAULT (datetime('now')),
+  success INTEGER NOT NULL DEFAULT 0
+);
+CREATE INDEX IF NOT EXISTS idx_auth_rate_limits ON auth_rate_limits(identifier, attempt_time);
+
+-- Seed initial administrator account (admin@mechstudy.com / admin123)
+INSERT OR IGNORE INTO app_users (id, email, username, password_hash, salt, role, license_type, license_key)
+VALUES (
+  1,
+  'admin@mechstudy.com',
+  'Lead Administrator',
+  '1f7b012f041f1eb131a68311d0a3eb122f98c59b7e62c99b5087c4e8a60cd9465ff396acb9366c683563536b1b2f6bcba82651f1960595d85c1db45fc478de11',
+  '310e9cc539fbfd5928d057a67ea8c9e6',
+  'admin',
+  'lifetime_notes',
+  'MECH-ADMIN-MASTER-KEY'
+);
+
+-- Seed sample student account (student@mechstudy.com / student123)
+INSERT OR IGNORE INTO app_users (id, email, username, password_hash, salt, role, license_type)
+VALUES (
+  2,
+  'student@mechstudy.com',
+  'Mechanical Scholar Demo',
+  '938acc4968df1ce0455856295a4432dc08e12e8fc91a8a3f83ac62b95213af5f09d7377a09dfd759fb380fc87ade40e48361917f9d88a48170632d0355d77059',
+  '05a57f3a25871ac9c20dd8be08cabdd5',
+  'student',
+  'free'
+);
+
+-- Seed sample redeemable lifetime notes license key
+INSERT OR IGNORE INTO license_keys (key_code, license_type, is_redeemed, note)
+VALUES ('MECH-2026-LIFETIME-GOLD', 'lifetime_notes', 0, 'Welcome Gift - Full Handwritten Notes Pass');
+INSERT OR IGNORE INTO license_keys (key_code, license_type, is_redeemed, note)
+VALUES ('MECH-SEM3-TOPPER-PASS', 'lifetime_notes', 0, 'RTU Sem 3 Batch Topper Promo');
+`
   }
 ];

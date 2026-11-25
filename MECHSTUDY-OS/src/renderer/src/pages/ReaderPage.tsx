@@ -6,7 +6,7 @@ import {
   ArrowLeft, AlertTriangle, Check, Type, Eraser, PanelLeft, PanelLeftOpen,
   PanelTopClose, GripHorizontal, PenLine, Scaling, Save,
   Crop, Hand, Minus, Lightbulb, Camera, Sparkles, Brain, Cpu, Loader2, Layers,
-  Columns2,
+  Columns2, Lock,
 } from 'lucide-react';
 import { ReaderAiPanel } from './reader/ReaderAiPanel';
 import { SplitSecondaryPane } from '../components/SplitSecondaryPane';
@@ -111,6 +111,7 @@ export function ReaderPage() {
   const splitPage = useApp(s => s.splitPage);
   const toggleSplitView = useApp(s => s.toggleSplitView);
   const setSplitView = useApp(s => s.setSplitView);
+  const setUpgradeModalOpen = useApp(s => s.setUpgradeModalOpen);
 
   const [penThickness, setPenThickness] = React.useState<number>(2.6);
 
@@ -1303,7 +1304,57 @@ export function ReaderPage() {
             </div>
           )}
 
-          <div className="flex justify-center">
+          {doc?.isLocked && (
+            <div
+              className="mx-auto mb-3 max-w-xl rounded-xl border p-2.5 flex items-center justify-between gap-3 text-xs"
+              style={{ background: 'var(--color-panel)', borderColor: 'rgba(245, 158, 11, 0.3)' }}
+            >
+              <div className="flex items-center gap-2 text-amber-400 font-medium">
+                <Lock size={14} className="shrink-0" />
+                <span>Free Preview (Pages 1–2 of {numPages || doc.page_count || 'notes'}).</span>
+              </div>
+              <button
+                onClick={() => setUpgradeModalOpen(true, doc)}
+                className="btn btn-primary text-[11px] py-1 px-2.5 font-semibold shrink-0"
+              >
+                Unlock Lifetime Pass
+              </button>
+            </div>
+          )}
+
+          {doc?.isLocked && pageNum > 2 ? (
+            <div className="flex justify-center my-8">
+              <div
+                className="max-w-md w-full rounded-2xl border p-8 text-center space-y-4 shadow-2xl"
+                style={{ background: 'var(--color-panel)', borderColor: 'var(--color-border)' }}
+              >
+                <div className="inline-flex p-4 rounded-2xl bg-amber-500/10 text-amber-400 border border-amber-500/30">
+                  <Lock size={32} />
+                </div>
+                <div>
+                  <h3 className="text-base font-bold text-[var(--color-text)]">Lifetime Notes Pass Required</h3>
+                  <p className="text-xs text-[var(--color-muted)] mt-1">
+                    Free preview ends at Page 2. To read all {numPages || doc.page_count || ''} pages of &quot;{doc.filename}&quot; and derivations, activate your One-Time Lifetime Pass.
+                  </p>
+                </div>
+                <div className="pt-2 flex flex-col gap-2">
+                  <button
+                    onClick={() => setUpgradeModalOpen(true, doc)}
+                    className="btn btn-primary text-xs py-2 font-semibold shadow-lg shadow-cyan-500/20"
+                  >
+                    Activate License Key / Unlock
+                  </button>
+                  <button
+                    onClick={() => setPageNum(1)}
+                    className="btn btn-ghost text-xs"
+                  >
+                    ← Back to Preview Page 1
+                  </button>
+                </div>
+              </div>
+            </div>
+          ) : (
+            <div className="flex justify-center">
             <div
               ref={pageRef}
               className="relative shadow-lg transition-colors duration-200"
@@ -2034,6 +2085,7 @@ export function ReaderPage() {
               </div>
             </div>
           </div>
+          )}
 
           <div className="mt-3 flex items-center justify-center gap-3">
             <button className="btn btn-sm" onClick={() => setPageNum(p => Math.max(1, p - 1))} disabled={pageNum <= 1}>

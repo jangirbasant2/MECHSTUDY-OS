@@ -2,7 +2,7 @@ import React from 'react';
 import {
   BookOpen, FileText, Star, Search, FolderInput, RefreshCw, Link2, Trash2,
   MoreVertical, AlertTriangle, ScanText, HardDrive, X, Check, FolderSearch,
-  Sparkles, Bookmark,
+  Sparkles, Bookmark, Lock,
 } from 'lucide-react';
 import { api } from '../lib/api';
 import { useApp } from '../store';
@@ -327,6 +327,11 @@ export function LibraryPage() {
                     >
                       <FileText size={13} style={{ color: doc.available ? 'var(--color-accent)' : 'var(--color-danger)', flexShrink: 0 }} />
                       <span className="truncate font-medium">{doc.filename}</span>
+                      {doc.isLocked && (
+                        <span className="inline-flex items-center gap-1 rounded bg-amber-500/10 px-1.5 py-0.2 text-[9.5px] font-semibold text-amber-400 border border-amber-500/20 shrink-0">
+                          <Lock size={9} /> Lifetime Pass
+                        </span>
+                      )}
                       {!doc.available && <Badge color="var(--color-danger)">Missing</Badge>}
                     </button>
                     <div className="truncate text-[10.5px]" style={{ color: 'var(--color-faint)' }}>

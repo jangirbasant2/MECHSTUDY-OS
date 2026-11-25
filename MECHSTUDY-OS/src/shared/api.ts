@@ -17,6 +17,7 @@ import type {
   PyqIngestProgress, GateMistakeRecord, RtuEvaluationResult, DueRevisionTopic,
   FlashcardItem, FlashcardSourceType, FormulaPracticeNumerical, CheatSheetOptions, CheatSheetResult, BackupArchiveResult,
   DocumentSyllabusLink, EmailSettings, ExamHalvingPlanRequest, ExamHalvingPlanResult,
+  AppUser, AuthSession, LicenseKeyRecord, AdminStats, UserRole, LicenseType,
 } from './types';
 
 export type Unsubscribe = () => void;
@@ -436,5 +437,21 @@ export interface MechStudyApi {
   };
   window: {
     setFullScreen(flag: boolean): Promise<boolean>;
+  };
+  auth: {
+    getSession(): Promise<AuthSession | null>;
+    login(credentials: { email: string; password: string }): Promise<{ session: AuthSession }>;
+    register(payload: { email: string; username: string; password: string }): Promise<{ session: AuthSession }>;
+    logout(): Promise<boolean>;
+    redeemLicense(keyCode: string): Promise<{ success: boolean; user: AppUser; message: string }>;
+  };
+  admin: {
+    getStats(): Promise<AdminStats>;
+    listUsers(filter?: { query?: string; role?: string; licenseType?: string }): Promise<AppUser[]>;
+    updateUserRole(userId: number, role: UserRole): Promise<AppUser>;
+    updateUserLicense(userId: number, licenseType: LicenseType): Promise<AppUser>;
+    generateLicenseKeys(count?: number, note?: string): Promise<LicenseKeyRecord[]>;
+    listLicenseKeys(): Promise<LicenseKeyRecord[]>;
+    revokeLicense(userId: number): Promise<AppUser>;
   };
 }

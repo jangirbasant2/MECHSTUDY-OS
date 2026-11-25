@@ -1,8 +1,10 @@
 import { create } from 'zustand';
+import type { AppUser } from '../../shared/types';
+import { api } from './lib/api';
 
 export type PageId =
   | 'home' | 'library' | 'rtu' | 'gate' | 'iit' | 'planner' | 'reader' | 'notes'
-  | 'revision' | 'practice' | 'exam' | 'formulas' | 'search' | 'analytics' | 'import' | 'settings' | 'ai' | 'profile';
+  | 'revision' | 'practice' | 'exam' | 'formulas' | 'search' | 'analytics' | 'import' | 'settings' | 'ai' | 'profile' | 'login' | 'admin';
 
 export interface Toast {
   id: number;
@@ -52,6 +54,17 @@ interface AppState {
 
   examActive: boolean;
   pyqVersion: number;
+
+  /* ---- authentication & licensing state -------------------------- */
+  currentUser: AppUser | null;
+  authLoading: boolean;
+  upgradeModalOpen: boolean;
+  targetLockedDoc: any | null;
+
+  checkAuth(): Promise<void>;
+  setCurrentUser(user: AppUser | null): void;
+  setUpgradeModalOpen(open: boolean, doc?: any | null): void;
+  logoutUser(): Promise<void>;
 
   boot(): void;
   setPage(page: PageId): void;
@@ -157,6 +170,39 @@ export const useApp = create<AppState>((set, get) => ({
   examActive: false,
   pyqVersion: 0,
 
+  currentUser: null,
+  authLoading: true,
+  upgradeModalOpen: false,
+  targetLockedDoc: null,
+
+  async checkAuth() {
+    try {
+      const session = await api.auth.getSession();
+      set({ currentUser: session?.user ?? null, authLoading: false });
+    } catch {
+      set({ currentUser: null, authLoading: false });
+    }
+  },
+
+  setCurrentUser(user) {
+    set({ currentUser: user });
+  },
+
+  setUpgradeModalOpen(open, doc) {
+    set({ upgradeModalOpen: open, targetLockedDoc: doc ?? null });
+  },
+
+  async logoutUser() {
+    try {
+      await api.auth.logout();
+      set({ currentUser: null });
+      get().toast('Signed out successfully', 'info');
+      get().setPage('login');
+    } catch (e) {
+      get().toast((e as Error).message, 'error');
+    }
+  },
+
   setExamActive(active: boolean) {
     set({ examActive: active });
   },
@@ -168,6 +214,7 @@ export const useApp = create<AppState>((set, get) => ({
   boot() {
     applyTheme(get().theme);
     applyExamModeTheme(get().activeExamMode);
+    void get().checkAuth();
     // Defensive: a stale layout preference must never start the app with no
     // way to navigate. Focus mode is not persisted at all, but if a future
     // bug ever persisted it, this keeps the app usable.

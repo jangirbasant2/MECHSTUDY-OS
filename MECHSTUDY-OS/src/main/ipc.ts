@@ -56,6 +56,11 @@ import {
 } from './services/exam';
 import { testGeminiApiKey, getEffectiveApiKey } from './services/ai/gemini';
 import {
+  registerUser, loginUser, getCurrentSession, logout, redeemLicenseKey,
+  getAdminStats, listUsersForAdmin, updateUserRole, updateUserLicense,
+  generateLicenseKeys, listLicenseKeys, revokeUserLicense,
+} from './services/auth';
+import {
   listConversations, createConversation, getConversation, updateConversation,
   deleteConversation, clearConversation,
   attachDocumentToConversation, detachDocumentFromConversation, setConversationDocuments, getConversationDocuments,
@@ -921,4 +926,24 @@ export function registerIpc(): void {
 
   /* ---------------- User Profile Username ---------------- */
   handle('gamification:updateUsername', ({ username }) => updateUsername(String(username)));
+
+  /* ---------------- User Authentication & Licensing ---------------- */
+  handle('auth:register', ({ email, username, password }) => registerUser(email, username, password));
+  handle('auth:login', ({ email, password }) => loginUser(email, password));
+  handle('auth:getSession', () => getCurrentSession());
+  handle('auth:logout', () => logout());
+  handle('auth:redeemLicense', ({ keyCode }) => {
+    const session = getCurrentSession();
+    if (!session) throw new Error('Please sign in to activate your license key.');
+    return redeemLicenseKey(session.user.id, keyCode);
+  });
+
+  /* ---------------- Admin Dashboard ---------------- */
+  handle('admin:getStats', () => getAdminStats());
+  handle('admin:listUsers', (filter) => listUsersForAdmin(filter));
+  handle('admin:updateUserRole', ({ userId, role }) => updateUserRole(Number(userId), role));
+  handle('admin:updateUserLicense', ({ userId, licenseType }) => updateUserLicense(Number(userId), licenseType));
+  handle('admin:generateLicenseKeys', ({ count, note }) => generateLicenseKeys(count ? Number(count) : 5, note));
+  handle('admin:listLicenseKeys', () => listLicenseKeys());
+  handle('admin:revokeLicense', ({ userId }) => revokeUserLicense(Number(userId)));
 }
