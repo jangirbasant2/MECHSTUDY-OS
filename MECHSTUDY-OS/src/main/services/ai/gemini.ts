@@ -1,5 +1,13 @@
 import { GoogleGenAI } from '@google/genai';
+import dns from 'node:dns';
 import { getAiSettings } from './settings';
+
+// Prioritize IPv4 for undici fetch to Google AI Studio endpoints
+try {
+  dns.setDefaultResultOrder('ipv4first');
+} catch {
+  // Graceful fallback
+}
 import type { ToolDefinition } from './toolRegistry';
 import type {
   AiToolCall,
@@ -180,64 +188,84 @@ export async function chatStreamGemini(
 
   for (let attempt = 0; attempt < candidateModels.length; attempt++) {
     const currentModel = candidateModels[attempt];
-    try {
-      fullContent = '';
-      detectedToolCalls.length = 0;
+    const maxTriesForModel = 2; // Try up to 2 times for transient network/socket glitches before switching models
 
-      const responseStream = await ai.models.generateContentStream({
-        model: currentModel,
-        contents,
-        config,
-      });
+    for (let tryCount = 0; tryCount < maxTriesForModel; tryCount++) {
+      try {
+        fullContent = '';
+        detectedToolCalls.length = 0;
 
-      for await (const chunk of responseStream) {
-        if (options.signal?.aborted) {
-          throw new Error('AI request was aborted by user.');
-        }
+        const responseStream = await ai.models.generateContentStream({
+          model: currentModel,
+          contents,
+          config,
+        });
 
-        const textDelta = chunk.text || '';
-        if (textDelta) {
-          fullContent += textDelta;
-          options.onChunk({ delta: textDelta });
-        }
+        for await (const chunk of responseStream) {
+          if (options.signal?.aborted) {
+            throw new Error('AI request was aborted by user.');
+          }
 
-        // Check for function calls in chunk
-        const functionCalls = chunk.functionCalls;
-        if (functionCalls && functionCalls.length > 0) {
-          for (const fc of functionCalls) {
-            const callId = `call_${Date.now()}_${Math.random().toString(36).slice(2, 7)}`;
-            const toolCall: AiToolCall = {
-              id: callId,
-              name: fc.name || '',
-              arguments: (fc.args as Record<string, unknown>) || {},
-            };
-            detectedToolCalls.push(toolCall);
-            options.onChunk({ delta: '', toolCalls: [toolCall] });
+          const textDelta = chunk.text || '';
+          if (textDelta) {
+            fullContent += textDelta;
+            options.onChunk({ delta: textDelta });
+          }
+
+          // Check for function calls in chunk
+          const functionCalls = chunk.functionCalls;
+          if (functionCalls && functionCalls.length > 0) {
+            for (const fc of functionCalls) {
+              const callId = `call_${Date.now()}_${Math.random().toString(36).slice(2, 7)}`;
+              const toolCall: AiToolCall = {
+                id: callId,
+                name: fc.name || '',
+                arguments: (fc.args as Record<string, unknown>) || {},
+              };
+              detectedToolCalls.push(toolCall);
+              options.onChunk({ delta: '', toolCalls: [toolCall] });
+            }
           }
         }
-      }
 
-      // Succeeded! Return accumulated content
-      return {
-        content: fullContent,
-        toolCalls: detectedToolCalls.length > 0 ? detectedToolCalls : undefined,
-      };
-    } catch (err: any) {
-      if (options.signal?.aborted) {
-        throw new Error('Generation aborted');
-      }
-      lastError = err;
-      const errMsg = (err instanceof Error ? err.message : String(err)).toLowerCase();
-      const isTransient = errMsg.includes('503') || errMsg.includes('404') || errMsg.includes('429') ||
-        errMsg.includes('high demand') || errMsg.includes('unavailable') || errMsg.includes('not found') ||
-        errMsg.includes('no longer available') || errMsg.includes('rate limit');
+        // Succeeded! Return accumulated content
+        return {
+          content: fullContent,
+          toolCalls: detectedToolCalls.length > 0 ? detectedToolCalls : undefined,
+        };
+      } catch (err: any) {
+        if (options.signal?.aborted) {
+          throw new Error('Generation aborted');
+        }
+        lastError = err;
+        const errMsg = (err instanceof Error ? err.message : String(err)).toLowerCase();
+        const isTransient = errMsg.includes('503') || errMsg.includes('404') || errMsg.includes('429') ||
+          errMsg.includes('high demand') || errMsg.includes('unavailable') || errMsg.includes('not found') ||
+          errMsg.includes('no longer available') || errMsg.includes('rate limit') ||
+          errMsg.includes('fetch failed') || errMsg.includes('network') || errMsg.includes('econnreset') ||
+          errMsg.includes('etimedout') || errMsg.includes('socket') || errMsg.includes('und_err') ||
+          errMsg.includes('enotfound') || errMsg.includes('econnrefused');
 
-      if (isTransient && attempt < candidateModels.length - 1) {
-        console.warn(`[Gemini] Model ${currentModel} error: ${err.message}. Retrying with fallback model ${candidateModels[attempt + 1]}...`);
-        await new Promise(r => setTimeout(r, 1000));
-        continue;
+        if (!isTransient) {
+          throw err;
+        }
+
+        // If transient network or server glitch and we have retries left on current model
+        if (tryCount < maxTriesForModel - 1) {
+          console.warn(`[Gemini] Transient error on ${currentModel} (try ${tryCount + 1}/${maxTriesForModel}): ${err.message}. Retrying in 700ms...`);
+          await new Promise(r => setTimeout(r, 700 * (tryCount + 1)));
+          continue;
+        }
+
+        // Exhausted retries on this model; if another candidate exists, try it
+        if (attempt < candidateModels.length - 1) {
+          console.warn(`[Gemini] Model ${currentModel} failed after retries: ${err.message}. Falling back to ${candidateModels[attempt + 1]}...`);
+          await new Promise(r => setTimeout(r, 900));
+          break; // break inner loop to proceed to next candidateModel
+        }
+
+        throw err;
       }
-      throw err;
     }
   }
 

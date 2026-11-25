@@ -2,6 +2,14 @@ import { app, BrowserWindow, Menu, protocol, net, session, shell, dialog } from 
 import { join } from 'node:path';
 import { pathToFileURL } from 'node:url';
 import { existsSync } from 'node:fs';
+import dns from 'node:dns';
+
+// Force IPv4 lookup precedence over IPv6 to prevent undici / fetch failed connection timeouts on Windows
+try {
+  dns.setDefaultResultOrder('ipv4first');
+} catch (e) {
+  console.warn('[dns] setDefaultResultOrder error:', e);
+}
 
 import { initDb, getDb, dbPath, getSetting, setSetting } from './db';
 import { initLogging } from './logger';

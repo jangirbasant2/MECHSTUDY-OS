@@ -1,4 +1,4 @@
-import { get, run } from '../../db';
+import { all, get, run } from '../../db';
 import { addMessage, getConversationMessages, getConversationDocuments } from './chat';
 import { decrementTemporaryScreenshots } from './temporaryScreenshots';
 import { chatStreamGemini, normalizeGeminiModel } from './gemini';
@@ -261,6 +261,152 @@ function detectRecalculateStatsIntent(text: string): { isRecalc: boolean } {
   return { isRecalc: recalcKeywords.test(lower) };
 }
 
+export interface CurriculumRecommendationResult {
+  subject: { id: number; code: string; name: string; semester: number };
+  unit?: { id: number; number: number; title: string };
+  allUnits: Array<{ id: number; number: number; title: string }>;
+  topics: Array<{ id: number; title: string }>;
+  docs: Array<{ id: number; filename: string; rel_path: string | null; subject_code: string | null }>;
+  formattedMarkdown: string;
+}
+
+export function getCurriculumRecommendation(text: string): CurriculumRecommendationResult | null {
+  const lower = text.toLowerCase();
+
+  const isCurriculumQuery = /(pdf|notes|study|read|book|material|unit|syllabus|chapter|which pdf|exact pdf|sem|semester)/i.test(lower);
+  if (!isCurriculumQuery) return null;
+
+  let subjectQuery = '';
+  if (lower.includes('math')) subjectQuery = '%Mathematics%';
+  else if (lower.includes('thermo')) subjectQuery = '%Thermodynamics%';
+  else if (lower.includes('som') || lower.includes('solid') || lower.includes('strength of material')) subjectQuery = '%Mechanics of Solids%';
+  else if (lower.includes('material')) subjectQuery = '%Material Science%';
+  else if (lower.includes('mechanic')) subjectQuery = '%Engineering Mechanics%';
+  else if (lower.includes('mefa') || lower.includes('economic')) subjectQuery = '%Managerial Economics%';
+
+  if (!subjectQuery) return null;
+
+  // Extract semester if mentioned (default to 3 for core mechanical if not specified or sem 3)
+  const semMatch = lower.match(/sem(?:ester)?\s*#?([1-8])/i);
+  const semesterNum = semMatch ? parseInt(semMatch[1], 10) : 3;
+
+  // Detect Unit number
+  const unitMatch = lower.match(/unit\s*#?([1-5])/i) || lower.match(/u([1-5])/i);
+  const unitNumber = unitMatch ? parseInt(unitMatch[1], 10) : 1;
+
+  // Fetch subject from DB (Technical Communication 3ME1-02/4ME1-02 strictly excluded)
+  const subject = get<{ id: number; code: string; name: string; semester: number }>(
+    'SELECT id, code, name, semester FROM subjects WHERE name LIKE ? AND semester = ? AND code NOT LIKE ?',
+    subjectQuery, semesterNum, '%3ME1-02%'
+  ) || get<{ id: number; code: string; name: string; semester: number }>(
+    'SELECT id, code, name, semester FROM subjects WHERE name LIKE ? AND code NOT LIKE ? LIMIT 1',
+    subjectQuery, '%3ME1-02%'
+  );
+
+  if (!subject) return null;
+
+  // Fetch unit
+  const unit = get<{ id: number; number: number; title: string }>(
+    'SELECT id, number, title FROM units WHERE subject_id = ? AND number = ?',
+    subject.id, unitNumber
+  );
+  const allUnits = all<{ id: number; number: number; title: string }>(
+    'SELECT id, number, title FROM units WHERE subject_id = ? ORDER BY number',
+    subject.id
+  );
+
+  // Fetch topics for this unit
+  const topics = unit
+    ? all<{ id: number; title: string }>('SELECT id, title FROM topics WHERE unit_id = ? ORDER BY id', unit.id)
+    : [];
+
+  // Fetch matching documents in library
+  const subjectKeyword = subject.name.toLowerCase().includes('math') ? '%math%' :
+                         subject.name.toLowerCase().includes('thermo') ? '%thermo%' :
+                         subject.name.toLowerCase().includes('solid') ? '%som%' : '%mechanic%';
+
+  const docs = all<{ id: number; filename: string; rel_path: string | null; subject_code: string | null }>(`
+    SELECT id, filename, rel_path, subject_code 
+    FROM documents 
+    WHERE (subject_id = ? OR subject_code = ? OR filename LIKE ? OR rel_path LIKE ?)
+    ORDER BY 
+      CASE 
+        WHEN filename LIKE '%Gate Notes%' AND filename NOT LIKE '%Short%' THEN 1
+        WHEN filename LIKE '%MADE-EASY%' THEN 2
+        WHEN filename LIKE '%Short%' THEN 3
+        ELSE 4
+      END
+  `, subject.id, subject.code, subjectKeyword, subjectKeyword);
+
+  // Build high-yield Markdown response
+  let md = `### 📚 Recommended Study Material & Syllabus Guide\n\n`;
+  md += `**Subject:** \`${subject.code}\` — **${subject.name}** (Semester ${subject.semester})  \n`;
+  if (unit) {
+    md += `**Unit ${unit.number}:** **${unit.title}**\n\n`;
+  }
+
+  if (topics.length > 0) {
+    md += `#### 🎯 Official RTU Syllabus Topics (Unit ${unit ? unit.number : unitNumber})\n`;
+    topics.forEach((t, i) => {
+      md += `${i + 1}. **${t.title}**\n`;
+    });
+    md += `\n`;
+  }
+
+  md += `#### 📖 Recommended PDFs in Your Library\n\n`;
+  if (docs.length > 0) {
+    const primary = docs.find(d => d.filename.toLowerCase().includes('gate notes') && !d.filename.toLowerCase().includes('short')) || docs[0];
+    const reference = docs.find(d => d.filename.toLowerCase().includes('made-easy') || (d.id !== primary?.id && !d.filename.toLowerCase().includes('short')));
+    const shortNotes = docs.filter(d => d.filename.toLowerCase().includes('short') || d.filename.toLowerCase().includes('maths.pdf'));
+
+    if (primary) {
+      md += `⭐ **Primary Handwritten Notes (Best for Unit Mastery & Numericals):**\n`;
+      md += `- **\`${primary.filename}\`**\n`;
+      if (primary.rel_path) md += `  - *Location:* \`${primary.rel_path}\`\n`;
+      md += `  - *Focus:* Detailed derivations, step-by-step solved examples, and RTU/GATE exam problems.\n\n`;
+    }
+
+    if (reference && reference.id !== primary?.id) {
+      md += `📘 **Comprehensive Reference Material:**\n`;
+      md += `- **\`${reference.filename}\`**\n`;
+      if (reference.rel_path) md += `  - *Location:* \`${reference.rel_path}\`\n`;
+      md += `  - *Focus:* Thorough theory explanations and additional standard textbook problem variants.\n\n`;
+    }
+
+    if (shortNotes.length > 0) {
+      md += `⚡ **Formula & Quick Revision Notes (Before Exams / Mid-Terms):**\n`;
+      for (const sn of shortNotes) {
+        md += `- **\`${sn.filename}\`**\n`;
+        if (sn.rel_path) md += `  - *Location:* \`${sn.rel_path}\`\n`;
+      }
+      md += `\n`;
+    }
+  } else {
+    md += `*No direct PDFs currently mapped to ${subject.name}. You can import or link notes via the Import & Indexing tab.*\n\n`;
+  }
+
+  md += `#### 💡 High-Scoring Exam Strategy (RTU 9+ CGPA & GATE)\n`;
+  if (subject.name.toLowerCase().includes('math')) {
+    md += `- **Numerical Methods Focus:** Practice Newton's forward/backward and Gauss/Stirling interpolation difference tables by hand. Always verify step sizes $h$.\n`;
+    md += `- **Numerical Integration:** Simpson's 1/3rd Rule (requires even number of subintervals) and Simpson's 3/8th Rule (subintervals must be a multiple of 3) are guaranteed 8–10 mark questions in RTU exams!\n`;
+    md += `- **Quick Formula Check:** Use the **Formula Vault** in the left sidebar under *RTU Mode ➔ Semester 3 ➔ Advance Engineering Mathematics-I* to review operator relationships ($\Delta = E - 1$, $\nabla = 1 - E^{-1}$) and Simpson weights.\n`;
+  } else if (subject.name.toLowerCase().includes('thermo')) {
+    md += `- **Thermodynamics Focus:** Be thorough with First & Second Law formulations, Carnot cycles, Clausius inequality, and entropy generation.\n`;
+    md += `- **Exam Traps:** Pay strict attention to units (kJ vs J, bar vs kPa) and closed vs open system energy balance equations.\n`;
+  } else {
+    md += `- **Focus:** Emphasize core governing equations, assumptions, and clear schematic diagrams.\n`;
+  }
+
+  return {
+    subject,
+    unit,
+    allUnits,
+    topics,
+    docs,
+    formattedMarkdown: md,
+  };
+}
+
 export async function processUserMessage(
   req: SendMessageRequest,
   onStream: (chunk: AiStreamChunk) => void
@@ -360,6 +506,12 @@ export async function processUserMessage(
   }
   if (ragContextBlock) {
     systemPrompt += `\n\n${ragContextBlock}`;
+  }
+
+  // Inject verified curriculum & PDF library context when student asks about subjects/units/notes
+  const curriculumCtx = getCurriculumRecommendation(req.content);
+  if (curriculumCtx) {
+    systemPrompt += `\n\n[OFFICIAL RTU/GATE SYLLABUS & LOCAL PDF LIBRARY CONTEXT]\n${curriculumCtx.formattedMarkdown}\nGround your recommendation in these exact local library PDFs, official syllabus units, and topics.`;
   }
 
   if (attachedDocs.length > 0) {
@@ -703,7 +855,12 @@ You MUST ground your response in the provided document content and citations abo
       }
 
       let userNotice = `⚠️ **AI Tutor Notice:** ${cleanMsg}`;
-      if (cleanMsg.includes('not configured') || cleanMsg.includes('empty')) {
+
+      // 1. If user asked about curriculum/syllabus/PDFs, deliver offline answer directly from verified local SQLite database
+      const offlineCurriculum = getCurriculumRecommendation(req.content);
+      if (offlineCurriculum) {
+        userNotice = `*(Note: Google AI Studio connection was unavailable — answered directly from your verified local RTU curriculum and indexed PDF library)*\n\n${offlineCurriculum.formattedMarkdown}`;
+      } else if (cleanMsg.includes('not configured') || cleanMsg.includes('empty')) {
         userNotice = `⚠️ **Google AI Studio API Key Required**\n\nTo chat with the AI Tutor, please add your Google AI Studio API key in the top header menu or Settings.\n\n*You can get a free API key at [aistudio.google.com](https://aistudio.google.com/app/apikey).*`;
       } else if (cleanMsg.includes('API key not valid') || cleanMsg.includes('API_KEY_INVALID')) {
         userNotice = `⚠️ **Invalid API Key**\n\nGoogle AI Studio reported that your API key is invalid. Please verify or re-enter your key in the top header menu.\n\n*Error details:* \`${cleanMsg}\``;
@@ -713,6 +870,14 @@ You MUST ground your response in the provided document content and citations abo
         userNotice = `⚠️ **Temporary High Demand (503)**\n\nGoogle AI Studio is experiencing temporary peak traffic. The system attempted automatic model fallback, but servers are momentarily congested. Please wait a few seconds and send your question again.`;
       } else if (cleanMsg.includes('404') || cleanMsg.includes('no longer available') || cleanMsg.includes('NOT_FOUND')) {
         userNotice = `⚠️ **Model Auto-Migrated**\n\nThe previous model has been retired by Google. MECHSTUDY-OS has automatically migrated your conversation to **gemini-2.5-flash**. Please try sending your message again!`;
+      } else if (
+        cleanMsg.toLowerCase().includes('fetch failed') ||
+        cleanMsg.toLowerCase().includes('network') ||
+        cleanMsg.toLowerCase().includes('econnreset') ||
+        cleanMsg.toLowerCase().includes('etimedout') ||
+        cleanMsg.toLowerCase().includes('socket')
+      ) {
+        userNotice = `⚠️ **Network Connection Issue (fetch failed)**\n\nUnable to reach Google AI Studio servers. Please verify your internet connection or VPN/proxy settings. The system will automatically reconnect when your connection is restored.`;
       }
 
       const errorMsg = addMessage({

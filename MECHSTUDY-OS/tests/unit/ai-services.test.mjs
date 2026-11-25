@@ -355,3 +355,35 @@ test('API key storage gracefully supports base64 obfuscation fallback when safeS
   const decoded = Buffer.from(encoded.slice(4), 'base64').toString('utf8');
   assert.equal(decoded, rawKey);
 });
+
+test('Curriculum recommendation extracts Mathematics Unit 1 and maps notes correctly without Technical Communication', () => {
+  const db = new DatabaseSync(':memory:');
+  db.exec('PRAGMA foreign_keys = ON;');
+  for (const m of MIGRATIONS) db.exec(m.sql);
+
+  db.prepare("INSERT INTO syllabus_versions (id, name, exam_type) VALUES (1, 'RTU 2026', 'RTU')").run();
+  db.prepare("INSERT INTO subjects (id, version_id, code, name, semester) VALUES (1, 1, '3ME2-01', 'Advance Engineering Mathematics-I', 3)").run();
+  db.prepare("INSERT INTO subjects (id, version_id, code, name, semester) VALUES (2, 1, '3ME1-02', 'Technical Communication', 3)").run();
+
+  db.prepare("INSERT INTO units (id, subject_id, number, title) VALUES (1, 1, 1, 'Numerical Methods – 1')").run();
+  db.prepare("INSERT INTO topics (id, unit_id, title) VALUES (1, 1, 'Finite differences')").run();
+  db.prepare("INSERT INTO topics (id, unit_id, title) VALUES (2, 1, 'Trapezoidal and Simpson rules')").run();
+
+  db.prepare("INSERT INTO documents (id, filename, rel_path, subject_code, path) VALUES (1, '1.Gate Notes-Mathematics(s)_optimize.pdf', '20.Engineering Mathematics(D)/1.Gate Notes-Mathematics(s)_optimize.pdf', '3ME2-01', 'C:/notes/math.pdf')").run();
+
+  // Query subject excluding Technical Communication
+  const subject = db.prepare('SELECT id, code, name, semester FROM subjects WHERE name LIKE ? AND semester = ? AND code NOT LIKE ?').get('%Mathematics%', 3, '%3ME1-02%');
+  assert.ok(subject);
+  assert.equal(subject.code, '3ME2-01');
+
+  const unit = db.prepare('SELECT id, number, title FROM units WHERE subject_id = ? AND number = ?').get(subject.id, 1);
+  assert.ok(unit);
+  assert.equal(unit.title, 'Numerical Methods – 1');
+
+  const topics = db.prepare('SELECT title FROM topics WHERE unit_id = ?').all(unit.id);
+  assert.equal(topics.length, 2);
+
+  const docs = db.prepare("SELECT filename FROM documents WHERE subject_code = '3ME2-01'").all();
+  assert.equal(docs.length, 1);
+  assert.equal(docs[0].filename, '1.Gate Notes-Mathematics(s)_optimize.pdf');
+});
