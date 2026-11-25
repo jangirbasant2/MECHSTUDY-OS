@@ -42,15 +42,15 @@ export interface ChatStreamGeminiResult {
 }
 
 export function normalizeGeminiModel(model?: string): string {
-  if (!model) return 'gemini-2.5-flash';
+  if (!model) return 'gemini-1.5-flash';
   const m = model.trim().toLowerCase();
-  if (m === 'gemini-2.5-pro' || m.includes('2.5-pro') || m.includes('carbon')) return 'gemini-2.5-pro';
-  if (m === 'gemini-1.5-pro') return 'gemini-1.5-pro';
-  if (m === 'gemini-1.5-flash') return 'gemini-1.5-flash';
-  // Note: gemini-2.0-flash has been discontinued by Google. All 2.0 references MUST map to active gemini-2.5-flash.
-  if (m.includes('2.0')) return 'gemini-2.5-flash';
-  if (m === 'gemini-2.5-flash' || m.includes('flash') || m.includes('hydrogen') || m.includes('lite')) return 'gemini-2.5-flash';
-  return 'gemini-2.5-flash';
+  if (m === 'gemini-1.5-pro' || m.includes('1.5-pro') || m.includes('2.5-pro') || m.includes('carbon')) return 'gemini-1.5-pro';
+  if (m === 'gemini-2.0-flash' || m.includes('2.0-flash')) return 'gemini-2.0-flash';
+  // Standard production model: gemini-1.5-flash (highest rate limits & lowest 503 latency)
+  if (m === 'gemini-1.5-flash' || m.includes('flash') || m.includes('2.5') || m.includes('2.0') || m.includes('lite') || m.includes('hydrogen')) {
+    return 'gemini-1.5-flash';
+  }
+  return 'gemini-1.5-flash';
 }
 
 export function getEffectiveApiKey(explicitKey?: string): string {
@@ -76,7 +76,7 @@ export function getGeminiClient(apiKey: string): GoogleGenAI {
  */
 export async function testGeminiApiKey(
   apiKey: string,
-  model: string = 'gemini-2.5-flash'
+  model: string = 'gemini-1.5-flash'
 ): Promise<{ ok: boolean; model?: string; error?: string }> {
   const key = apiKey.trim();
   if (!key) {
@@ -179,9 +179,9 @@ export async function chatStreamGemini(
 
   const candidateModels = [
     model,
-    model !== 'gemini-2.5-flash' ? 'gemini-2.5-flash' : 'gemini-1.5-flash',
     'gemini-1.5-flash',
-    'gemini-2.5-pro',
+    'gemini-1.5-pro',
+    'gemini-2.0-flash',
   ].filter((m, i, arr) => Boolean(m) && arr.indexOf(m) === i);
 
   let lastError: any = null;
@@ -252,15 +252,16 @@ export async function chatStreamGemini(
 
         // If transient network or server glitch and we have retries left on current model
         if (tryCount < maxTriesForModel - 1) {
-          console.warn(`[Gemini] Transient error on ${currentModel} (try ${tryCount + 1}/${maxTriesForModel}): ${err.message}. Retrying in 700ms...`);
-          await new Promise(r => setTimeout(r, 700 * (tryCount + 1)));
+          const waitMs = 1000 * (tryCount + 1);
+          console.warn(`[Gemini] Transient error on ${currentModel} (try ${tryCount + 1}/${maxTriesForModel}): ${err.message}. Retrying in ${waitMs}ms...`);
+          await new Promise(r => setTimeout(r, waitMs));
           continue;
         }
 
         // Exhausted retries on this model; if another candidate exists, try it
         if (attempt < candidateModels.length - 1) {
           console.warn(`[Gemini] Model ${currentModel} failed after retries: ${err.message}. Falling back to ${candidateModels[attempt + 1]}...`);
-          await new Promise(r => setTimeout(r, 900));
+          await new Promise(r => setTimeout(r, 1200));
           break; // break inner loop to proceed to next candidateModel
         }
 

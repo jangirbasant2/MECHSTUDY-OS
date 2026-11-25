@@ -6,8 +6,10 @@ import 'katex/dist/katex.min.css';
 import {
   Sparkles, Send, Square, RotateCcw, Trash2, Camera, X, Lightbulb,
   FileText, Brain, HelpCircle, AlertTriangle, Scan, Check, Copy, ArrowRight,
+  BookOpen, ExternalLink,
 } from 'lucide-react';
 import { api } from '../../lib/api';
+import { useApp } from '../../store';
 import { Badge, Spinner } from '../../components/ui';
 import { VoiceInputButton } from '../../components/VoiceInputButton';
 import type {
@@ -49,6 +51,57 @@ export function ReaderAiPanel({
 
   const chatBottomRef = React.useRef<HTMLDivElement>(null);
   const inputRef = React.useRef<HTMLTextAreaElement>(null);
+  const openDocument = useApp(s => s.openDocument);
+
+  const renderMarkdownComponents = React.useMemo(() => ({
+    a: ({ href, children, ...props }: any) => {
+      if (href && (href.startsWith('mechstudy://open-doc') || href.startsWith('mechstudy-doc://') || href.startsWith('#open-doc'))) {
+        let docId = 0;
+        let targetPage = 1;
+        try {
+          if (href.includes('id=')) {
+            const url = new URL(href.replace('mechstudy://', 'http://localhost/'));
+            docId = Number(url.searchParams.get('id') || 0);
+            targetPage = Number(url.searchParams.get('page') || 1);
+          } else {
+            const match = href.match(/open-doc[/-](\d+)[/-](\d+)/);
+            if (match) {
+              docId = Number(match[1]);
+              targetPage = Number(match[2]);
+            }
+          }
+        } catch {}
+
+        if (docId > 0) {
+          return (
+            <button
+              type="button"
+              onClick={(e) => {
+                e.preventDefault();
+                if (docId === documentId) {
+                  onJumpPage(targetPage);
+                } else {
+                  openDocument(docId, targetPage);
+                }
+              }}
+              className="inline-flex items-center gap-1.5 px-2.5 py-1 my-1 rounded bg-amber-500/15 hover:bg-amber-500/25 text-amber-400 border border-amber-500/30 text-[11px] font-semibold transition-all cursor-pointer shadow-sm hover:scale-[1.02] active:scale-[0.98]"
+              title={`Open document #${docId} directly at page ${targetPage}`}
+            >
+              <BookOpen size={12} className="shrink-0 text-amber-400" />
+              <span>{children}</span>
+              <ExternalLink size={10} className="shrink-0 opacity-70" />
+            </button>
+          );
+        }
+      }
+
+      return (
+        <a href={href} target="_blank" rel="noopener noreferrer" className="text-cyan-400 hover:underline font-medium" {...props}>
+          {children}
+        </a>
+      );
+    }
+  }), [documentId, onJumpPage, openDocument]);
 
   // Initialize or load reader conversation
   React.useEffect(() => {
@@ -323,7 +376,7 @@ export function ReaderAiPanel({
                 <span className="font-semibold">{isUser ? 'You' : 'MECHSTUDY AI Tutor'}</span>
               </div>
               <div className="prose-mech text-[11.5px] leading-relaxed break-words">
-                <ReactMarkdown remarkPlugins={[remarkMath]} rehypePlugins={[rehypeKatex]}>
+                <ReactMarkdown remarkPlugins={[remarkMath]} rehypePlugins={[rehypeKatex]} components={renderMarkdownComponents}>
                   {m.content}
                 </ReactMarkdown>
               </div>
@@ -341,7 +394,7 @@ export function ReaderAiPanel({
               <Spinner size={10} /> Generating explanation…
             </div>
             <div className="prose-mech text-[11.5px] leading-relaxed break-words">
-              <ReactMarkdown remarkPlugins={[remarkMath]} rehypePlugins={[rehypeKatex]}>
+              <ReactMarkdown remarkPlugins={[remarkMath]} rehypePlugins={[rehypeKatex]} components={renderMarkdownComponents}>
                 {streamDelta || 'Thinking…'}
               </ReactMarkdown>
             </div>

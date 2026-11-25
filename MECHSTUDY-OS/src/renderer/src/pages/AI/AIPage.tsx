@@ -89,6 +89,58 @@ export function AIPage() {
   const [processingDocs, setProcessingDocs] = React.useState<Map<number, DocumentProcessingProgress>>(new Map());
   const [activeProgressModal, setActiveProgressModal] = React.useState<DocumentProcessingProgress | null>(null);
 
+  const renderMarkdownComponents = React.useMemo(() => ({
+    a: ({ href, children, ...props }: any) => {
+      if (href && (href.startsWith('mechstudy://open-doc') || href.startsWith('mechstudy-doc://') || href.startsWith('#open-doc'))) {
+        let docId = 0;
+        let page = 1;
+        try {
+          if (href.includes('id=')) {
+            const url = new URL(href.replace('mechstudy://', 'http://localhost/'));
+            docId = Number(url.searchParams.get('id') || 0);
+            page = Number(url.searchParams.get('page') || 1);
+          } else {
+            const match = href.match(/open-doc[/-](\d+)[/-](\d+)/);
+            if (match) {
+              docId = Number(match[1]);
+              page = Number(match[2]);
+            }
+          }
+        } catch {}
+
+        if (docId > 0) {
+          return (
+            <button
+              type="button"
+              onClick={(e) => {
+                e.preventDefault();
+                openDocument(docId, page);
+              }}
+              className="inline-flex items-center gap-1.5 px-3 py-1 my-1 rounded-md bg-amber-500/15 hover:bg-amber-500/25 text-amber-400 border border-amber-500/30 text-xs font-semibold transition-all cursor-pointer shadow-sm hover:scale-[1.02] active:scale-[0.98]"
+              title={`Open document #${docId} directly at page ${page}`}
+            >
+              <BookOpen size={13} className="shrink-0 text-amber-400" />
+              <span>{children}</span>
+              <ExternalLink size={11} className="shrink-0 opacity-70" />
+            </button>
+          );
+        }
+      }
+
+      return (
+        <a
+          href={href}
+          target="_blank"
+          rel="noopener noreferrer"
+          className="text-cyan-400 hover:underline font-medium"
+          {...props}
+        >
+          {children}
+        </a>
+      );
+    }
+  }), [openDocument]);
+
   const attachedDocIds = React.useMemo(() => {
     return activeConv?.attachedDocuments?.map(d => d.documentId) || [];
   }, [activeConv?.attachedDocuments]);
@@ -330,9 +382,9 @@ export function AIPage() {
     setStreamingCitations([]);
 
     try {
-      const currentModel = activeConv?.model && !activeConv.model.includes('2.0')
+      const currentModel = activeConv?.model && !activeConv.model.includes('2.0') && !activeConv.model.includes('2.5')
         ? activeConv.model
-        : (settings?.selectedModel && !settings.selectedModel.includes('2.0') ? settings.selectedModel : 'gemini-2.5-flash');
+        : (settings?.selectedModel && !settings.selectedModel.includes('2.0') && !settings.selectedModel.includes('2.5') ? settings.selectedModel : 'gemini-1.5-flash');
 
       await api.ai.sendMessage({
         conversationId: activeConvId,
@@ -429,7 +481,7 @@ export function AIPage() {
                     color: engineStatus?.connected ? 'var(--color-accent2)' : 'var(--color-danger)',
                   }}
                 >
-                  {engineStatus?.connected ? `Google AI Connected (${engineStatus?.activeModel || 'gemini-2.5-flash'})` : 'API Key Required'}
+                  {engineStatus?.connected ? `Google AI Connected (${engineStatus?.activeModel || 'gemini-1.5-flash'})` : 'API Key Required'}
                 </span>
               </div>
               <p className="text-xs" style={{ color: 'var(--color-muted)' }}>
@@ -710,7 +762,7 @@ export function AIPage() {
                         >
                           {/* Markdown rendering with LaTeX Math */}
                           <div className="markdown text-xs space-y-2">
-                            <ReactMarkdown remarkPlugins={[remarkMath]} rehypePlugins={[rehypeKatex]}>
+                            <ReactMarkdown remarkPlugins={[remarkMath]} rehypePlugins={[rehypeKatex]} components={renderMarkdownComponents}>
                               {m.content}
                             </ReactMarkdown>
                           </div>
@@ -799,7 +851,7 @@ export function AIPage() {
                           style={{ background: 'var(--color-panel)', borderColor: 'var(--color-border)' }}
                         >
                           <div className="markdown text-xs space-y-2">
-                            <ReactMarkdown remarkPlugins={[remarkMath]} rehypePlugins={[rehypeKatex]}>
+                            <ReactMarkdown remarkPlugins={[remarkMath]} rehypePlugins={[rehypeKatex]} components={renderMarkdownComponents}>
                               {streamingContent}
                             </ReactMarkdown>
                           </div>
@@ -1069,10 +1121,9 @@ export function AIPage() {
                     onChange={e => setSettings({ ...settings, selectedModel: e.target.value })}
                     className="input w-full text-xs"
                   >
-                    <option value="gemini-2.5-flash">gemini-2.5-flash (Fast &amp; Responsive - Default)</option>
-                    <option value="gemini-2.5-pro">gemini-2.5-pro (Deep Multi-Step Proofs &amp; STEM Derivations)</option>
-                    <option value="gemini-1.5-flash">gemini-1.5-flash (Fast Fallback)</option>
-                    <option value="gemini-1.5-pro">gemini-1.5-pro (Comprehensive)</option>
+                    <option value="gemini-1.5-flash">gemini-1.5-flash (Fast, Multimodal &amp; Highly Reliable - Default)</option>
+                    <option value="gemini-1.5-pro">gemini-1.5-pro (Deep Multi-Step Proofs &amp; STEM Derivations)</option>
+                    <option value="gemini-2.0-flash">gemini-2.0-flash (Next-Gen Fast Multimodal)</option>
                   </select>
                   <p className="text-[11px] text-[var(--color-faint)] mt-1">
                     Zero GPU RAM required. Runs in the cloud with sub-second response times.

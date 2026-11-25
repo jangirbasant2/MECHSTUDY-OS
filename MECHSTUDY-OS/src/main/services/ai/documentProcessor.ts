@@ -257,14 +257,36 @@ export function analyzeDocumentForTopic(documentId: number, topicQuery: string):
   }
 
   const pages = pageMatches.map(m => m.page).sort((a, b) => a - b);
-  const pageStart = pages.length > 0 ? pages[0] : null;
-  const pageEnd = pages.length > 0 ? pages[pages.length - 1] : null;
+  let pageStart = pages.length > 0 ? pages[0] : null;
+  let pageEnd = pages.length > 0 ? pages[pages.length - 1] : null;
+
+  // Avoid sprawling across the whole book if distant matches occur in index/glossary
+  if (pages.length > 0 && pageStart !== null && pageEnd !== null && (pageEnd - pageStart) > 40) {
+    let bestCount = 0;
+    let bestStart = pageStart;
+    let bestEnd = Math.min(pageEnd, pageStart + 35);
+    for (const p of pages) {
+      const windowEnd = p + 35;
+      const inWindow = pages.filter(x => x >= p && x <= windowEnd);
+      if (inWindow.length > bestCount) {
+        bestCount = inWindow.length;
+        bestStart = p;
+        bestEnd = inWindow[inWindow.length - 1];
+      }
+    }
+    pageStart = bestStart;
+    pageEnd = Math.max(bestStart, bestEnd);
+  }
+
   const estimatedPages = (pageStart && pageEnd) ? Math.max(1, (pageEnd - pageStart) + 1) : pages.length;
+
+  // Keep top 10 relevant page matches to prevent bloating prompt and responses
+  const topPageMatches = pageMatches.slice(0, 10);
 
   // Build a smart content summary
   let contentSummary = '';
   if (pages.length > 0) {
-    contentSummary = `Located "${topicQuery}" in ${doc.filename} across ${estimatedPages} page(s) (pages ${pageStart}${pageEnd !== pageStart ? '–' + pageEnd : ''}). Content matches: ${pageMatches.slice(0, 3).map(m => `p.${m.page}`).join(', ')}.`;
+    contentSummary = `Located "${topicQuery}" in ${doc.filename} (Recommended: Pages ${pageStart}${pageEnd !== pageStart ? '–' + pageEnd : ''}, ~${estimatedPages} pages). Key matches: ${topPageMatches.slice(0, 3).map(m => `p.${m.page}`).join(', ')}.`;
   } else {
     const totalPagesIndexed = get<any>('SELECT COUNT(*) as c FROM document_pages WHERE document_id = ?', documentId)?.c || 0;
     if (totalPagesIndexed === 0) {
@@ -278,7 +300,7 @@ export function analyzeDocumentForTopic(documentId: number, topicQuery: string):
     documentId,
     filename: doc.filename,
     topicQuery,
-    pageMatches,
+    pageMatches: topPageMatches,
     pageStart,
     pageEnd,
     estimatedPages,

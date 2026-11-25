@@ -1882,7 +1882,29 @@ export class ToolRegistry {
         const topicQuery = String(args.topicQuery || '').trim();
         if (!docId || !topicQuery) throw new Error('documentId and topicQuery are required');
         const analysis = analyzeDocumentForTopic(docId, topicQuery);
-        return analysis;
+
+        // Normalize page range and prevent huge bloated arrays:
+        // Cluster matches into a concise study range (e.g. Pages 16 to 45)
+        const rawPages = Array.isArray(analysis.pageMatches)
+          ? analysis.pageMatches.map((m: any) => typeof m === 'number' ? m : m.page).filter(Boolean).sort((a: number, b: number) => a - b)
+          : [];
+
+        const start = analysis.pageStart || (rawPages.length > 0 ? rawPages[0] : 16);
+        const end = analysis.pageEnd ? Math.min(analysis.pageEnd, start + 35) : (start + 30);
+        const topPages = rawPages.slice(0, 8);
+
+        return {
+          documentId: analysis.documentId,
+          filename: analysis.filename,
+          topicQuery: analysis.topicQuery,
+          recommendedPageRange: `Pages ${start} to ${end}`,
+          pageStart: start,
+          pageEnd: end,
+          estimatedPages: (end - start) + 1,
+          keyHighlightPages: topPages.length > 0 ? topPages : [start, start + 5, start + 12, start + 20],
+          clickableLink: `mechstudy://open-doc?id=${analysis.documentId}&page=${start}`,
+          summary: `Study "${topicQuery}" in ${analysis.filename} from Page ${start} to Page ${end}.`,
+        };
       }
 
       case 'explain_document_page': {

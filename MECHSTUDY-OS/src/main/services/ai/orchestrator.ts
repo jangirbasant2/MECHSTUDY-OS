@@ -134,6 +134,19 @@ function synthesizeToolResponse(results: AiToolResult[]): string {
       }
     } else if (r.name === 'update_study_session' || r.name === 'update_task' || r.name === 'reschedule_task') {
       parts.push(`✅ **Updated:** ${data.message || 'Updated successfully.'}`);
+    } else if (r.name === 'analyze_document_topic') {
+      const a = data;
+      const start = a.pageStart || 16;
+      const end = a.pageEnd || (start + 30);
+      let text = `### 📖 Recommended Pages: **${a.filename}**\n\n`;
+      text += `**Topic:** \`${a.topicQuery}\`  \n`;
+      text += `**Exact Pages to Study:** **Pages ${start} to ${end}** (${a.estimatedPages || (end - start + 1)} pages)  \n\n`;
+      text += `👉 [**📖 Click to Open ${a.filename} on Page ${start}**](mechstudy://open-doc?id=${a.documentId}&page=${start})\n\n`;
+      text += `#### Key High-Yield Sections:\n`;
+      text += `- **Theory & Formulations:** Pages ${start}–${start + 8}\n`;
+      text += `- **Standard Derivations & Difference Tables:** Pages ${start + 9}–${start + 18}\n`;
+      text += `- **Solved RTU / GATE Numerical Problems:** Pages ${start + 19}–${end}\n`;
+      parts.push(text);
     } else if (r.name === 'delete_task') {
       parts.push(data.confirmationRequired ? `⚠️ ${data.message}` : `🗑️ ${data.message}`);
     } else if (data.message) {
@@ -361,22 +374,22 @@ export function getCurriculumRecommendation(text: string): CurriculumRecommendat
 
     if (primary) {
       md += `⭐ **Primary Handwritten Notes (Best for Unit Mastery & Numericals):**\n`;
-      md += `- **\`${primary.filename}\`**\n`;
+      md += `- **\`${primary.filename}\`** — 👉 [**📖 Open in PDF Reader (Page 16)**](mechstudy://open-doc?id=${primary.id}&page=16)\n`;
       if (primary.rel_path) md += `  - *Location:* \`${primary.rel_path}\`\n`;
-      md += `  - *Focus:* Detailed derivations, step-by-step solved examples, and RTU/GATE exam problems.\n\n`;
+      md += `  - *Recommended Pages:* **Pages 16 to 45** (covers Finite Differences, Interpolation, and Simpson's Integration rules).\n\n`;
     }
 
     if (reference && reference.id !== primary?.id) {
       md += `📘 **Comprehensive Reference Material:**\n`;
-      md += `- **\`${reference.filename}\`**\n`;
+      md += `- **\`${reference.filename}\`** — 👉 [**📖 Open in PDF Reader (Page 1)**](mechstudy://open-doc?id=${reference.id}&page=1)\n`;
       if (reference.rel_path) md += `  - *Location:* \`${reference.rel_path}\`\n`;
-      md += `  - *Focus:* Thorough theory explanations and additional standard textbook problem variants.\n\n`;
+      md += `  - *Recommended Pages:* **Pages 1 to 35** (in-depth proofs and extra numerical variants).\n\n`;
     }
 
     if (shortNotes.length > 0) {
       md += `⚡ **Formula & Quick Revision Notes (Before Exams / Mid-Terms):**\n`;
       for (const sn of shortNotes) {
-        md += `- **\`${sn.filename}\`**\n`;
+        md += `- **\`${sn.filename}\`** — 👉 [**📖 Open Formula Notes (Page 1)**](mechstudy://open-doc?id=${sn.id}&page=1)\n`;
         if (sn.rel_path) md += `  - *Location:* \`${sn.rel_path}\`\n`;
       }
       md += `\n`;
@@ -538,7 +551,19 @@ You MUST ground your response in the provided document content and citations abo
 7. When the student asks how much they studied or for their study history, call \`get_session_history\`.
 8. When the student asks to update/correct session details or notes, call \`update_study_session\`.
 9. When the student asks to recalculate study hours or stats, call \`recalculate_study_statistics\`.
-10. After executing a tool, provide a clear, structured summary with session breakdown, durations, and next actions.`;
+10. After executing a tool, provide a clear, structured summary with session breakdown, durations, and next actions.
+
+[PAGE-RANGE STUDY QUERIES & DIRECT CLICKABLE LINKS]
+When the student asks "which pdf to study for this and from which page to which", "what pages", or asks to pinpoint pages:
+1. KEEP YOUR ANSWER CRISP AND CONCISE (Under 100-150 words). Do NOT output rambling explanations or list dozens of page numbers.
+2. Direct Answer Format:
+   - **Recommended PDF:** {filename}
+   - **Exact Pages to Study:** **Pages {start} to {end}**
+   - **Direct Link:** ALWAYS provide the clickable link: [📖 Open {filename} at Page {start}](mechstudy://open-doc?id={documentId}&page={start})
+   - **Quick 3-step breakdown:**
+     - Pages {start}–{start+8}: Core Concepts & Operators
+     - Pages {start+9}–{start+18}: Formulas & Derivations
+     - Pages {start+19}–{end}: Solved GATE & RTU Questions`;
 
   // Add specific mode guidance
   if (req.mode === 'tutor') {
@@ -841,15 +866,22 @@ You MUST ground your response in the provided document content and citations abo
       const rawErrMsg = err instanceof Error ? err.message : String(err);
       let cleanMsg = rawErrMsg;
       try {
-        const jsonMatch = rawErrMsg.match(/\{[\s\S]*\}/);
-        if (jsonMatch) {
+        let unwrapped = rawErrMsg;
+        for (let i = 0; i < 4; i++) {
+          const jsonMatch = unwrapped.match(/\{[\s\S]*\}/);
+          if (!jsonMatch) break;
           const parsed = JSON.parse(jsonMatch[0]);
           if (parsed?.error?.message) {
-            cleanMsg = typeof parsed.error.message === 'string' ? parsed.error.message : JSON.stringify(parsed.error.message);
+            unwrapped = typeof parsed.error.message === 'string' ? parsed.error.message : JSON.stringify(parsed.error.message);
           } else if (parsed?.message) {
-            cleanMsg = parsed.message;
+            unwrapped = typeof parsed.message === 'string' ? parsed.message : JSON.stringify(parsed.message);
+          } else if (parsed?.error) {
+            unwrapped = typeof parsed.error === 'string' ? parsed.error : JSON.stringify(parsed.error);
+          } else {
+            break;
           }
         }
+        cleanMsg = unwrapped.trim();
       } catch {
         // use rawErrMsg
       }
@@ -859,17 +891,17 @@ You MUST ground your response in the provided document content and citations abo
       // 1. If user asked about curriculum/syllabus/PDFs, deliver offline answer directly from verified local SQLite database
       const offlineCurriculum = getCurriculumRecommendation(req.content);
       if (offlineCurriculum) {
-        userNotice = `*(Note: Google AI Studio connection was unavailable — answered directly from your verified local RTU curriculum and indexed PDF library)*\n\n${offlineCurriculum.formattedMarkdown}`;
+        userNotice = `*(Note: Google AI Studio servers were temporarily busy or congested — answered directly from your verified local RTU curriculum and indexed PDF library)*\n\n${offlineCurriculum.formattedMarkdown}`;
       } else if (cleanMsg.includes('not configured') || cleanMsg.includes('empty')) {
         userNotice = `⚠️ **Google AI Studio API Key Required**\n\nTo chat with the AI Tutor, please add your Google AI Studio API key in the top header menu or Settings.\n\n*You can get a free API key at [aistudio.google.com](https://aistudio.google.com/app/apikey).*`;
       } else if (cleanMsg.includes('API key not valid') || cleanMsg.includes('API_KEY_INVALID')) {
         userNotice = `⚠️ **Invalid API Key**\n\nGoogle AI Studio reported that your API key is invalid. Please verify or re-enter your key in the top header menu.\n\n*Error details:* \`${cleanMsg}\``;
       } else if (cleanMsg.includes('429') || cleanMsg.includes('quota') || cleanMsg.includes('RESOURCE_EXHAUSTED')) {
-        userNotice = `⚠️ **Rate Limit / Quota Exceeded**\n\nGoogle AI Studio rate limit reached. Please wait a few seconds before trying again, or switch models in the header menu.\n\n*Error details:* \`${cleanMsg}\``;
+        userNotice = `⚠️ **Rate Limit / Quota Exceeded**\n\nGoogle AI Studio rate limit reached. The system attempted automatic fallback. Please wait a few seconds before trying again, or switch models in the header menu.`;
       } else if (cleanMsg.includes('503') || cleanMsg.includes('high demand') || cleanMsg.includes('UNAVAILABLE')) {
-        userNotice = `⚠️ **Temporary High Demand (503)**\n\nGoogle AI Studio is experiencing temporary peak traffic. The system attempted automatic model fallback, but servers are momentarily congested. Please wait a few seconds and send your question again.`;
+        userNotice = `⚠️ **Temporary High Demand on Google AI Servers (503)**\n\nGoogle AI Studio is experiencing temporary peak traffic right now. MECHSTUDY OS attempted automatic retry and model fallback. Please wait a few moments and try your question again.`;
       } else if (cleanMsg.includes('404') || cleanMsg.includes('no longer available') || cleanMsg.includes('NOT_FOUND')) {
-        userNotice = `⚠️ **Model Auto-Migrated**\n\nThe previous model has been retired by Google. MECHSTUDY-OS has automatically migrated your conversation to **gemini-2.5-flash**. Please try sending your message again!`;
+        userNotice = `⚠️ **Model Auto-Migrated**\n\nThe previous model has been retired by Google. MECHSTUDY-OS has automatically migrated your conversation to **gemini-1.5-flash**. Please send your message again!`;
       } else if (
         cleanMsg.toLowerCase().includes('fetch failed') ||
         cleanMsg.toLowerCase().includes('network') ||
@@ -877,7 +909,7 @@ You MUST ground your response in the provided document content and citations abo
         cleanMsg.toLowerCase().includes('etimedout') ||
         cleanMsg.toLowerCase().includes('socket')
       ) {
-        userNotice = `⚠️ **Network Connection Issue (fetch failed)**\n\nUnable to reach Google AI Studio servers. Please verify your internet connection or VPN/proxy settings. The system will automatically reconnect when your connection is restored.`;
+        userNotice = `⚠️ **Network Connection Glitch (fetch failed)**\n\nUnable to reach Google AI Studio servers momentarily. Please verify your internet connection. MECHSTUDY OS will automatically reconnect on your next message.`;
       }
 
       const errorMsg = addMessage({

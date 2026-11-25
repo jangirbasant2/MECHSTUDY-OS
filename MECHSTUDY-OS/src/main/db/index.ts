@@ -79,11 +79,11 @@ export function initDb(): { path: string; version: number } {
 
   const version = (db.prepare('SELECT MAX(version) v FROM schema_migrations').get() as { v: number }).v ?? 0;
 
-  // Self-heal deprecated models (e.g. discontinued gemini-2.0-flash) in SQLite
+  // Self-heal deprecated models (e.g. discontinued gemini-2.0-flash / nonexistent 2.5) in SQLite
   try {
     db.exec(`
-      UPDATE ai_conversations SET model = 'gemini-2.5-flash' WHERE model LIKE '%2.0%' OR model IS NULL OR model = '';
-      UPDATE app_settings SET value = 'gemini-2.5-flash' WHERE key = 'ai.selectedModel' AND (value LIKE '%2.0%' OR value = '' OR value IS NULL);
+      UPDATE ai_conversations SET model = 'gemini-1.5-flash' WHERE model LIKE '%2.0%' OR model LIKE '%2.5%' OR model IS NULL OR model = '';
+      UPDATE app_settings SET value = 'gemini-1.5-flash' WHERE key = 'ai.selectedModel' AND (value LIKE '%2.0%' OR value LIKE '%2.5%' OR value = '' OR value IS NULL);
     `);
   } catch {
     /* non-fatal */
