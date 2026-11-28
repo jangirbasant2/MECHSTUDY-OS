@@ -640,9 +640,9 @@ export function registerIpc(): void {
       installed: true,
       host: 'https://generativelanguage.googleapis.com',
       version: 'v1.4-cloud',
-      activeModel: settings.selectedModel || 'gemini-1.5-flash',
+      activeModel: settings.selectedModel || 'gemini-2.5-flash',
       availableModelsCount: 3,
-      model: settings.selectedModel || 'gemini-1.5-flash',
+      model: settings.selectedModel || 'gemini-2.5-flash',
       provider: 'google-ai-studio',
       keyConfigured: hasKey,
     };
@@ -655,9 +655,9 @@ export function registerIpc(): void {
     message: 'Google AI Studio active',
   }));
   handle('ai:listModels', () => [
-    { name: 'gemini-1.5-flash', model: 'gemini-1.5-flash', size: 0, parameterSize: 'Fast, Multimodal & Highly Reliable (Default)', family: 'Google AI Studio' },
-    { name: 'gemini-1.5-pro', model: 'gemini-1.5-pro', size: 0, parameterSize: 'Deep STEM & Complex Derivations', family: 'Google AI Studio' },
-    { name: 'gemini-2.0-flash', model: 'gemini-2.0-flash', size: 0, parameterSize: 'Next-Gen Fast Multimodal', family: 'Google AI Studio' },
+    { name: 'gemini-2.5-flash', model: 'gemini-2.5-flash', size: 0, parameterSize: 'Fast, Multimodal & Highly Reliable (Default)', family: 'Google AI Studio' },
+    { name: 'gemini-2.5-flash-lite', model: 'gemini-2.5-flash-lite', size: 0, parameterSize: 'Ultra-Fast Lightweight Flash', family: 'Google AI Studio' },
+    { name: 'gemini-3.8-flash', model: 'gemini-3.8-flash', size: 0, parameterSize: 'Next-Gen Flash Preview', family: 'Google AI Studio' },
   ]);
   handle('ocr:detectScannedPages', ({ documentId }) => {
     return detectScannedPages(Number(documentId));

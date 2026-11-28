@@ -283,8 +283,23 @@ export interface CurriculumRecommendationResult {
   formattedMarkdown: string;
 }
 
-export function getCurriculumRecommendation(text: string): CurriculumRecommendationResult | null {
-  const lower = text.toLowerCase();
+export function getCurriculumRecommendation(text: string, conversationId?: number): CurriculumRecommendationResult | null {
+  let combinedText = text;
+  if (conversationId) {
+    try {
+      const pastUserMsgs = all<{ content: string }>(
+        "SELECT content FROM ai_messages WHERE conversation_id = ? AND role = 'user' ORDER BY id DESC LIMIT 5",
+        conversationId
+      );
+      if (pastUserMsgs.length > 0) {
+        combinedText = pastUserMsgs.map(m => m.content).join(' ') + ' ' + text;
+      }
+    } catch {
+      // non-fatal
+    }
+  }
+
+  const lower = combinedText.toLowerCase();
 
   const isCurriculumQuery = /(pdf|notes|study|read|book|material|unit|syllabus|chapter|which pdf|exact pdf|sem|semester)/i.test(lower);
   if (!isCurriculumQuery) return null;
@@ -297,7 +312,10 @@ export function getCurriculumRecommendation(text: string): CurriculumRecommendat
   else if (lower.includes('mechanic')) subjectQuery = '%Engineering Mechanics%';
   else if (lower.includes('mefa') || lower.includes('economic')) subjectQuery = '%Managerial Economics%';
 
-  if (!subjectQuery) return null;
+  if (!subjectQuery) {
+    // Default to core Advance Engineering Mathematics-I or general core subjects if user asked general "which pdf to study from"
+    subjectQuery = '%Mathematics%';
+  }
 
   // Extract semester if mentioned (default to 3 for core mechanical if not specified or sem 3)
   const semMatch = lower.match(/sem(?:ester)?\s*#?([1-8])/i);
@@ -522,7 +540,7 @@ export async function processUserMessage(
   }
 
   // Inject verified curriculum & PDF library context when student asks about subjects/units/notes
-  const curriculumCtx = getCurriculumRecommendation(req.content);
+  const curriculumCtx = getCurriculumRecommendation(req.content, req.conversationId);
   if (curriculumCtx) {
     systemPrompt += `\n\n[OFFICIAL RTU/GATE SYLLABUS & LOCAL PDF LIBRARY CONTEXT]\n${curriculumCtx.formattedMarkdown}\nGround your recommendation in these exact local library PDFs, official syllabus units, and topics.`;
   }
@@ -889,7 +907,7 @@ When the student asks "which pdf to study for this and from which page to which"
       let userNotice = `⚠️ **AI Tutor Notice:** ${cleanMsg}`;
 
       // 1. If user asked about curriculum/syllabus/PDFs, deliver offline answer directly from verified local SQLite database
-      const offlineCurriculum = getCurriculumRecommendation(req.content);
+      const offlineCurriculum = getCurriculumRecommendation(req.content, req.conversationId);
       if (offlineCurriculum) {
         userNotice = `*(Note: Google AI Studio servers were temporarily busy or congested — answered directly from your verified local RTU curriculum and indexed PDF library)*\n\n${offlineCurriculum.formattedMarkdown}`;
       } else if (cleanMsg.includes('not configured') || cleanMsg.includes('empty')) {
@@ -901,7 +919,11 @@ When the student asks "which pdf to study for this and from which page to which"
       } else if (cleanMsg.includes('503') || cleanMsg.includes('high demand') || cleanMsg.includes('UNAVAILABLE')) {
         userNotice = `⚠️ **Temporary High Demand on Google AI Servers (503)**\n\nGoogle AI Studio is experiencing temporary peak traffic right now. MECHSTUDY OS attempted automatic retry and model fallback. Please wait a few moments and try your question again.`;
       } else if (cleanMsg.includes('404') || cleanMsg.includes('no longer available') || cleanMsg.includes('NOT_FOUND')) {
-        userNotice = `⚠️ **Model Auto-Migrated**\n\nThe previous model has been retired by Google. MECHSTUDY-OS has automatically migrated your conversation to **gemini-1.5-flash**. Please send your message again!`;
+        try {
+          run("UPDATE ai_conversations SET model = 'gemini-2.5-flash' WHERE id = ?", req.conversationId);
+          run("UPDATE app_settings SET value = 'gemini-2.5-flash' WHERE key = 'ai.selectedModel'");
+        } catch { /* non-fatal */ }
+        userNotice = `⚠️ **Model Auto-Migrated**\n\nThe previous model has been retired by Google. MECHSTUDY-OS has automatically migrated your conversation to **gemini-2.5-flash**. Please send your message again!`;
       } else if (
         cleanMsg.toLowerCase().includes('fetch failed') ||
         cleanMsg.toLowerCase().includes('network') ||

@@ -42,15 +42,12 @@ export interface ChatStreamGeminiResult {
 }
 
 export function normalizeGeminiModel(model?: string): string {
-  if (!model) return 'gemini-1.5-flash';
+  if (!model) return 'gemini-2.5-flash';
   const m = model.trim().toLowerCase();
-  if (m === 'gemini-1.5-pro' || m.includes('1.5-pro') || m.includes('2.5-pro') || m.includes('carbon')) return 'gemini-1.5-pro';
-  if (m === 'gemini-2.0-flash' || m.includes('2.0-flash')) return 'gemini-2.0-flash';
-  // Standard production model: gemini-1.5-flash (highest rate limits & lowest 503 latency)
-  if (m === 'gemini-1.5-flash' || m.includes('flash') || m.includes('2.5') || m.includes('2.0') || m.includes('lite') || m.includes('hydrogen')) {
-    return 'gemini-1.5-flash';
-  }
-  return 'gemini-1.5-flash';
+  if (m === 'gemini-3.8-flash' || m.includes('3.8-flash')) return 'gemini-3.8-flash';
+  if (m === 'gemini-2.5-flash-lite' || m.includes('flash-lite')) return 'gemini-2.5-flash-lite';
+  // All active and retired models map cleanly to production gemini-2.5-flash
+  return 'gemini-2.5-flash';
 }
 
 export function getEffectiveApiKey(explicitKey?: string): string {
@@ -76,7 +73,7 @@ export function getGeminiClient(apiKey: string): GoogleGenAI {
  */
 export async function testGeminiApiKey(
   apiKey: string,
-  model: string = 'gemini-1.5-flash'
+  model: string = 'gemini-2.5-flash'
 ): Promise<{ ok: boolean; model?: string; error?: string }> {
   const key = apiKey.trim();
   if (!key) {
@@ -179,9 +176,9 @@ export async function chatStreamGemini(
 
   const candidateModels = [
     model,
-    'gemini-1.5-flash',
-    'gemini-1.5-pro',
-    'gemini-2.0-flash',
+    'gemini-2.5-flash',
+    'gemini-2.5-flash-lite',
+    'gemini-3.8-flash',
   ].filter((m, i, arr) => Boolean(m) && arr.indexOf(m) === i);
 
   let lastError: any = null;

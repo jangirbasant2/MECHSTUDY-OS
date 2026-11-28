@@ -32,7 +32,7 @@ export function Topbar() {
   const [aiMenuOpen, setAiMenuOpen] = React.useState(false);
   const [apiKey, setApiKey] = React.useState('');
   const [showKey, setShowKey] = React.useState(false);
-  const [selectedModel, setSelectedModel] = React.useState('gemini-1.5-flash');
+  const [selectedModel, setSelectedModel] = React.useState('gemini-2.5-flash');
   const [autoOcr, setAutoOcr] = React.useState(true);
   const [keyStatus, setKeyStatus] = React.useState<'checking' | 'connected' | 'error' | 'none'>('none');
   const [statusMessage, setStatusMessage] = React.useState<string>('');
@@ -354,9 +354,9 @@ export function Topbar() {
                     value={selectedModel}
                     onChange={handleModelChange}
                   >
-                    <option value="gemini-1.5-flash">gemini-1.5-flash (Fast, Multimodal &amp; Highly Reliable - Default)</option>
-                    <option value="gemini-1.5-pro">gemini-1.5-pro (Deep STEM &amp; Reasoning)</option>
-                    <option value="gemini-2.0-flash">gemini-2.0-flash (Next-Gen Fast Multimodal)</option>
+                    <option value="gemini-2.5-flash">gemini-2.5-flash (Fast, Multimodal &amp; Highly Reliable - Default)</option>
+                    <option value="gemini-2.5-flash-lite">gemini-2.5-flash-lite (Ultra-Fast Lightweight Flash)</option>
+                    <option value="gemini-3.8-flash">gemini-3.8-flash (Next-Gen Flash Preview)</option>
                   </select>
                 </div>
 

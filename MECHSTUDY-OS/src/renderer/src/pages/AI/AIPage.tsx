@@ -382,9 +382,9 @@ export function AIPage() {
     setStreamingCitations([]);
 
     try {
-      const currentModel = activeConv?.model && !activeConv.model.includes('2.0') && !activeConv.model.includes('2.5')
+      const currentModel = activeConv?.model && !activeConv.model.includes('1.5') && !activeConv.model.includes('2.0')
         ? activeConv.model
-        : (settings?.selectedModel && !settings.selectedModel.includes('2.0') && !settings.selectedModel.includes('2.5') ? settings.selectedModel : 'gemini-1.5-flash');
+        : (settings?.selectedModel && !settings.selectedModel.includes('1.5') && !settings.selectedModel.includes('2.0') ? settings.selectedModel : 'gemini-2.5-flash');
 
       await api.ai.sendMessage({
         conversationId: activeConvId,
@@ -481,7 +481,7 @@ export function AIPage() {
                     color: engineStatus?.connected ? 'var(--color-accent2)' : 'var(--color-danger)',
                   }}
                 >
-                  {engineStatus?.connected ? `Google AI Connected (${engineStatus?.activeModel || 'gemini-1.5-flash'})` : 'API Key Required'}
+                  {engineStatus?.connected ? `Google AI Connected (${engineStatus?.activeModel || 'gemini-2.5-flash'})` : 'API Key Required'}
                 </span>
               </div>
               <p className="text-xs" style={{ color: 'var(--color-muted)' }}>
@@ -1121,9 +1121,9 @@ export function AIPage() {
                     onChange={e => setSettings({ ...settings, selectedModel: e.target.value })}
                     className="input w-full text-xs"
                   >
-                    <option value="gemini-1.5-flash">gemini-1.5-flash (Fast, Multimodal &amp; Highly Reliable - Default)</option>
-                    <option value="gemini-1.5-pro">gemini-1.5-pro (Deep Multi-Step Proofs &amp; STEM Derivations)</option>
-                    <option value="gemini-2.0-flash">gemini-2.0-flash (Next-Gen Fast Multimodal)</option>
+                    <option value="gemini-2.5-flash">gemini-2.5-flash (Fast, Multimodal &amp; Highly Reliable - Default)</option>
+                    <option value="gemini-2.5-flash-lite">gemini-2.5-flash-lite (Ultra-Fast Lightweight Flash)</option>
+                    <option value="gemini-3.8-flash">gemini-3.8-flash (Next-Gen Flash Preview)</option>
                   </select>
                   <p className="text-[11px] text-[var(--color-faint)] mt-1">
                     Zero GPU RAM required. Runs in the cloud with sub-second response times.
