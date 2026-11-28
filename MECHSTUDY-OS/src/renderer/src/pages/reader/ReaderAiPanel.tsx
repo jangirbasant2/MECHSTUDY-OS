@@ -1,5 +1,5 @@
 import React from 'react';
-import ReactMarkdown from 'react-markdown';
+import ReactMarkdown, { defaultUrlTransform } from 'react-markdown';
 import remarkMath from 'remark-math';
 import rehypeKatex from 'rehype-katex';
 import 'katex/dist/katex.min.css';
@@ -53,46 +53,74 @@ export function ReaderAiPanel({
   const inputRef = React.useRef<HTMLTextAreaElement>(null);
   const openDocument = useApp(s => s.openDocument);
 
+  const customUrlTransform = React.useCallback((url: string) => {
+    if (
+      url.startsWith('mechstudy://') ||
+      url.startsWith('mechstudy-doc://') ||
+      url.startsWith('#') ||
+      url.startsWith('file://')
+    ) {
+      return url;
+    }
+    return defaultUrlTransform(url);
+  }, []);
+
   const renderMarkdownComponents = React.useMemo(() => ({
     a: ({ href, children, ...props }: any) => {
-      if (href && (href.startsWith('mechstudy://open-doc') || href.startsWith('mechstudy-doc://') || href.startsWith('#open-doc'))) {
-        let docId = 0;
-        let targetPage = 1;
-        try {
-          if (href.includes('id=')) {
-            const url = new URL(href.replace('mechstudy://', 'http://localhost/'));
-            docId = Number(url.searchParams.get('id') || 0);
-            targetPage = Number(url.searchParams.get('page') || 1);
-          } else {
-            const match = href.match(/open-doc[/-](\d+)[/-](\d+)/);
-            if (match) {
-              docId = Number(match[1]);
-              targetPage = Number(match[2]);
-            }
-          }
-        } catch {}
+      const rawHref = String(href || '');
+      let docId = 0;
+      let targetPage = 1;
 
-        if (docId > 0) {
-          return (
-            <button
-              type="button"
-              onClick={(e) => {
-                e.preventDefault();
-                if (docId === documentId) {
-                  onJumpPage(targetPage);
-                } else {
-                  openDocument(docId, targetPage);
-                }
-              }}
-              className="inline-flex items-center gap-1.5 px-2.5 py-1 my-1 rounded bg-amber-500/15 hover:bg-amber-500/25 text-amber-400 border border-amber-500/30 text-[11px] font-semibold transition-all cursor-pointer shadow-sm hover:scale-[1.02] active:scale-[0.98]"
-              title={`Open document #${docId} directly at page ${targetPage}`}
-            >
-              <BookOpen size={12} className="shrink-0 text-amber-400" />
-              <span>{children}</span>
-              <ExternalLink size={10} className="shrink-0 opacity-70" />
-            </button>
-          );
+      if (rawHref) {
+        if (rawHref.includes('id=')) {
+          try {
+            const url = new URL(rawHref.replace(/^(mechstudy|mechstudy-doc|app):\/\//, 'http://localhost/'));
+            docId = Number(url.searchParams.get('id') || url.searchParams.get('documentId') || url.searchParams.get('docId') || 0);
+            targetPage = Number(url.searchParams.get('page') || url.searchParams.get('p') || 1);
+          } catch {
+            const m = rawHref.match(/[?&](?:id|documentId|docId)=(\d+)/);
+            if (m) docId = Number(m[1]);
+            const p = rawHref.match(/[?&](?:page|p)=(\d+)/);
+            if (p) targetPage = Number(p[1]);
+          }
+        } else {
+          const match = rawHref.match(/open-doc[/-](\d+)(?:[/-](\d+))?/i);
+          if (match) {
+            docId = Number(match[1]);
+            targetPage = match[2] ? Number(match[2]) : 1;
+          }
         }
+      }
+
+      if (docId === 0 && rawHref.startsWith('#')) {
+        const hashMatch = rawHref.match(/#(\d+)(?:[-/p](\d+))?/);
+        if (hashMatch) {
+          docId = Number(hashMatch[1]);
+          targetPage = hashMatch[2] ? Number(hashMatch[2]) : 1;
+        }
+      }
+
+      if (docId > 0) {
+        return (
+          <button
+            type="button"
+            onClick={(e) => {
+              e.preventDefault();
+              e.stopPropagation();
+              if (docId === documentId) {
+                onJumpPage(targetPage);
+              } else {
+                openDocument(docId, targetPage);
+              }
+            }}
+            className="inline-flex items-center gap-1.5 px-2.5 py-1 my-1 rounded bg-amber-500/15 hover:bg-amber-500/25 active:bg-amber-500/35 text-amber-300 hover:text-amber-200 border border-amber-500/30 hover:border-amber-500/50 text-[11px] font-semibold transition-all cursor-pointer shadow-sm hover:scale-[1.02] active:scale-[0.98]"
+            title={`Open document #${docId} directly at page ${targetPage}`}
+          >
+            <BookOpen size={12} className="shrink-0 text-amber-400" />
+            <span className="underline underline-offset-2">{children}</span>
+            <ExternalLink size={10} className="shrink-0 opacity-70" />
+          </button>
+        );
       }
 
       return (
@@ -376,7 +404,7 @@ export function ReaderAiPanel({
                 <span className="font-semibold">{isUser ? 'You' : 'MECHSTUDY AI Tutor'}</span>
               </div>
               <div className="prose-mech text-[11.5px] leading-relaxed break-words">
-                <ReactMarkdown remarkPlugins={[remarkMath]} rehypePlugins={[rehypeKatex]} components={renderMarkdownComponents}>
+                <ReactMarkdown remarkPlugins={[remarkMath]} rehypePlugins={[rehypeKatex]} urlTransform={customUrlTransform} components={renderMarkdownComponents}>
                   {m.content}
                 </ReactMarkdown>
               </div>
@@ -394,7 +422,7 @@ export function ReaderAiPanel({
               <Spinner size={10} /> Generating explanation…
             </div>
             <div className="prose-mech text-[11.5px] leading-relaxed break-words">
-              <ReactMarkdown remarkPlugins={[remarkMath]} rehypePlugins={[rehypeKatex]} components={renderMarkdownComponents}>
+              <ReactMarkdown remarkPlugins={[remarkMath]} rehypePlugins={[rehypeKatex]} urlTransform={customUrlTransform} components={renderMarkdownComponents}>
                 {streamDelta || 'Thinking…'}
               </ReactMarkdown>
             </div>

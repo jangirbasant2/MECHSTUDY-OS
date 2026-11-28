@@ -1,5 +1,5 @@
 import React from 'react';
-import ReactMarkdown from 'react-markdown';
+import ReactMarkdown, { defaultUrlTransform } from 'react-markdown';
 import remarkMath from 'remark-math';
 import rehypeKatex from 'rehype-katex';
 import 'katex/dist/katex.min.css';
@@ -89,42 +89,71 @@ export function AIPage() {
   const [processingDocs, setProcessingDocs] = React.useState<Map<number, DocumentProcessingProgress>>(new Map());
   const [activeProgressModal, setActiveProgressModal] = React.useState<DocumentProcessingProgress | null>(null);
 
+  const customUrlTransform = React.useCallback((url: string) => {
+    if (
+      url.startsWith('mechstudy://') ||
+      url.startsWith('mechstudy-doc://') ||
+      url.startsWith('#') ||
+      url.startsWith('file://')
+    ) {
+      return url;
+    }
+    return defaultUrlTransform(url);
+  }, []);
+
   const renderMarkdownComponents = React.useMemo(() => ({
     a: ({ href, children, ...props }: any) => {
-      if (href && (href.startsWith('mechstudy://open-doc') || href.startsWith('mechstudy-doc://') || href.startsWith('#open-doc'))) {
-        let docId = 0;
-        let page = 1;
-        try {
-          if (href.includes('id=')) {
-            const url = new URL(href.replace('mechstudy://', 'http://localhost/'));
-            docId = Number(url.searchParams.get('id') || 0);
-            page = Number(url.searchParams.get('page') || 1);
-          } else {
-            const match = href.match(/open-doc[/-](\d+)[/-](\d+)/);
-            if (match) {
-              docId = Number(match[1]);
-              page = Number(match[2]);
-            }
-          }
-        } catch {}
+      const rawHref = String(href || '');
+      let docId = 0;
+      let page = 1;
 
-        if (docId > 0) {
-          return (
-            <button
-              type="button"
-              onClick={(e) => {
-                e.preventDefault();
-                openDocument(docId, page);
-              }}
-              className="inline-flex items-center gap-1.5 px-3 py-1 my-1 rounded-md bg-amber-500/15 hover:bg-amber-500/25 text-amber-400 border border-amber-500/30 text-xs font-semibold transition-all cursor-pointer shadow-sm hover:scale-[1.02] active:scale-[0.98]"
-              title={`Open document #${docId} directly at page ${page}`}
-            >
-              <BookOpen size={13} className="shrink-0 text-amber-400" />
-              <span>{children}</span>
-              <ExternalLink size={11} className="shrink-0 opacity-70" />
-            </button>
-          );
+      if (rawHref) {
+        if (rawHref.includes('id=')) {
+          try {
+            const url = new URL(rawHref.replace(/^(mechstudy|mechstudy-doc|app):\/\//, 'http://localhost/'));
+            docId = Number(url.searchParams.get('id') || url.searchParams.get('documentId') || url.searchParams.get('docId') || 0);
+            page = Number(url.searchParams.get('page') || url.searchParams.get('p') || 1);
+          } catch {
+            const m = rawHref.match(/[?&](?:id|documentId|docId)=(\d+)/);
+            if (m) docId = Number(m[1]);
+            const p = rawHref.match(/[?&](?:page|p)=(\d+)/);
+            if (p) page = Number(p[1]);
+          }
+        } else {
+          const match = rawHref.match(/open-doc[/-](\d+)(?:[/-](\d+))?/i);
+          if (match) {
+            docId = Number(match[1]);
+            page = match[2] ? Number(match[2]) : 1;
+          }
         }
+      }
+
+      // Fallback check if href starts with # or contains document pattern
+      if (docId === 0 && rawHref.startsWith('#')) {
+        const hashMatch = rawHref.match(/#(\d+)(?:[-/p](\d+))?/);
+        if (hashMatch) {
+          docId = Number(hashMatch[1]);
+          page = hashMatch[2] ? Number(hashMatch[2]) : 1;
+        }
+      }
+
+      if (docId > 0) {
+        return (
+          <button
+            type="button"
+            onClick={(e) => {
+              e.preventDefault();
+              e.stopPropagation();
+              openDocument(docId, page);
+            }}
+            className="inline-flex items-center gap-1.5 px-3 py-1.5 my-1.5 rounded-lg bg-emerald-500/15 hover:bg-emerald-500/25 active:bg-emerald-500/35 text-emerald-300 hover:text-emerald-200 border border-emerald-500/30 hover:border-emerald-500/50 text-xs font-semibold transition-all cursor-pointer shadow-sm hover:scale-[1.02] active:scale-[0.98]"
+            title={`Click to open document #${docId} in PDF Reader at page ${page}`}
+          >
+            <BookOpen size={14} className="shrink-0 text-emerald-400" />
+            <span className="underline underline-offset-2">{children}</span>
+            <ExternalLink size={12} className="shrink-0 opacity-70 text-emerald-400" />
+          </button>
+        );
       }
 
       return (
@@ -138,7 +167,7 @@ export function AIPage() {
           {children}
         </a>
       );
-    }
+    },
   }), [openDocument]);
 
   const attachedDocIds = React.useMemo(() => {
@@ -762,7 +791,7 @@ export function AIPage() {
                         >
                           {/* Markdown rendering with LaTeX Math */}
                           <div className="markdown text-xs space-y-2">
-                            <ReactMarkdown remarkPlugins={[remarkMath]} rehypePlugins={[rehypeKatex]} components={renderMarkdownComponents}>
+                            <ReactMarkdown remarkPlugins={[remarkMath]} rehypePlugins={[rehypeKatex]} urlTransform={customUrlTransform} components={renderMarkdownComponents}>
                               {m.content}
                             </ReactMarkdown>
                           </div>
@@ -851,7 +880,7 @@ export function AIPage() {
                           style={{ background: 'var(--color-panel)', borderColor: 'var(--color-border)' }}
                         >
                           <div className="markdown text-xs space-y-2">
-                            <ReactMarkdown remarkPlugins={[remarkMath]} rehypePlugins={[rehypeKatex]} components={renderMarkdownComponents}>
+                            <ReactMarkdown remarkPlugins={[remarkMath]} rehypePlugins={[rehypeKatex]} urlTransform={customUrlTransform} components={renderMarkdownComponents}>
                               {streamingContent}
                             </ReactMarkdown>
                           </div>
